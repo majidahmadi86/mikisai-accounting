@@ -42,5 +42,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/).*)"],
+  // Skip Next internals, API routes and anything served from /public (brand assets, fonts, files with an extension).
+  matcher: ["/((?!_next/static|_next/image|api/|brand/|fonts/|.*\\..*).*)"],
 };
