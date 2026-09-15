@@ -9,10 +9,12 @@ const display = Bodoni_Moda({
   axes: ["opsz"],
 });
 
+// Thai faces are not preloaded: English pages never need them, and Thai pages fetch them on first use.
 const displayThai = Noto_Serif_Thai({
   variable: "--font-display-thai",
   subsets: ["thai"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "600"],
+  preload: false,
 });
 
 const body = Jost({
@@ -24,6 +26,7 @@ const bodyThai = Noto_Sans_Thai({
   variable: "--font-body-thai",
   subsets: ["thai"],
   weight: ["400", "500", "600"],
+  preload: false,
 });
 
 export const metadata: Metadata = {

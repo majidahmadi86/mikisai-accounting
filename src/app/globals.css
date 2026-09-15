@@ -12,8 +12,8 @@
   --lavender: #c9b8e8;
   --ivory: #faf7f2;
   --ivory-deep: #f2ece4;
-  --plum-soft: rgba(48, 35, 51, 0.62);
-  --plum-faint: rgba(48, 35, 51, 0.42);
+  --plum-soft: rgba(48, 35, 51, 0.76);
+  --plum-faint: rgba(48, 35, 51, 0.66);
   --lavender-tint: rgba(201, 184, 232, 0.15);
   --lavender-soft: rgba(201, 184, 232, 0.4);
   --berry-tint: rgba(143, 49, 95, 0.1);
@@ -22,6 +22,7 @@
   --success: #3e6b4f;
   --success-tint: rgba(62, 107, 79, 0.1);
   --warning: #b8862b;
+  --warning-ink: #7d5a1a;
   --warning-tint: rgba(184, 134, 43, 0.12);
 }
 
@@ -42,6 +43,7 @@
   --color-success: var(--success);
   --color-success-tint: var(--success-tint);
   --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
   --color-warning-tint: var(--warning-tint);
   --font-sans: var(--font-body), var(--font-body-thai), Inter, ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display), var(--font-display-thai), "Playfair Display", Georgia, serif;

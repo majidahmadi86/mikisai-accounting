@@ -9,7 +9,7 @@ const tones: Record<PillTone, string> = {
   plum: "bg-plum text-ivory",
   neutral: "bg-ivory-deep text-plum-soft",
   success: "bg-success-tint text-success",
-  warning: "bg-warning-tint text-warning",
+  warning: "bg-warning-tint text-warning-ink",
 };
 
 /** Status pills always carry words, never colour alone. */

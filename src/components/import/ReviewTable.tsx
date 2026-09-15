@@ -211,7 +211,7 @@ export function ReviewTable({
                   title={r.net_estimated ? t("import.estimatedNet") : undefined}
                   onChange={(e) => patch(r.key, { net_amount: e.target.value === "" ? null : Number(e.target.value), net_estimated: false })}
                 />
-                {r.net_estimated ? <p className="mt-0.5 text-[10px] text-warning">{t("common.estimated")}</p> : null}
+                {r.net_estimated ? <p className="mt-0.5 text-[10px] text-warning-ink">{t("common.estimated")}</p> : null}
               </Td>
               <Td>
                 <select className={cn(cell, "min-w-40")} value={r.status} onChange={(e) => patch(r.key, { status: e.target.value as ReviewRow["status"] })}>
