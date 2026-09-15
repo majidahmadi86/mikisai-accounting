@@ -1,0 +1,118 @@
+export const PLATFORMS = ["tiktok", "shopee", "fb", "other"] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
+export const PRODUCT_LINES = ["sugar", "skincare", "other"] as const;
+export type ProductLine = (typeof PRODUCT_LINES)[number];
+
+export const PEOPLE = ["mike", "sai"] as const;
+export type Person = (typeof PEOPLE)[number];
+
+export const EXPENSE_CATEGORIES = ["product_cost", "packaging", "shipping", "ads", "registration", "other"] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const SETTLEMENT_STATUSES = ["pending", "settled_not_withdrawn", "received_in_bank"] as const;
+export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number];
+
+export const TRANSACTION_TYPES = ["income", "expense"] as const;
+export type TransactionType = (typeof TRANSACTION_TYPES)[number];
+
+export type Business = { id: string; name: string };
+
+export type Profile = {
+  id: string;
+  business_id: string;
+  display_name: "Mike" | "Sai";
+};
+
+export type Transaction = {
+  id: string;
+  business_id: string;
+  type: TransactionType;
+  date: string;
+  platform: Platform;
+  product_line: ProductLine;
+  gross_amount: number;
+  net_amount: number;
+  payer: Person | null;
+  received_by: Person | null;
+  category: ExpenseCategory | null;
+  customer_name: string | null;
+  note: string;
+  created_at: string;
+};
+
+export type Settlement = {
+  id: string;
+  business_id: string;
+  transaction_id: string;
+  status: SettlementStatus;
+  settled_at: string | null;
+  payout_id: string | null;
+  created_at: string;
+};
+
+export type Payout = {
+  id: string;
+  business_id: string;
+  date: string;
+  platform: Platform;
+  amount_received: number;
+  received_by: Person;
+  note: string;
+  created_at: string;
+};
+
+export type InternalTransfer = {
+  id: string;
+  business_id: string;
+  date: string;
+  from_person: Person;
+  to_person: Person;
+  amount: number;
+  note: string;
+  created_at: string;
+};
+
+export type Customer = {
+  id: string;
+  business_id: string;
+  name: string;
+  platform: Platform;
+  note: string;
+  created_at: string;
+};
+
+export type PlatformSetting = {
+  business_id: string;
+  platform: Platform;
+  commission_pct: number;
+  fixed_fee: number;
+};
+
+export type ReportUpload = {
+  id: string;
+  business_id: string;
+  platform: Platform;
+  file_url: string;
+  uploaded_at: string;
+  parsed: boolean;
+  parse_result: unknown;
+};
+
+/** Supabase returns numeric columns as strings. Normalise once at the edge. */
+export function num(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+export function personLabel(p: Person | null | undefined): string {
+  return p === "mike" ? "Mike" : p === "sai" ? "Sai" : "";
+}
+
+export function otherPerson(p: Person): Person {
+  return p === "mike" ? "sai" : "mike";
+}
