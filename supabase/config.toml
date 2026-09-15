@@ -1,0 +1,25 @@
+project_id = "mikisai-accounting"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+
+[db]
+port = 54322
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+# No public signup: users are created by scripts/seed.ts with the service role key.
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+
+[storage]
+enabled = true
+file_size_limit = "20MiB"
