@@ -38,7 +38,7 @@ export async function getWeeklyNarrative(businessId: string, insights: Insights,
           },
         });
         const text = response.text?.trim();
-        return text && text.length > 20 ? text.replace(/—/g, ",") : null;
+        return text && text.length > 20 ? text.split(String.fromCharCode(8212)).join(",") : null;
       } catch (err) {
         console.error("[insights] narrative unavailable", err);
         return null;

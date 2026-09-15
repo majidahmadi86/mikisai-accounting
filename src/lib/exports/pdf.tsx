@@ -34,7 +34,7 @@ function registerFonts() {
   registered = true;
 }
 
-const THAI = /[฀-๿]/;
+const THAI = new RegExp("[" + String.fromCharCode(0x0e00) + "-" + String.fromCharCode(0x0e7f) + "]");
 
 function bodyFont(text: string, locale: Locale): string {
   return locale === "th" || THAI.test(text) ? "NotoSansThai" : "Jost";
