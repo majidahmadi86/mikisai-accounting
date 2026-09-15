@@ -1,8 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { recordAudit } from "@/lib/audit";
 import { requireSession } from "@/lib/auth";
+import { ledgerChanged } from "@/lib/data/ledger";
+import { round2 } from "@/lib/money";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES } from "@/lib/types";
 
 const money = z.coerce.number().min(0).max(99_999_999);
@@ -34,7 +36,8 @@ export type CommitResult = { ok: true; inserted: number } | { ok: false; error: 
  * reviewed and confirmed rows, never automatically.
  */
 export async function commitImport(input: unknown): Promise<CommitResult> {
-  const { supabase, profile } = await requireSession();
+  const session = await requireSession();
+  const { supabase, profile } = session;
   const parsed = CommitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid" };
 
@@ -72,9 +75,19 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
     await supabase.from("report_uploads").update({ parsed: true }).in("id", parsed.data.upload_ids).eq("business_id", profile.business_id);
   }
 
-  revalidatePath("/");
-  revalidatePath("/transactions");
-  revalidatePath("/customers");
-  revalidatePath("/payouts");
+  await recordAudit(session, {
+    action: "confirm_import",
+    entity_type: "report",
+    entity_id: parsed.data.upload_ids[0] ?? null,
+    after: {
+      orders: inserted.length,
+      platform: parsed.data.rows[0]?.platform ?? null,
+      gross_total: round2(parsed.data.rows.reduce((s, r) => s + r.gross_amount, 0)),
+      net_total: round2(parsed.data.rows.reduce((s, r) => s + r.net_amount, 0)),
+      transaction_ids: inserted.map((t) => t.id),
+      upload_ids: parsed.data.upload_ids,
+    },
+  });
+  ledgerChanged(profile.business_id);
   return { ok: true, inserted: inserted.length };
 }
