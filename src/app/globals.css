@@ -1,49 +1,62 @@
 @import "tailwindcss";
 
+/*
+  MikiSai brand tokens.
+  plum: ink, headings, primary text · berry: primary actions, links, income
+  lavender: accents, pending states, selection · ivory: page background
+*/
 :root {
-  --porcelain: #fbf7f1;
-  --porcelain-deep: #f3ece2;
-  --ink: #2b2a28;
-  --ink-soft: #6b6864;
-  --ink-faint: #a39e97;
-  --line: #e7dfd3;
-  --sage: #5c7a6b;
-  --sage-deep: #425a4d;
-  --sage-tint: #e6ede8;
-  --clay: #c97b63;
-  --clay-tint: #f7e6df;
-  --gold: #c99a3a;
-  --gold-tint: #f7ecd2;
+  --plum: #302333;
+  --berry: #8f315f;
+  --berry-deep: #732449;
+  --lavender: #c9b8e8;
+  --ivory: #faf7f2;
+  --ivory-deep: #f2ece4;
+  --plum-soft: rgba(48, 35, 51, 0.62);
+  --plum-faint: rgba(48, 35, 51, 0.42);
+  --lavender-tint: rgba(201, 184, 232, 0.15);
+  --lavender-soft: rgba(201, 184, 232, 0.4);
+  --berry-tint: rgba(143, 49, 95, 0.1);
+  --line: rgba(48, 35, 51, 0.1);
   --card: #ffffff;
+  --success: #3e6b4f;
+  --success-tint: rgba(62, 107, 79, 0.1);
+  --warning: #b8862b;
+  --warning-tint: rgba(184, 134, 43, 0.12);
 }
 
 @theme inline {
-  --color-porcelain: var(--porcelain);
-  --color-porcelain-deep: var(--porcelain-deep);
-  --color-ink: var(--ink);
-  --color-ink-soft: var(--ink-soft);
-  --color-ink-faint: var(--ink-faint);
+  --color-plum: var(--plum);
+  --color-berry: var(--berry);
+  --color-berry-deep: var(--berry-deep);
+  --color-lavender: var(--lavender);
+  --color-ivory: var(--ivory);
+  --color-ivory-deep: var(--ivory-deep);
+  --color-plum-soft: var(--plum-soft);
+  --color-plum-faint: var(--plum-faint);
+  --color-lavender-tint: var(--lavender-tint);
+  --color-lavender-soft: var(--lavender-soft);
+  --color-berry-tint: var(--berry-tint);
   --color-line: var(--line);
-  --color-sage: var(--sage);
-  --color-sage-deep: var(--sage-deep);
-  --color-sage-tint: var(--sage-tint);
-  --color-clay: var(--clay);
-  --color-clay-tint: var(--clay-tint);
-  --color-gold: var(--gold);
-  --color-gold-tint: var(--gold-tint);
   --color-card: var(--card);
-  --font-sans: var(--font-body), var(--font-body-thai), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display), var(--font-display-thai), Georgia, serif;
-  --radius-card: 14px;
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --font-sans: var(--font-body), var(--font-body-thai), Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-display-thai), "Playfair Display", Georgia, serif;
+  --radius-card: 16px;
+  --tracking-eyebrow: 0.18em;
 }
 
 html {
   color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--porcelain);
-  color: var(--ink);
+  background: var(--ivory);
+  color: var(--plum);
   font-family: var(--font-sans);
   font-feature-settings: "tnum" 1;
 }
@@ -53,16 +66,40 @@ h2,
 h3,
 .font-display {
   font-family: var(--font-display);
-  font-variation-settings: "opsz" 72, "SOFT" 30;
+  font-variation-settings: "opsz" 72;
+  letter-spacing: -0.01em;
 }
 
 input,
 select,
 textarea {
   background: var(--card);
-  color: var(--ink);
+  color: var(--plum);
+}
+
+/* Prevent iOS from zooming into inputs while keeping the visual size compact on desktop. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Section eyebrow: uppercase, letterspaced, matching the brand board. */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--plum-soft);
+}
+
+/* Safe-area padding for the bottom tab bar on phones with a home indicator. */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

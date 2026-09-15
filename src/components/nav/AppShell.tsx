@@ -1,3 +1,4 @@
+import { Brand } from "./Brand";
 import { LangToggle } from "./LangToggle";
 import { NavLinks } from "./NavLinks";
 import { signOut } from "@/app/login/actions";
@@ -25,32 +26,30 @@ export function AppShell({
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="border-b border-line bg-porcelain/80 backdrop-blur sticky top-0 z-10">
+      <header className="sticky top-0 z-10 border-b border-line bg-ivory/85 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between gap-4">
-            <div className="flex items-center gap-8 min-w-0">
-              <span className="font-display text-xl text-sage-deep tracking-tight whitespace-nowrap">
-                MikiSai <span className="text-ink-faint">✦</span>
-              </span>
+            <div className="flex min-w-0 items-center gap-8">
+              <Brand />
               <NavLinks links={links} className="hidden md:flex" />
             </div>
             <div className="flex items-center gap-3">
-              <span className="hidden sm:inline text-xs text-ink-soft">
-                {tr("nav.signedInAs")} <span className="font-medium text-ink">{displayName}</span>
+              <span className="hidden text-xs text-plum-soft sm:inline">
+                {tr("nav.signedInAs")} <span className="font-medium text-plum">{displayName}</span>
               </span>
               <LangToggle locale={locale} />
               <form action={signOut}>
-                <button type="submit" className="text-xs text-ink-soft hover:text-ink transition-colors">
+                <button type="submit" className="min-h-11 px-2 text-xs text-plum-soft transition-colors hover:text-plum">
                   {tr("nav.signOut")}
                 </button>
               </form>
             </div>
           </div>
-          <NavLinks links={links} className="flex md:hidden pb-3 -mt-2 overflow-x-auto" />
+          <NavLinks links={links} className="-mt-2 flex overflow-x-auto pb-3 md:hidden" />
         </div>
       </header>
       <main className="flex-1">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-10">{children}</div>
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">{children}</div>
       </main>
     </div>
   );

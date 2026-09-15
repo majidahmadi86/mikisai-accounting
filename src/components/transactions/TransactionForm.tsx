@@ -108,7 +108,7 @@ export function TransactionForm({
       <Field label={tr("common.note")} htmlFor="note">
         <Textarea id="note" name="note" defaultValue={initial?.note ?? ""} />
       </Field>
-      {error ? <p className="rounded-xl bg-clay-tint px-3 py-2 text-sm text-clay">{tr("common.error")}</p> : null}
+      {error ? <p className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">{tr("common.error")}</p> : null}
       <div className="flex gap-2">
         <Button type="submit">{tr("common.save")}</Button>
         <ButtonLink href="/transactions" variant="ghost">

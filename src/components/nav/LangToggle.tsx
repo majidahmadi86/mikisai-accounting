@@ -27,8 +27,8 @@ export function LangToggle({ locale }: { locale: Locale }) {
           onClick={() => choose(l)}
           disabled={pending}
           className={cn(
-            "rounded-full px-3 py-1 transition-colors",
-            l === locale ? "bg-ink text-porcelain" : "text-ink-soft hover:text-ink",
+            "rounded-full px-3 py-1.5 transition-colors min-h-9",
+            l === locale ? "bg-plum text-ivory" : "text-plum-soft hover:text-plum",
           )}
         >
           {l.toUpperCase()}

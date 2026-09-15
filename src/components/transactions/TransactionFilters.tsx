@@ -18,15 +18,15 @@ function href(filters: Filters, patch: Partial<Filters>): string {
 function Group({ label, options, current, onKey, filters, tr }: { label: string; options: { value: string; label: string }[]; current?: string; onKey: keyof Filters; filters: Filters; tr: (k: "common.all") => string }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-xs uppercase tracking-wide text-ink-faint">{label}</span>
-      <Link href={href(filters, { [onKey]: undefined })} className={cn("rounded-full px-2.5 py-1 text-xs border transition-colors", !current ? "bg-ink text-porcelain border-ink" : "border-line text-ink-soft hover:border-ink-faint")}>
+      <span className="mr-1 text-xs uppercase tracking-wide text-plum-faint">{label}</span>
+      <Link href={href(filters, { [onKey]: undefined })} className={cn("rounded-full px-2.5 py-1 text-xs border transition-colors", !current ? "bg-plum text-ivory border-plum" : "border-line text-plum-soft hover:border-plum-faint")}>
         {tr("common.all")}
       </Link>
       {options.map((o) => (
         <Link
           key={o.value}
           href={href(filters, { [onKey]: o.value })}
-          className={cn("rounded-full px-2.5 py-1 text-xs border transition-colors", current === o.value ? "bg-ink text-porcelain border-ink" : "border-line text-ink-soft hover:border-ink-faint")}
+          className={cn("rounded-full px-2.5 py-1 text-xs border transition-colors", current === o.value ? "bg-plum text-ivory border-plum" : "border-line text-plum-soft hover:border-plum-faint")}
         >
           {o.label}
         </Link>

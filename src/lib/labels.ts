@@ -22,15 +22,20 @@ export function personName(tr: Translator, p: Person): string {
   return tr(`common.${p}`);
 }
 
+/** pending = lavender (waiting), settled = warning (in the platform wallet), received = success (in the bank). */
 export function statusTone(s: SettlementStatus): PillTone {
-  if (s === "received_in_bank") return "sage";
-  if (s === "settled_not_withdrawn") return "gold";
-  return "gold";
+  if (s === "received_in_bank") return "success";
+  if (s === "settled_not_withdrawn") return "warning";
+  return "lavender";
 }
 
 export function platformTone(p: Platform): PillTone {
-  if (p === "tiktok") return "ink";
-  if (p === "shopee") return "clay";
-  if (p === "fb") return "sage";
+  if (p === "tiktok") return "plum";
+  if (p === "shopee") return "berry-soft";
+  if (p === "fb") return "lavender";
   return "neutral";
+}
+
+export function typeTone(type: "income" | "expense"): PillTone {
+  return type === "income" ? "berry" : "berry-soft";
 }

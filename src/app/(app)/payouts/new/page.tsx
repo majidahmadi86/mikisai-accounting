@@ -46,7 +46,7 @@ export default async function NewPayoutPage({ searchParams }: PageProps<"/payout
           <Field label={tr("common.note")} htmlFor="note">
             <Textarea id="note" name="note" className="min-h-16" />
           </Field>
-          {sp.error ? <p className="rounded-xl bg-clay-tint px-3 py-2 text-sm text-clay">{tr("common.error")}</p> : null}
+          {sp.error ? <p className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">{tr("common.error")}</p> : null}
           <div className="flex gap-2">
             <Button type="submit">{tr("payouts.reconcile")} →</Button>
             <ButtonLink href="/payouts" variant="ghost">

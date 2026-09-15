@@ -60,7 +60,7 @@ export function ReconcilePanel({
   if (candidates.length === 0) {
     return (
       <Card className="p-6">
-        <p className="text-sm text-ink-soft">{t("payouts.noCandidates")}</p>
+        <p className="text-sm text-plum-soft">{t("payouts.noCandidates")}</p>
         <div className="mt-4">
           <ButtonLink href="/payouts" variant="ghost">
             {t("common.back")}
@@ -72,26 +72,26 @@ export function ReconcilePanel({
 
   return (
     <div className="space-y-4">
-      <Card tone={within ? "sage" : "gold"} className="px-6 py-4">
-        <p className={cn("text-sm font-medium", within ? "text-sage-deep" : "text-[#8a6620]")}>
+      <Card tone={within ? "success" : "warning"} className="px-6 py-4">
+        <p className={cn("text-sm font-medium", within ? "text-success" : "text-warning")}>
           {within ? t("payouts.proposedMatch") : t("payouts.noMatch")}
         </p>
         <dl className="mt-3 grid grid-cols-3 gap-4 text-sm">
           <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">{t("payouts.amountReceived")}</dt>
+            <dt className="text-xs uppercase tracking-wide text-plum-soft">{t("payouts.amountReceived")}</dt>
             <dd className="font-display text-xl tabular">{thb(amountReceived)}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">{t("payouts.selectedTotal")}</dt>
+            <dt className="text-xs uppercase tracking-wide text-plum-soft">{t("payouts.selectedTotal")}</dt>
             <dd className="font-display text-xl tabular">{thb(total)}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">{t("payouts.difference")}</dt>
-            <dd className={cn("font-display text-xl tabular", within ? "text-sage-deep" : "text-clay")}>
+            <dt className="text-xs uppercase tracking-wide text-plum-soft">{t("payouts.difference")}</dt>
+            <dd className={cn("font-display text-xl tabular", within ? "text-success" : "text-berry")}>
               {difference > 0 ? "+" : ""}
               {thb(difference)}
             </dd>
-            <dd className="text-xs text-ink-faint">{t("payouts.tolerance", { pct: `±${PAYOUT_TOLERANCE * 100}%` })}</dd>
+            <dd className="text-xs text-plum-faint">{t("payouts.tolerance", { pct: `±${PAYOUT_TOLERANCE * 100}%` })}</dd>
           </div>
         </dl>
       </Card>
@@ -112,17 +112,17 @@ export function ReconcilePanel({
           {candidates.map((c) => {
             const checked = selected.has(c.settlement_id);
             return (
-              <tr key={c.settlement_id} onClick={() => toggle(c.settlement_id)} className={cn("cursor-pointer", checked ? "bg-sage-tint/40" : "hover:bg-porcelain/60")}>
+              <tr key={c.settlement_id} onClick={() => toggle(c.settlement_id)} className={cn("cursor-pointer", checked ? "bg-lavender-tint/40" : "hover:bg-ivory/60")}>
                 <Td>
-                  <input type="checkbox" checked={checked} onChange={() => toggle(c.settlement_id)} onClick={(e) => e.stopPropagation()} className="accent-[#425a4d]" aria-label={c.customer_name ?? c.transaction_id} />
+                  <input type="checkbox" checked={checked} onChange={() => toggle(c.settlement_id)} onClick={(e) => e.stopPropagation()} className="accent-[#8f315f]" aria-label={c.customer_name ?? c.transaction_id} />
                 </Td>
                 <Td className="whitespace-nowrap">{formatDate(c.date, locale)}</Td>
-                <Td className="text-ink-soft">{c.customer_name ?? ""}</Td>
-                <Td className="text-ink-soft">{t(`product.${c.product_line}`)}</Td>
+                <Td className="text-plum-soft">{c.customer_name ?? ""}</Td>
+                <Td className="text-plum-soft">{t(`product.${c.product_line}`)}</Td>
                 <Td>
                   <Pill tone={statusTone(c.status)}>{statusName(t, c.status)}</Pill>
                 </Td>
-                <Td align="right" className="text-ink-faint">
+                <Td align="right" className="text-plum-faint">
                   {thb(c.gross_amount)}
                 </Td>
                 <Td align="right" className="font-medium">
@@ -145,7 +145,7 @@ export function ReconcilePanel({
         <ButtonLink href="/payouts" variant="ghost">
           {t("common.cancel")}
         </ButtonLink>
-        <span className="text-xs text-ink-faint">
+        <span className="text-xs text-plum-faint">
           {selected.size} {t("common.orders")}
         </span>
       </div>

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { getLocale, t } from "@/lib/i18n/server";
 import { LangToggle } from "@/components/nav/LangToggle";
 import { signIn } from "./actions";
+import { Brand } from "@/components/nav/Brand";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { error } = await searchParams;
@@ -15,9 +16,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <p className="text-xs uppercase tracking-[0.2em] text-sage-deep font-medium">MikiSai</p>
-          <h1 className="mt-2 text-4xl text-ink">{tr("login.title")}</h1>
-          <p className="mt-2 text-sm text-ink-soft">{tr("login.subtitle")}</p>
+          <div className="flex justify-center"><Brand /></div>
+          <h1 className="mt-2 text-4xl text-plum">{tr("login.title")}</h1>
+          <p className="mt-2 text-sm text-plum-soft">{tr("login.subtitle")}</p>
         </div>
         <Card className="p-6">
           <form action={signIn} className="space-y-4">
@@ -28,7 +29,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               <Input id="password" name="password" type="password" autoComplete="current-password" required />
             </Field>
             {errorKey ? (
-              <p className="rounded-xl bg-clay-tint px-3 py-2 text-sm text-clay">
+              <p className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">
                 {errorKey === "no-profile" ? tr("login.errorNoProfile") : tr("login.errorInvalid")}
               </p>
             ) : null}

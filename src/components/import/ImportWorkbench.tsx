@@ -87,8 +87,8 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
 
   if (phase.name === "done") {
     return (
-      <Card tone="sage" className="p-6">
-        <p className="font-display text-2xl text-sage-deep">{t("import.confirmed", { n: phase.inserted })}</p>
+      <Card tone="success" className="p-6">
+        <p className="font-display text-2xl text-berry">{t("import.confirmed", { n: phase.inserted })}</p>
         <div className="mt-4 flex gap-2">
           <Button type="button" variant="secondary" onClick={reset}>
             {t("import.startOver")}
@@ -105,9 +105,9 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
         <Card className="px-6 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-display text-xl text-ink">{t("import.reviewTitle")}</p>
-              <p className="text-sm text-ink-soft">{t("import.reviewSubtitle")}</p>
-              <p className="mt-1 text-xs text-ink-faint">{t("import.batches", { orders: rows.length, batches: phase.result.batches })}</p>
+              <p className="font-display text-xl text-plum">{t("import.reviewTitle")}</p>
+              <p className="text-sm text-plum-soft">{t("import.reviewSubtitle")}</p>
+              <p className="mt-1 text-xs text-plum-faint">{t("import.batches", { orders: rows.length, batches: phase.result.batches })}</p>
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="ghost" onClick={reset}>
@@ -119,7 +119,7 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
             </div>
           </div>
           {phase.result.warnings.length ? (
-            <div className="mt-3 rounded-xl bg-gold-tint px-3 py-2 text-xs text-[#8a6620]">
+            <div className="mt-3 rounded-xl bg-warning-tint px-3 py-2 text-xs text-warning">
               <p className="font-medium">{t("import.warnings")}</p>
               <ul className="mt-1 list-disc pl-4 space-y-0.5">
                 {phase.result.warnings.map((w, i) => (
@@ -128,9 +128,9 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
               </ul>
             </div>
           ) : null}
-          {error ? <p className="mt-3 text-sm text-clay">{error}</p> : null}
+          {error ? <p className="mt-3 text-sm text-berry">{error}</p> : null}
         </Card>
-        {rows.length === 0 ? <Card className="p-6 text-sm text-ink-soft">{t("import.noRows")}</Card> : <ReviewTable rows={rows} onChange={setRows} settings={settings} />}
+        {rows.length === 0 ? <Card className="p-6 text-sm text-plum-soft">{t("import.noRows")}</Card> : <ReviewTable rows={rows} onChange={setRows} settings={settings} />}
       </div>
     );
   }
@@ -174,7 +174,7 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
             />
           </Field>
           {files.length ? (
-            <ul className="text-xs text-ink-soft space-y-0.5">
+            <ul className="text-xs text-plum-soft space-y-0.5">
               {files.map((f) => (
                 <li key={`${f.name}-${f.size}`}>
                   {f.name} · {(f.size / 1024).toFixed(0)} KB
@@ -187,12 +187,12 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
           <Textarea id="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("import.pastePlaceholder")} className="min-h-56 font-mono text-xs" disabled={parsing} />
         </Field>
       </div>
-      {error ? <p className="mt-4 text-sm text-clay">{error}</p> : null}
+      {error ? <p className="mt-4 text-sm text-berry">{error}</p> : null}
       <div className="mt-5 flex items-center gap-3">
         <Button type="button" onClick={parse} disabled={parsing}>
           {parsing ? `${t("import.parsing")}…` : t("import.parse")}
         </Button>
-        {parsing ? <span className="h-2 w-2 animate-pulse rounded-full bg-sage" aria-hidden="true" /> : null}
+        {parsing ? <span className="h-2 w-2 animate-pulse rounded-full bg-berry" aria-hidden="true" /> : null}
       </div>
     </Card>
   );

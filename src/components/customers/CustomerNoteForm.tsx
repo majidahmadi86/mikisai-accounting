@@ -34,7 +34,7 @@ export function CustomerNoteForm({ id, note }: { id: string; note: string }) {
         placeholder={t("customers.notePlaceholder")}
         aria-label={t("common.note")}
       />
-      <button type="submit" disabled={!dirty || pending} className="text-xs text-sage-deep disabled:text-ink-faint whitespace-nowrap">
+      <button type="submit" disabled={!dirty || pending} className="text-xs text-berry disabled:text-plum-faint whitespace-nowrap">
         {saved ? t("common.saved") : t("common.save")}
       </button>
     </form>

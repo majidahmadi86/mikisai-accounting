@@ -7,7 +7,7 @@ import { Table, Td, Th } from "@/components/ui/Table";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { requireSession } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
-import { categoryName, platformName, platformTone, productName, statusName, statusTone } from "@/lib/labels";
+import { categoryName, platformName, platformTone, productName, statusName, statusTone, typeTone } from "@/lib/labels";
 import { formatDate, thb } from "@/lib/money";
 import { num, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, TRANSACTION_TYPES, type SettlementStatus, type Transaction } from "@/lib/types";
 
@@ -63,7 +63,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
 
       <TransactionFilters tr={tr} filters={filters} />
 
-      <p className="mb-3 text-xs text-ink-faint">{tr("transactions.count", { n: rows.length })}</p>
+      <p className="mb-3 text-xs text-plum-faint">{tr("transactions.count", { n: rows.length })}</p>
 
       {rows.length === 0 ? (
         <EmptyState title={tr("transactions.empty")} />
@@ -84,10 +84,10 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="hover:bg-porcelain/60">
+              <tr key={row.id} className="hover:bg-ivory/60">
                 <Td className="whitespace-nowrap">{formatDate(row.date, locale)}</Td>
                 <Td>
-                  <Pill tone={row.type === "income" ? "sage" : "clay"}>
+                  <Pill tone={typeTone(row.type)}>
                     {row.type === "income" ? tr("common.income") : tr("common.expense")}
                     <span className="ml-1 opacity-70">· {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}</span>
                   </Pill>
@@ -95,19 +95,19 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                 <Td>
                   <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
                 </Td>
-                <Td className="text-ink-soft">{productName(tr, row.product_line)}</Td>
-                <Td className="text-ink-soft max-w-48 truncate">
+                <Td className="text-plum-soft">{productName(tr, row.product_line)}</Td>
+                <Td className="text-plum-soft max-w-48 truncate">
                   {row.type === "income" ? (row.customer_name ?? "") : row.category ? categoryName(tr, row.category) : ""}
                 </Td>
-                <Td align="right" className={row.type === "expense" ? "text-ink-faint" : ""}>
+                <Td align="right" className={row.type === "expense" ? "text-plum-faint" : ""}>
                   {row.type === "income" ? thb(row.gross_amount) : ""}
                 </Td>
-                <Td align="right" className={row.type === "expense" ? "text-clay font-medium" : "font-medium"}>
+                <Td align="right" className={row.type === "expense" ? "text-berry font-medium" : "font-medium"}>
                   {row.type === "expense" ? `-${thb(row.net_amount)}` : thb(row.net_amount)}
                 </Td>
                 <Td>{row.status ? <Pill tone={statusTone(row.status)}>{statusName(tr, row.status)}</Pill> : null}</Td>
                 <Td align="right">
-                  <Link href={`/transactions/${row.id}/edit`} className="text-xs text-sage-deep hover:underline whitespace-nowrap">
+                  <Link href={`/transactions/${row.id}/edit`} className="text-xs text-berry hover:underline whitespace-nowrap">
                     {tr("common.edit")} →
                   </Link>
                 </Td>

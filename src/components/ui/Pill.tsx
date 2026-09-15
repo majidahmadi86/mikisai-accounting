@@ -1,15 +1,18 @@
 import { cn } from "@/lib/cn";
 
-export type PillTone = "sage" | "clay" | "gold" | "neutral" | "ink";
+export type PillTone = "berry" | "berry-soft" | "lavender" | "plum" | "neutral" | "success" | "warning";
 
 const tones: Record<PillTone, string> = {
-  sage: "bg-sage-tint text-sage-deep",
-  clay: "bg-clay-tint text-clay",
-  gold: "bg-gold-tint text-[#8a6620]",
-  neutral: "bg-porcelain-deep text-ink-soft",
-  ink: "bg-ink text-porcelain",
+  berry: "bg-berry text-ivory",
+  "berry-soft": "bg-berry-tint text-berry",
+  lavender: "bg-lavender-soft text-plum",
+  plum: "bg-plum text-ivory",
+  neutral: "bg-ivory-deep text-plum-soft",
+  success: "bg-success-tint text-success",
+  warning: "bg-warning-tint text-warning",
 };
 
+/** Status pills always carry words, never colour alone. */
 export function Pill({ tone = "neutral", children, className }: { tone?: PillTone; children: React.ReactNode; className?: string }) {
   return (
     <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap", tones[tone], className)}>

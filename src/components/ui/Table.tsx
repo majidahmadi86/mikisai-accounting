@@ -2,9 +2,13 @@ import { cn } from "@/lib/cn";
 
 type Align = "left" | "right" | "center";
 
-export function Table({ children, className }: { children: React.ReactNode; className?: string }) {
+/**
+ * Desktop table. On phones callers render stacked cards instead, so the
+ * table is hidden below the md breakpoint unless mobile="scroll" is passed.
+ */
+export function Table({ children, className, mobile = "hidden" }: { children: React.ReactNode; className?: string; mobile?: "hidden" | "scroll" }) {
   return (
-    <div className={cn("overflow-x-auto rounded-card border border-line bg-card", className)}>
+    <div className={cn("rounded-card border border-line bg-card", mobile === "hidden" ? "hidden md:block" : "overflow-x-auto", className)}>
       <table className="w-full text-sm">{children}</table>
     </div>
   );
@@ -14,7 +18,7 @@ export function Th({ children, className, align = "left" }: { children?: React.R
   return (
     <th
       className={cn(
-        "px-4 py-3 text-xs font-medium uppercase tracking-wide text-ink-soft border-b border-line bg-porcelain-deep/60 whitespace-nowrap",
+        "eyebrow border-b border-line bg-ivory-deep/70 px-4 py-3 whitespace-nowrap",
         align === "right" && "text-right",
         align === "center" && "text-center",
         align === "left" && "text-left",
@@ -30,7 +34,7 @@ export function Td({ children, className, align = "left" }: { children?: React.R
   return (
     <td
       className={cn(
-        "px-4 py-3 border-b border-line/70 align-middle",
+        "border-b border-line/70 px-4 py-3 align-middle",
         align === "right" && "text-right tabular",
         align === "center" && "text-center",
         className,

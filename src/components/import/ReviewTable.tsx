@@ -46,7 +46,7 @@ export function ReviewTable({
       <thead>
         <tr>
           <Th className="w-10">
-            <input type="checkbox" checked={allIncluded} onChange={(e) => onChange(rows.map((r) => ({ ...r, include: e.target.checked })))} aria-label={t("import.include")} className="accent-[#425a4d]" />
+            <input type="checkbox" checked={allIncluded} onChange={(e) => onChange(rows.map((r) => ({ ...r, include: e.target.checked })))} aria-label={t("import.include")} className="accent-[#8f315f]" />
           </Th>
           <Th>{t("import.orderId")}</Th>
           <Th>{t("common.date")}</Th>
@@ -64,7 +64,7 @@ export function ReviewTable({
         {rows.map((r) => (
           <tr key={r.key} className={cn(!r.include && "opacity-50")}>
             <Td>
-              <input type="checkbox" checked={r.include} onChange={(e) => patch(r.key, { include: e.target.checked })} className="accent-[#425a4d]" aria-label={t("import.include")} />
+              <input type="checkbox" checked={r.include} onChange={(e) => patch(r.key, { include: e.target.checked })} className="accent-[#8f315f]" aria-label={t("import.include")} />
             </Td>
             <Td>
               <input className={cn(cell, "min-w-28")} value={r.order_id ?? ""} onChange={(e) => patch(r.key, { order_id: e.target.value || null })} />
@@ -101,12 +101,12 @@ export function ReviewTable({
                 type="number"
                 step="0.01"
                 min="0"
-                className={cn(cell, "text-right", r.net_estimated && "border-gold bg-gold-tint/40")}
+                className={cn(cell, "text-right", r.net_estimated && "border-warning bg-warning-tint/40")}
                 value={r.net_amount ?? ""}
                 title={r.net_estimated ? t("import.estimatedNet") : undefined}
                 onChange={(e) => patch(r.key, { net_amount: e.target.value === "" ? null : Number(e.target.value), net_estimated: false })}
               />
-              {r.net_estimated ? <p className="mt-0.5 text-[10px] text-[#8a6620]">{t("common.estimated")}</p> : null}
+              {r.net_estimated ? <p className="mt-0.5 text-[10px] text-warning">{t("common.estimated")}</p> : null}
             </Td>
             <Td>
               <select className={cn(cell, "min-w-40")} value={r.status} onChange={(e) => patch(r.key, { status: e.target.value as ReviewRow["status"] })}>
@@ -135,12 +135,12 @@ export function ReviewTable({
           <Td className="font-medium" align="left">
             {included.length}
           </Td>
-          <Td className="text-ink-soft">{t("common.total")}</Td>
+          <Td className="text-plum-soft">{t("common.total")}</Td>
           <Td></Td>
           <Td></Td>
           <Td></Td>
           <Td></Td>
-          <Td align="right" className="text-ink-faint">
+          <Td align="right" className="text-plum-faint">
             {thb(round2(included.reduce((s, r) => s + (r.gross_amount ?? 0), 0)))}
           </Td>
           <Td align="right" className="font-medium">

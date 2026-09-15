@@ -44,8 +44,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
       <BalanceBanner balance={balance} tr={tr} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatCard label={tr("dashboard.settledIncome")} value={thb(balance.settledIncome)} tone="sage" />
-        <StatCard label={tr("dashboard.expenses")} value={thb(balance.expenses)} tone="clay" />
+        <StatCard label={tr("dashboard.settledIncome")} value={thb(balance.settledIncome)} tone="berry" />
+        <StatCard label={tr("dashboard.expenses")} value={thb(balance.expenses)} tone="berry" />
         <StatCard label={tr("dashboard.netProfit")} value={thb(balance.netProfit)} />
         <StatCard label={tr("dashboard.share")} value={thb(balance.target)} hint="50 / 50" />
       </div>
@@ -55,7 +55,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           <CardHeader title={tr("dashboard.pendingTitle")} subtitle={tr("dashboard.pendingSubtitle")} />
           <div className="px-6 pb-6">
             {pendingPlatforms.length === 0 ? (
-              <p className="text-sm text-ink-soft">{tr("dashboard.pendingNone")}</p>
+              <p className="text-sm text-plum-soft">{tr("dashboard.pendingNone")}</p>
             ) : (
               <ul className="divide-y divide-line">
                 {pendingPlatforms.map((p) => {
@@ -64,17 +64,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                     <li key={p} className="flex items-center justify-between py-3">
                       <div>
                         <Pill tone={platformTone(p)}>{platformName(tr, p)}</Pill>
-                        <p className="mt-1 text-xs text-ink-faint">
+                        <p className="mt-1 text-xs text-plum-faint">
                           {b.orders} {tr("common.orders")}
                           {b.settled_not_withdrawn > 0 ? ` · ${statusName(tr, "settled_not_withdrawn")} ${thb(b.settled_not_withdrawn)}` : ""}
                         </p>
                       </div>
-                      <span className="font-display text-xl tabular text-[#8a6620]">{thb(b.total)}</span>
+                      <span className="font-display text-xl tabular text-warning">{thb(b.total)}</span>
                     </li>
                   );
                 })}
                 <li className="flex items-center justify-between pt-3 text-sm">
-                  <span className="text-ink-soft">{tr("common.total")}</span>
+                  <span className="text-plum-soft">{tr("common.total")}</span>
                   <span className="font-medium tabular">{thb(balance.pendingTotal)}</span>
                 </li>
               </ul>
@@ -86,23 +86,23 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           <CardHeader
             title={tr("dashboard.recentTitle")}
             action={
-              <Link href="/transactions" className="text-sm text-sage-deep hover:underline whitespace-nowrap">
+              <Link href="/transactions" className="text-sm text-berry hover:underline whitespace-nowrap">
                 {tr("common.viewAll")} →
               </Link>
             }
           />
           <div className="px-6 pb-6">
             {recent.length === 0 ? (
-              <p className="text-sm text-ink-soft">{tr("dashboard.recentNone")}</p>
+              <p className="text-sm text-plum-soft">{tr("dashboard.recentNone")}</p>
             ) : (
               <ul className="divide-y divide-line">
                 {recent.map((row) => (
                   <li key={row.id} className="flex items-center justify-between gap-3 py-2.5">
                     <div className="min-w-0">
-                      <p className="truncate text-sm text-ink">
+                      <p className="truncate text-sm text-plum">
                         {row.type === "income" ? (row.customer_name || platformName(tr, row.platform)) : row.note || (row.category ? tr(`category.${row.category}`) : tr("common.expense"))}
                       </p>
-                      <p className="text-xs text-ink-faint">
+                      <p className="text-xs text-plum-faint">
                         {formatDate(row.date, locale)} · {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}
                         {row.type === "income" && row.settlement_status ? (
                           <>
@@ -112,7 +112,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                         ) : null}
                       </p>
                     </div>
-                    <span className={`tabular font-medium ${row.type === "expense" ? "text-clay" : "text-sage-deep"}`}>
+                    <span className={`tabular font-medium ${row.type === "expense" ? "text-berry" : "text-berry"}`}>
                       {row.type === "expense" ? "-" : "+"}
                       {thb(row.net_amount)}
                     </span>
@@ -129,7 +129,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
         <div className="grid gap-6 px-6 pb-6 lg:grid-cols-5">
           <div className="lg:col-span-3">
             {transfers.length === 0 ? (
-              <p className="text-sm text-ink-soft">{tr("dashboard.transfersNone")}</p>
+              <p className="text-sm text-plum-soft">{tr("dashboard.transfersNone")}</p>
             ) : (
               <ul className="divide-y divide-line">
                 {transfers.map((tf) => {
@@ -137,11 +137,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                   return (
                     <li key={tf.id} className="flex items-center justify-between gap-3 py-2.5">
                       <div>
-                        <p className="text-sm text-ink">
+                        <p className="text-sm text-plum">
                           {tr(`common.${tf.from_person}`)} → {tr(`common.${tf.to_person}`)}
                           <span className="ml-2 font-medium tabular">{thb(tf.amount)}</span>
                         </p>
-                        <p className="text-xs text-ink-faint">
+                        <p className="text-xs text-plum-faint">
                           {formatDate(tf.date, locale)}
                           {tf.note ? ` · ${tf.note}` : ""}
                         </p>
@@ -155,8 +155,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
               </ul>
             )}
           </div>
-          <form action={createTransfer} className="lg:col-span-2 rounded-xl bg-porcelain-deep/60 p-4 space-y-3">
-            <p className="text-sm font-medium text-ink">{tr("transfer.title")}</p>
+          <form action={createTransfer} className="lg:col-span-2 rounded-xl bg-ivory-deep/60 p-4 space-y-3">
+            <p className="text-sm font-medium text-plum">{tr("transfer.title")}</p>
             <div className="grid grid-cols-2 gap-3">
               <Field label={tr("transfer.from")} htmlFor="from_person">
                 <Select id="from_person" name="from_person" defaultValue="mike">
@@ -186,7 +186,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
             <Field label={tr("common.note")} htmlFor="tnote">
               <Textarea id="tnote" name="note" className="min-h-16" />
             </Field>
-            {transferError ? <p className="text-xs text-clay">{tr("common.error")}</p> : null}
+            {transferError ? <p className="text-xs text-berry">{tr("common.error")}</p> : null}
             <div className="flex justify-end">
               <Button type="submit" variant="secondary">
                 {tr("dashboard.addTransfer")}

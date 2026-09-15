@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
-import { Fraunces, Inter, Noto_Sans_Thai, Noto_Serif_Thai } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Bodoni_Moda, Jost, Noto_Sans_Thai, Noto_Serif_Thai } from "next/font/google";
 import { getLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
-const display = Fraunces({
+const display = Bodoni_Moda({
   variable: "--font-display",
   subsets: ["latin"],
-  axes: ["opsz", "SOFT"],
+  axes: ["opsz"],
 });
 
 const displayThai = Noto_Serif_Thai({
@@ -15,7 +15,7 @@ const displayThai = Noto_Serif_Thai({
   weight: ["400", "500", "600"],
 });
 
-const body = Inter({
+const body = Jost({
   variable: "--font-body",
   subsets: ["latin"],
 });
@@ -28,7 +28,15 @@ const bodyThai = Noto_Sans_Thai({
 
 export const metadata: Metadata = {
   title: "MikiSai Accounting",
-  description: "Shared ledger for the MikiSai founders",
+  description: "Accounting for the MikiSai founders",
+  icons: { icon: "/brand/ms-monogram.svg" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#faf7f2",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

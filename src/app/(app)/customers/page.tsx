@@ -57,18 +57,18 @@ export default async function CustomersPage() {
           <tbody>
             {rows.map((c) => (
               <tr key={c.id}>
-                <Td className="font-medium text-ink">{c.name}</Td>
+                <Td className="font-medium text-plum">{c.name}</Td>
                 <Td>
                   <Pill tone={platformTone(c.platform)}>{platformName(tr, c.platform)}</Pill>
                 </Td>
                 <Td align="right">{c.totals.orders}</Td>
-                <Td align="right" className="text-ink-soft">
+                <Td align="right" className="text-plum-soft">
                   {thb(c.totals.gross)}
                 </Td>
                 <Td align="right" className="font-medium">
                   {thb(c.totals.net)}
                 </Td>
-                <Td className="whitespace-nowrap text-ink-soft">{c.totals.last ? formatDate(c.totals.last, locale) : ""}</Td>
+                <Td className="whitespace-nowrap text-plum-soft">{c.totals.last ? formatDate(c.totals.last, locale) : ""}</Td>
                 <Td className="min-w-64">
                   <CustomerNoteForm id={c.id} note={c.note} />
                 </Td>

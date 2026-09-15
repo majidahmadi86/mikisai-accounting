@@ -62,13 +62,13 @@ export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]
             <Pill tone={platformTone(payout.platform)}>{platformName(tr, payout.platform)}</Pill>
             <span>{formatDate(payout.date, locale)}</span>
             <span>·</span>
-            <span className="font-medium text-ink tabular">{thb(payout.amount_received)}</span>
+            <span className="font-medium text-plum tabular">{thb(payout.amount_received)}</span>
             <span>·</span>
             <span>{tr(`common.${payout.received_by}`)}</span>
           </span>
         }
       />
-      <p className="mb-5 text-sm text-ink-soft">{tr("payouts.reconcileSubtitle", { platform: platformName(tr, payout.platform) })}</p>
+      <p className="mb-5 text-sm text-plum-soft">{tr("payouts.reconcileSubtitle", { platform: platformName(tr, payout.platform) })}</p>
       <ReconcilePanel payoutId={payout.id} amountReceived={payout.amount_received} candidates={candidates} initialSelected={proposal.selectedIds} locale={locale} />
     </div>
   );

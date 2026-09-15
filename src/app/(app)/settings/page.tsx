@@ -26,8 +26,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <form action={savePlatformSettings} className="space-y-4">
           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 gap-y-3">
             <span></span>
-            <span className="text-xs uppercase tracking-wide text-ink-soft">{tr("settings.commission")}</span>
-            <span className="text-xs uppercase tracking-wide text-ink-soft">{tr("settings.fixedFee")}</span>
+            <span className="text-xs uppercase tracking-wide text-plum-soft">{tr("settings.commission")}</span>
+            <span className="text-xs uppercase tracking-wide text-plum-soft">{tr("settings.fixedFee")}</span>
             {PLATFORMS.map((p) => {
               const s = settings.get(p);
               return (
@@ -41,9 +41,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               );
             })}
           </div>
-          <p className="text-xs text-ink-faint tabular">{tr("settings.formula")}</p>
-          {sp.error ? <p className="text-sm text-clay">{tr("common.error")}</p> : null}
-          {sp.saved ? <p className="text-sm text-sage-deep">{tr("common.saved")}</p> : null}
+          <p className="text-xs text-plum-faint tabular">{tr("settings.formula")}</p>
+          {sp.error ? <p className="text-sm text-berry">{tr("common.error")}</p> : null}
+          {sp.saved ? <p className="text-sm text-berry">{tr("common.saved")}</p> : null}
           <Button type="submit">{tr("common.save")}</Button>
         </form>
       </Card>

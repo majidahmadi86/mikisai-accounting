@@ -68,17 +68,17 @@ export default async function PayoutsPage() {
                   <Td>
                     {p.match ? (
                       <span className="inline-flex items-center gap-2">
-                        <Pill tone="sage">{tr("payouts.reconciled", { n: p.match.count })}</Pill>
-                        {diff !== null && Math.abs(diff) >= 0.01 ? <span className="text-xs text-ink-faint tabular">{diff > 0 ? "+" : ""}{thb(diff)}</span> : null}
+                        <Pill tone="success">{tr("payouts.reconciled", { n: p.match.count })}</Pill>
+                        {diff !== null && Math.abs(diff) >= 0.01 ? <span className="text-xs text-plum-faint tabular">{diff > 0 ? "+" : ""}{thb(diff)}</span> : null}
                       </span>
                     ) : (
-                      <Pill tone="gold">{tr("payouts.unreconciled")}</Pill>
+                      <Pill tone="lavender">{tr("payouts.unreconciled")}</Pill>
                     )}
                   </Td>
-                  <Td className="text-ink-soft max-w-56 truncate">{p.note}</Td>
+                  <Td className="text-plum-soft max-w-56 truncate">{p.note}</Td>
                   <Td align="right">
                     <div className="flex items-center justify-end gap-3">
-                      <Link href={`/payouts/${p.id}/reconcile`} className="text-xs text-sage-deep hover:underline whitespace-nowrap">
+                      <Link href={`/payouts/${p.id}/reconcile`} className="text-xs text-berry hover:underline whitespace-nowrap">
                         {tr("payouts.reconcile")} →
                       </Link>
                       <form action={remove}>
