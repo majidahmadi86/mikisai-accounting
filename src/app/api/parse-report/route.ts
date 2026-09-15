@@ -3,7 +3,7 @@ import { PDFDocument } from "pdf-lib";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { extractBatch, runWithConcurrency, type BatchInput, type ImageInput } from "@/lib/parse/anthropic";
+import { extractBatch, runWithConcurrency, type BatchInput, type ImageInput } from "@/lib/parse/gemini";
 import { chunk, MAX_IMAGES_PER_BATCH, splitTextIntoBatches } from "@/lib/parse/batch";
 import { estimateNet } from "@/lib/parse/estimate";
 import type { ParsedOrder, ParseResponse, ReviewRow } from "@/lib/parse/schema";
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "upload-failed" }, { status: 500 });
   }
 
-  // 2. Paginate: one model call per batch, bounded concurrency, partial failures tolerated.
+  // 2. Paginate: one Gemini call per batch, bounded concurrency, partial failures tolerated.
   const warnings: string[] = [];
   const results = await runWithConcurrency(batches, CONCURRENCY, async (batch, i) => {
     try {

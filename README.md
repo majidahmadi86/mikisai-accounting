@@ -8,7 +8,7 @@ Shared ledger for the two MikiSai founders. Next.js App Router, Supabase (Postgr
 | --- | --- |
 | `/` | Balance banner (who owes whom), stat cards, pending per platform, recent activity, internal transfers |
 | `/transactions` | Filterable ledger, add and edit income or expenses. New income auto-creates a pending settlement |
-| `/import` | Paste text or upload screenshots and PDFs of a TikTok, Shopee or Facebook report. Claude extracts orders into a review table. Nothing is saved until you confirm |
+| `/import` | Paste text or upload screenshots and PDFs of a TikTok, Shopee or Facebook report. Gemini extracts orders into a review table. Nothing is saved until you confirm |
 | `/payouts` | Record a bank payout, then reconcile it: FIFO proposal within ±2%, adjust with checkboxes, confirm |
 | `/customers` | Auto-built from customer names on income, with totals and an editable note |
 | `/settings` | Commission % and fixed fee per platform, used to estimate net when a report has no payout line |
@@ -41,7 +41,7 @@ A positive delta means that person holds more than their share, so the banner re
 
    The migration creates every table with `business_id`, enables RLS for authenticated members of the business only, adds the customer auto-insert trigger, creates the private `reports` storage bucket, and seeds one business plus default platform settings.
 
-2. Copy `.env.example` to `.env.local` and fill in the Supabase keys, `ANTHROPIC_API_KEY`, and the two founder emails and passwords.
+2. Copy `.env.example` to `.env.local` and fill in the Supabase keys, `MIKISAI_GEMINI` (the Gemini API key), and the two founder emails and passwords.
 
 3. Install and seed:
 
@@ -67,11 +67,11 @@ npm run lint
 npm run verify:rls   # anon key reads zero rows from every table, founder reads their rows, cross-business insert is rejected
 ```
 
-To check the import flow, sign in, open `/import`, choose the platform, and upload up to 12 receipt screenshots. Each screenshot batch of four becomes one Anthropic call. Rows land in the review table with `net_amount` taken from the "estimated amount you receive" line (ยอดเงินโดยประมาณ) when present; when absent the net is estimated from platform settings and highlighted in gold.
+To check the import flow, sign in, open `/import`, choose the platform, and upload up to 12 receipt screenshots. Each screenshot batch of four becomes one Gemini call (model `gemini-3.6-flash` by default, override with `MIKISAI_GEMINI_MODEL`). Rows land in the review table with `net_amount` taken from the "estimated amount you receive" line (ยอดเงินโดยประมาณ) when present; when absent the net is estimated from platform settings and highlighted in gold.
 
 ## Deploy to Vercel
 
-Set the four environment variables from `.env.example` (never expose `SUPABASE_SERVICE_ROLE_KEY` or `ANTHROPIC_API_KEY` with a `NEXT_PUBLIC_` prefix). The parse route sets `maxDuration = 300`, which needs a plan that allows long function durations for very long reports.
+Set the four environment variables from `.env.example` (never expose `SUPABASE_SERVICE_ROLE_KEY` or `MIKISAI_GEMINI` with a `NEXT_PUBLIC_` prefix). The parse route sets `maxDuration = 300`, which needs a plan that allows long function durations for very long reports.
 
 ## Conventions
 

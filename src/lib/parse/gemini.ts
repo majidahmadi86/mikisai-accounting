@@ -1,6 +1,6 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { GoogleGenAI, type Content, type Part } from "@google/genai";
+import { z } from "zod";
 import { ParsedBatchSchema, type ParsedBatch } from "./schema";
 import type { Platform } from "@/lib/types";
 
@@ -11,15 +11,20 @@ export type BatchInput =
   | { kind: "images"; images: ImageInput[] }
   | { kind: "pdf"; data: string; label: string };
 
-const MODEL = "claude-opus-5";
-
 /**
- * Stable system prompt. Kept byte-identical between calls so the cache
- * breakpoint below is reused across every batch of a report.
+ * gemini-2.0-flash was retired by Google; the API names gemini-3.6-flash as
+ * its replacement. Override with MIKISAI_GEMINI_MODEL if Google retires this one too.
  */
-const SYSTEM_PROMPT = `You extract e-commerce orders from Thai and English sales reports, order lists, payout statements and receipts produced by TikTok Shop, Shopee and Facebook for a small Thai brand (MikiSai) that sells coconut sugar and skincare. Reports may be pasted text, screenshots or PDF pages, often in Thai.
+export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 
-Return only the structured result. Emit one item per order. Never merge two orders into one item and never split one order into two. Never invent an order that is not on the report. If the same order appears twice (for example an order line and its receipt), emit it once.
+export function geminiModel(): string {
+  return process.env.MIKISAI_GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+}
+
+/** Stable system instruction, identical for every batch of a report. */
+export const SYSTEM_PROMPT = `You extract e-commerce orders from Thai and English sales reports, order lists, payout statements and receipts produced by TikTok Shop, Shopee and Facebook for a small Thai brand (MikiSai) that sells coconut sugar and skincare. Reports may be pasted text, screenshots or PDF pages, often in Thai.
+
+Return only JSON that matches the provided schema. Emit one item per order. Never merge two orders into one item and never split one order into two. Never invent an order that is not on the report. If the same order appears twice (for example an order line and its receipt), emit it once.
 
 Field rules:
 
@@ -44,56 +49,76 @@ Field rules:
 
 7. customer_name is the buyer's display name or username as printed. order_id is the platform order number as printed, without any "#" prefix. note is a short product summary such as "Coconut sugar 500g x2".
 
-8. Skip cancelled, refunded or returned orders entirely and mention each skipped order id in warnings. Also add a warning for any order whose amounts were unreadable. Warnings are short English sentences.
+8. Skip cancelled, refunded or returned orders entirely and mention each skipped order id in warnings. Also add a warning for any order whose amounts were unreadable. Warnings are short English sentences. If there are no warnings return an empty array.
 
 Read Thai carefully. Digits printed with Thai numerals (๐-๙) are converted to Arabic numerals.`;
 
-function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not set");
-  return new Anthropic({ maxRetries: 3, timeout: 240_000 });
+/** JSON schema handed to Gemini as responseJsonSchema, derived from the same Zod schema used to validate the reply. */
+export const RESPONSE_JSON_SCHEMA = z.toJSONSchema(ParsedBatchSchema);
+
+function getClient(): GoogleGenAI {
+  const apiKey = process.env.MIKISAI_GEMINI;
+  if (!apiKey) throw new Error("MIKISAI_GEMINI is not set");
+  return new GoogleGenAI({ apiKey });
 }
 
-function buildContent(input: BatchInput, platform: Platform): Anthropic.Beta.Messages.BetaContentBlockParam[] {
+export function buildParts(input: BatchInput, platform: Platform): Part[] {
   const intro = `Platform: ${platform}. Extract every order in this report section.`;
   if (input.kind === "text") {
-    return [{ type: "text", text: `${intro}\n\n<report>\n${input.text}\n</report>` }];
+    return [{ text: `${intro}\n\n<report>\n${input.text}\n</report>` }];
   }
   if (input.kind === "images") {
     return [
-      ...input.images.map((img): Anthropic.Beta.Messages.BetaImageBlockParam => ({
-        type: "image",
-        source: { type: "base64", media_type: img.media_type, data: img.data },
-      })),
-      { type: "text", text: `${intro} The images above are ${input.images.length} screenshot(s) of the report.` },
+      ...input.images.map((img): Part => ({ inlineData: { mimeType: img.media_type, data: img.data } })),
+      { text: `${intro} The images above are ${input.images.length} screenshot(s) of the report.` },
     ];
   }
   return [
-    { type: "document", source: { type: "base64", media_type: "application/pdf", data: input.data }, title: input.label },
-    { type: "text", text: `${intro} The document above is part of the report.` },
+    { inlineData: { mimeType: "application/pdf", data: input.data } },
+    { text: `${intro} The document above is "${input.label}", part of the report.` },
   ];
 }
 
-/** One Anthropic call for one batch of at most ~20 orders. Callers paginate. */
-export async function extractBatch(input: BatchInput, platform: Platform): Promise<ParsedBatch> {
-  const client = getClient();
+/** Strips a ```json fence if the model wrapped its answer, then parses. */
+export function parseModelJson(text: string): unknown {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  return JSON.parse(trimmed);
+}
 
-  const response = await client.beta.messages.parse({
-    model: MODEL,
-    max_tokens: 16000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: buildContent(input, platform) }],
-    output_config: { format: betaZodOutputFormat(ParsedBatchSchema), effort: "medium" },
+/** One Gemini call for one batch of at most ~20 orders. Callers paginate. */
+export async function extractBatch(input: BatchInput, platform: Platform): Promise<ParsedBatch> {
+  const ai = getClient();
+  const contents: Content[] = [{ role: "user", parts: buildParts(input, platform) }];
+
+  const response = await ai.models.generateContent({
+    model: geminiModel(),
+    contents,
+    config: {
+      systemInstruction: SYSTEM_PROMPT,
+      responseMimeType: "application/json",
+      responseJsonSchema: RESPONSE_JSON_SCHEMA,
+      temperature: 0,
+    },
   });
 
-  if (response.stop_reason === "refusal") {
-    return { orders: [], warnings: ["The model declined to read this section."] };
+  const text = response.text;
+  if (!text) {
+    const reason = response.candidates?.[0]?.finishReason ?? "no candidates";
+    return { orders: [], warnings: [`The model returned no result for this section (${reason}).`] };
   }
-  if (response.stop_reason === "max_tokens") {
-    return { orders: response.parsed_output?.orders ?? [], warnings: [...(response.parsed_output?.warnings ?? []), "Output was cut off. Split this section and try again."] };
+
+  let raw: unknown;
+  try {
+    raw = parseModelJson(text);
+  } catch {
+    return { orders: [], warnings: ["The model returned malformed JSON for this section."] };
   }
-  return response.parsed_output ?? { orders: [], warnings: ["The model returned no structured result for this section."] };
+
+  const parsed = ParsedBatchSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { orders: [], warnings: ["The model returned a result that did not match the expected shape for this section."] };
+  }
+  return parsed.data;
 }
 
 /** Runs batches with bounded concurrency so a long report does not burst the rate limit. */
