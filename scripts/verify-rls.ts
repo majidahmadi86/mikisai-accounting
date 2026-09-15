@@ -13,7 +13,7 @@ import { requireEnv } from "./env";
 const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
 const anonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-const TABLES = ["businesses", "profiles", "transactions", "settlements", "payouts", "internal_transfers", "customers", "platform_settings", "report_uploads"];
+const TABLES = ["businesses", "profiles", "transactions", "settlements", "payouts", "internal_transfers", "customers", "platform_settings", "report_uploads", "audit_log"];
 
 let failures = 0;
 function check(label: string, ok: boolean, detail = "") {
@@ -45,6 +45,18 @@ async function main() {
       const { error: insErr } = await authed.from("customers").insert({ business_id: "00000000-0000-4000-8000-00000000dead", name: "rls-probe" });
       check("founder cannot insert for another business", !!insErr, insErr?.message ?? "insert succeeded");
       await authed.from("customers").delete().eq("name", "rls-probe");
+
+      // Audit rows are append-only: a member can read and insert, never update or delete.
+      const { data: audit } = await authed.from("audit_log").select("id").order("created_at", { ascending: false }).limit(1);
+      const auditId = audit?.[0]?.id;
+      if (auditId) {
+        const { data: upd } = await authed.from("audit_log").update({ entity_type: "tampered" }).eq("id", auditId).select("id");
+        check("founder cannot update audit rows", (upd?.length ?? 0) === 0, `${upd?.length ?? 0} rows changed`);
+        const { data: del } = await authed.from("audit_log").delete().eq("id", auditId).select("id");
+        check("founder cannot delete audit rows", (del?.length ?? 0) === 0, `${del?.length ?? 0} rows removed`);
+      } else {
+        console.log("SKIP  audit immutability (no audit rows yet)");
+      }
     }
   }
 

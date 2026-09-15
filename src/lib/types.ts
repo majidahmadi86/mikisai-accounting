@@ -38,6 +38,7 @@ export type Transaction = {
   category: ExpenseCategory | null;
   customer_name: string | null;
   note: string;
+  quantity: number;
   created_at: string;
 };
 
@@ -87,6 +88,24 @@ export type PlatformSetting = {
   platform: Platform;
   commission_pct: number;
   fixed_fee: number;
+};
+
+export const AUDIT_ACTIONS = ["create", "update", "delete", "confirm_import", "confirm_payout", "export"] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "report_upload", "report"] as const;
+export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
+
+export type AuditLog = {
+  id: string;
+  business_id: string;
+  actor_user_id: string;
+  action: AuditAction;
+  entity_type: AuditEntity;
+  entity_id: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  created_at: string;
 };
 
 export type ReportUpload = {
