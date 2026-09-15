@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { AddButton } from "@/components/nav/AddButton";
 import { ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
+import { StackedItem, StackedList } from "@/components/ui/StackedList";
 import { Table, Td, Th } from "@/components/ui/Table";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { requireSession } from "@/lib/auth";
@@ -27,6 +29,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
     product: pick(sp.product, PRODUCT_LINES),
     status: pick(sp.status, SETTLEMENT_STATUSES),
   };
+  const filtered = Boolean(filters.type || filters.platform || filters.product || filters.status);
 
   const select = filters.status ? "*, settlements!inner(status, payout_id)" : "*, settlements(status, payout_id)";
   let query = supabase.from("transactions").select(select).order("date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
@@ -42,6 +45,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
       ...(row as unknown as Transaction),
       gross_amount: num(row.gross_amount),
       net_amount: num(row.net_amount),
+      quantity: num(row.quantity) || 1,
       status: (s?.status ?? null) as SettlementStatus | null,
     };
   });
@@ -53,10 +57,8 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
         subtitle={tr("transactions.subtitle")}
         action={
           <>
-            <ButtonLink href="/transactions/new?type=expense" variant="secondary">
-              {tr("transactions.addExpense")}
-            </ButtonLink>
-            <ButtonLink href="/transactions/new?type=income">{tr("transactions.addIncome")}</ButtonLink>
+            <AddButton label={tr("transactions.addExpense")} type="expense" variant="secondary" className="hidden md:inline-flex" />
+            <AddButton label={tr("transactions.addIncome")} type="income" className="hidden md:inline-flex" />
           </>
         }
       />
@@ -66,55 +68,105 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
       <p className="mb-3 text-xs text-plum-faint">{tr("transactions.count", { n: rows.length })}</p>
 
       {rows.length === 0 ? (
-        <EmptyState title={tr("transactions.empty")} />
+        filtered ? (
+          <EmptyState
+            title={tr("transactions.empty")}
+            body={tr("transactions.emptyBody")}
+            action={
+              <>
+                <ButtonLink href="/transactions" variant="secondary">
+                  {tr("transactions.clearFilters")}
+                </ButtonLink>
+                <AddButton label={tr("common.add")} />
+              </>
+            }
+          />
+        ) : (
+          <EmptyState title={tr("transactions.emptyAll")} body={tr("transactions.emptyAllBody")} action={<AddButton label={tr("dashboard.addFirst")} />} />
+        )
       ) : (
-        <Table>
-          <thead>
-            <tr>
-              <Th>{tr("common.date")}</Th>
-              <Th>{tr("common.type")}</Th>
-              <Th>{tr("common.platform")}</Th>
-              <Th>{tr("common.product")}</Th>
-              <Th>{tr("common.customer")}</Th>
-              <Th align="right">{tr("common.gross")}</Th>
-              <Th align="right">{tr("common.net")}</Th>
-              <Th>{tr("common.status")}</Th>
-              <Th></Th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          <StackedList>
             {rows.map((row) => (
-              <tr key={row.id} className="hover:bg-ivory/60">
-                <Td className="whitespace-nowrap">{formatDate(row.date, locale)}</Td>
-                <Td>
-                  <Pill tone={typeTone(row.type)}>
-                    {row.type === "income" ? tr("common.income") : tr("common.expense")}
-                    <span className="ml-1 opacity-70">· {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}</span>
-                  </Pill>
-                </Td>
-                <Td>
-                  <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
-                </Td>
-                <Td className="text-plum-soft">{productName(tr, row.product_line)}</Td>
-                <Td className="text-plum-soft max-w-48 truncate">
-                  {row.type === "income" ? (row.customer_name ?? "") : row.category ? categoryName(tr, row.category) : ""}
-                </Td>
-                <Td align="right" className={row.type === "expense" ? "text-plum-faint" : ""}>
-                  {row.type === "income" ? thb(row.gross_amount) : ""}
-                </Td>
-                <Td align="right" className={row.type === "expense" ? "text-berry font-medium" : "font-medium"}>
-                  {row.type === "expense" ? `-${thb(row.net_amount)}` : thb(row.net_amount)}
-                </Td>
-                <Td>{row.status ? <Pill tone={statusTone(row.status)}>{statusName(tr, row.status)}</Pill> : null}</Td>
-                <Td align="right">
-                  <Link href={`/transactions/${row.id}/edit`} className="text-xs text-berry hover:underline whitespace-nowrap">
-                    {tr("common.edit")} →
-                  </Link>
-                </Td>
-              </tr>
+              <StackedItem key={row.id} className="p-0">
+                <Link href={`/transactions/${row.id}/edit`} className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-plum">
+                      {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : row.category ? categoryName(tr, row.category) : tr("common.expense")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-plum-faint">
+                      {formatDate(row.date, locale)} · {productName(tr, row.product_line)}
+                      {row.quantity > 1 ? ` · ${tr("transactions.units", { n: row.quantity })}` : ""}
+                      {" · "}
+                      {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}
+                    </p>
+                    <p className="mt-1.5 flex flex-wrap gap-1.5">
+                      <Pill tone={typeTone(row.type)}>{row.type === "income" ? tr("common.income") : tr("common.expense")}</Pill>
+                      <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
+                      {row.status ? <Pill tone={statusTone(row.status)}>{statusName(tr, row.status)}</Pill> : null}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className={`tabular text-base font-medium ${row.type === "expense" ? "text-plum-soft" : "text-berry"}`}>
+                      {row.type === "expense" ? "-" : "+"}
+                      {thb(row.net_amount)}
+                    </p>
+                    {row.type === "income" && row.gross_amount !== row.net_amount ? <p className="text-xs text-plum-faint tabular">{thb(row.gross_amount)}</p> : null}
+                  </div>
+                </Link>
+              </StackedItem>
             ))}
-          </tbody>
-        </Table>
+          </StackedList>
+
+          <Table>
+            <thead>
+              <tr>
+                <Th>{tr("common.date")}</Th>
+                <Th>{tr("common.type")}</Th>
+                <Th>{tr("common.platform")}</Th>
+                <Th>{tr("common.product")}</Th>
+                <Th>{tr("common.customer")}</Th>
+                <Th align="right">{tr("common.gross")}</Th>
+                <Th align="right">{tr("common.net")}</Th>
+                <Th>{tr("common.status")}</Th>
+                <Th></Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="hover:bg-lavender-tint">
+                  <Td className="whitespace-nowrap">{formatDate(row.date, locale)}</Td>
+                  <Td>
+                    <Pill tone={typeTone(row.type)}>
+                      {row.type === "income" ? tr("common.income") : tr("common.expense")}
+                      <span className="ml-1 opacity-80">· {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}</span>
+                    </Pill>
+                  </Td>
+                  <Td>
+                    <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
+                  </Td>
+                  <Td className="text-plum-soft">
+                    {productName(tr, row.product_line)}
+                    {row.quantity > 1 ? <span className="text-plum-faint"> · {tr("transactions.units", { n: row.quantity })}</span> : null}
+                  </Td>
+                  <Td className="max-w-48 truncate text-plum-soft">{row.type === "income" ? (row.customer_name ?? "") : row.category ? categoryName(tr, row.category) : ""}</Td>
+                  <Td align="right" className="text-plum-faint">
+                    {row.type === "income" ? thb(row.gross_amount) : ""}
+                  </Td>
+                  <Td align="right" className={row.type === "expense" ? "font-medium text-plum-soft" : "font-medium text-berry"}>
+                    {row.type === "expense" ? `-${thb(row.net_amount)}` : thb(row.net_amount)}
+                  </Td>
+                  <Td>{row.status ? <Pill tone={statusTone(row.status)}>{statusName(tr, row.status)}</Pill> : null}</Td>
+                  <Td align="right">
+                    <Link href={`/transactions/${row.id}/edit`} className="text-xs text-berry hover:underline whitespace-nowrap">
+                      {tr("common.edit")} →
+                    </Link>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </>
       )}
     </div>
   );

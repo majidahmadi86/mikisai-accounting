@@ -108,12 +108,13 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
               <p className="font-display text-xl text-plum">{t("import.reviewTitle")}</p>
               <p className="text-sm text-plum-soft">{t("import.reviewSubtitle")}</p>
               <p className="mt-1 text-xs text-plum-faint">{t("import.batches", { orders: rows.length, batches: phase.result.batches })}</p>
+              <p className="mt-1 text-xs text-plum-soft">{t("import.reviewHint")}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex w-full gap-2 sm:w-auto">
               <Button type="button" variant="ghost" onClick={reset}>
                 {t("import.startOver")}
               </Button>
-              <Button type="button" disabled={saving || includedCount === 0} onClick={() => confirm(phase.result.upload_ids)}>
+              <Button type="button" className="flex-1 sm:flex-none" disabled={saving || includedCount === 0} onClick={() => confirm(phase.result.upload_ids)}>
                 {t("import.confirm", { n: includedCount })}
               </Button>
             </div>
@@ -137,10 +138,10 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
 
   const parsing = phase.name === "parsing";
   return (
-    <Card className="p-6">
+    <Card className="p-5 sm:p-6">
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label={t("import.platformLabel")} htmlFor="platform">
               <Select id="platform" value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} disabled={parsing}>
                 {PLATFORMS.map((p) => (

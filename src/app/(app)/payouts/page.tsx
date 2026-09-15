@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
+import { StackedItem, StackedList } from "@/components/ui/StackedList";
 import { Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
@@ -33,64 +35,112 @@ export default async function PayoutsPage() {
 
   const rows = ((payouts ?? []) as Payout[]).map((p) => ({ ...p, amount_received: num(p.amount_received), match: byPayout.get(p.id) }));
 
+  function Status({ p }: { p: (typeof rows)[number] }) {
+    const diff = p.match ? round2(p.match.total - p.amount_received) : null;
+    return p.match ? (
+      <span className="inline-flex flex-wrap items-center gap-2">
+        <Pill tone="success">{tr("payouts.reconciled", { n: p.match.count })}</Pill>
+        {diff !== null && Math.abs(diff) >= 0.01 ? (
+          <span className="text-xs text-plum-faint tabular">
+            {diff > 0 ? "+" : ""}
+            {thb(diff)}
+          </span>
+        ) : null}
+      </span>
+    ) : (
+      <Pill tone="lavender">{tr("payouts.unreconciled")}</Pill>
+    );
+  }
+
   return (
     <div>
       <PageHeader title={tr("payouts.title")} subtitle={tr("payouts.subtitle")} action={<ButtonLink href="/payouts/new">{tr("payouts.new")}</ButtonLink>} />
       {rows.length === 0 ? (
-        <EmptyState title={tr("payouts.empty")} action={<ButtonLink href="/payouts/new">{tr("payouts.new")}</ButtonLink>} />
+        <EmptyState title={tr("payouts.empty")} body={tr("payouts.emptyBody")} action={<ButtonLink href="/payouts/new">{tr("payouts.new")}</ButtonLink>} />
       ) : (
-        <Table>
-          <thead>
-            <tr>
-              <Th>{tr("common.date")}</Th>
-              <Th>{tr("common.platform")}</Th>
-              <Th>{tr("payouts.receivedBy")}</Th>
-              <Th align="right">{tr("payouts.amountReceived")}</Th>
-              <Th>{tr("common.status")}</Th>
-              <Th>{tr("common.note")}</Th>
-              <Th></Th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          <StackedList>
             {rows.map((p) => {
               const remove = deletePayout.bind(null, p.id);
-              const diff = p.match ? round2(p.match.total - p.amount_received) : null;
               return (
-                <tr key={p.id}>
-                  <Td className="whitespace-nowrap">{formatDate(p.date, locale)}</Td>
-                  <Td>
-                    <Pill tone={platformTone(p.platform)}>{platformName(tr, p.platform)}</Pill>
-                  </Td>
-                  <Td>{tr(`common.${p.received_by}`)}</Td>
-                  <Td align="right" className="font-medium">
-                    {thb(p.amount_received)}
-                  </Td>
-                  <Td>
-                    {p.match ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Pill tone="success">{tr("payouts.reconciled", { n: p.match.count })}</Pill>
-                        {diff !== null && Math.abs(diff) >= 0.01 ? <span className="text-xs text-plum-faint tabular">{diff > 0 ? "+" : ""}{thb(diff)}</span> : null}
-                      </span>
-                    ) : (
-                      <Pill tone="lavender">{tr("payouts.unreconciled")}</Pill>
-                    )}
-                  </Td>
-                  <Td className="text-plum-soft max-w-56 truncate">{p.note}</Td>
-                  <Td align="right">
-                    <div className="flex items-center justify-end gap-3">
-                      <Link href={`/payouts/${p.id}/reconcile`} className="text-xs text-berry hover:underline whitespace-nowrap">
-                        {tr("payouts.reconcile")} →
-                      </Link>
-                      <form action={remove}>
-                        <DeleteButton variant="ghost" className="px-2 py-1 text-xs" />
-                      </form>
+                <StackedItem key={p.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2">
+                        <Pill tone={platformTone(p.platform)}>{platformName(tr, p.platform)}</Pill>
+                        <span className="text-xs text-plum-faint">
+                          {formatDate(p.date, locale)} · {tr(`common.${p.received_by}`)}
+                        </span>
+                      </p>
+                      <p className="mt-2">
+                        <Status p={p} />
+                      </p>
+                      {p.note ? <p className="mt-1 truncate text-xs text-plum-soft">{p.note}</p> : null}
                     </div>
-                  </Td>
-                </tr>
+                    <p className="shrink-0 font-display text-xl tabular text-plum">{thb(p.amount_received)}</p>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2">
+                    <Link href={`/payouts/${p.id}/reconcile`} className="inline-flex min-h-11 items-center text-sm font-medium text-berry">
+                      {tr("payouts.reconcile")} →
+                    </Link>
+                    <form action={remove}>
+                      <DeleteButton variant="ghost" className="px-3 text-xs" />
+                    </form>
+                  </div>
+                </StackedItem>
               );
             })}
-          </tbody>
-        </Table>
+          </StackedList>
+
+          <Table>
+            <thead>
+              <tr>
+                <Th>{tr("common.date")}</Th>
+                <Th>{tr("common.platform")}</Th>
+                <Th>{tr("payouts.receivedBy")}</Th>
+                <Th align="right">{tr("payouts.amountReceived")}</Th>
+                <Th>
+                  <span className="inline-flex items-center gap-1">
+                    {tr("common.status")} <InfoTip text={tr("payouts.tipStatus")} />
+                  </span>
+                </Th>
+                <Th>{tr("common.note")}</Th>
+                <Th></Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p) => {
+                const remove = deletePayout.bind(null, p.id);
+                return (
+                  <tr key={p.id} className="hover:bg-lavender-tint">
+                    <Td className="whitespace-nowrap">{formatDate(p.date, locale)}</Td>
+                    <Td>
+                      <Pill tone={platformTone(p.platform)}>{platformName(tr, p.platform)}</Pill>
+                    </Td>
+                    <Td>{tr(`common.${p.received_by}`)}</Td>
+                    <Td align="right" className="font-medium">
+                      {thb(p.amount_received)}
+                    </Td>
+                    <Td>
+                      <Status p={p} />
+                    </Td>
+                    <Td className="max-w-56 truncate text-plum-soft">{p.note}</Td>
+                    <Td align="right">
+                      <div className="flex items-center justify-end gap-3">
+                        <Link href={`/payouts/${p.id}/reconcile`} className="text-xs text-berry hover:underline whitespace-nowrap">
+                          {tr("payouts.reconcile")} →
+                        </Link>
+                        <form action={remove}>
+                          <DeleteButton variant="ghost" className="px-2 text-xs" />
+                        </form>
+                      </div>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </>
       )}
     </div>
   );

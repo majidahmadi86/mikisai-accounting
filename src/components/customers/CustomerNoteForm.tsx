@@ -28,13 +28,13 @@ export function CustomerNoteForm({ id, note }: { id: string; note: string }) {
       }}
     >
       <input
-        className={cn(controlClass, "py-1.5")}
+        className={cn(controlClass, "min-h-10 py-1.5")}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={t("customers.notePlaceholder")}
         aria-label={t("common.note")}
       />
-      <button type="submit" disabled={!dirty || pending} className="text-xs text-berry disabled:text-plum-faint whitespace-nowrap">
+      <button type="submit" disabled={!dirty || pending} className="min-h-10 px-2 text-xs font-medium text-berry disabled:text-plum-faint whitespace-nowrap">
         {saved ? t("common.saved") : t("common.save")}
       </button>
     </form>

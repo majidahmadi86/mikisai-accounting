@@ -15,29 +15,29 @@ function href(filters: Filters, patch: Partial<Filters>): string {
   return qs ? `/transactions?${qs}` : "/transactions";
 }
 
+const chip = "inline-flex min-h-10 items-center rounded-full border px-3.5 text-xs font-medium transition-colors";
+
 function Group({ label, options, current, onKey, filters, tr }: { label: string; options: { value: string; label: string }[]; current?: string; onKey: keyof Filters; filters: Filters; tr: (k: "common.all") => string }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-xs uppercase tracking-wide text-plum-faint">{label}</span>
-      <Link href={href(filters, { [onKey]: undefined })} className={cn("rounded-full px-2.5 py-1 text-xs border transition-colors", !current ? "bg-plum text-ivory border-plum" : "border-line text-plum-soft hover:border-plum-faint")}>
-        {tr("common.all")}
-      </Link>
-      {options.map((o) => (
-        <Link
-          key={o.value}
-          href={href(filters, { [onKey]: o.value })}
-          className={cn("rounded-full px-2.5 py-1 text-xs border transition-colors", current === o.value ? "bg-plum text-ivory border-plum" : "border-line text-plum-soft hover:border-plum-faint")}
-        >
-          {o.label}
+    <div>
+      <p className="eyebrow mb-1.5">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        <Link href={href(filters, { [onKey]: undefined })} className={cn(chip, !current ? "border-plum bg-plum text-ivory" : "border-line bg-card text-plum-soft hover:border-plum-faint")}>
+          {tr("common.all")}
         </Link>
-      ))}
+        {options.map((o) => (
+          <Link key={o.value} href={href(filters, { [onKey]: o.value })} className={cn(chip, current === o.value ? "border-plum bg-plum text-ivory" : "border-line bg-card text-plum-soft hover:border-plum-faint")}>
+            {o.label}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
 
 export function TransactionFilters({ tr, filters }: { tr: Translator; filters: Filters }) {
   return (
-    <div className="mb-5 flex flex-col gap-2.5 rounded-card border border-line bg-card px-5 py-4">
+    <div className="mb-5 grid gap-3 rounded-card border border-line bg-card px-4 py-4 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
       <Group
         label={tr("common.type")}
         onKey="type"
