@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "seed": "tsx scripts/seed.ts",
+    "verify:rls": "tsx scripts/verify-rls.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
@@ -30,6 +34,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",
+    "vite": "^8.3.0",
     "vitest": "^5.0.1"
   },
   "allowScripts": {
