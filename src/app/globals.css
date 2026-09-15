@@ -32,8 +32,8 @@
   --color-gold: var(--gold);
   --color-gold-tint: var(--gold-tint);
   --color-card: var(--card);
-  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display), Georgia, serif;
+  --font-sans: var(--font-body), var(--font-body-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-display-thai), Georgia, serif;
   --radius-card: 14px;
 }
 
