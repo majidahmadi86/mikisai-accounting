@@ -57,8 +57,8 @@ Read Thai carefully. Digits printed with Thai numerals (๐-๙) are converted t
 export const RESPONSE_JSON_SCHEMA = z.toJSONSchema(ParsedBatchSchema);
 
 function getClient(): GoogleGenAI {
-  const apiKey = process.env.MIKISAI_GEMINI;
-  if (!apiKey) throw new Error("MIKISAI_GEMINI is not set");
+  const apiKey = process.env.MIKISAI_GEMINI_KEY;
+  if (!apiKey) throw new Error("MIKISAI_GEMINI_KEY is not set");
   return new GoogleGenAI({ apiKey });
 }
 
@@ -85,12 +85,19 @@ export function parseModelJson(text: string): unknown {
   return JSON.parse(trimmed);
 }
 
+const RETRY_STATUSES = new Set([429, 500, 503]);
+const RETRY_DELAYS_MS = [1500, 4000, 8000];
+
+function isRetryable(err: unknown): boolean {
+  const status = (err as { status?: unknown })?.status;
+  return typeof status === "number" && RETRY_STATUSES.has(status);
+}
+
 /** One Gemini call for one batch of at most ~20 orders. Callers paginate. */
 export async function extractBatch(input: BatchInput, platform: Platform): Promise<ParsedBatch> {
   const ai = getClient();
   const contents: Content[] = [{ role: "user", parts: buildParts(input, platform) }];
-
-  const response = await ai.models.generateContent({
+  const request = {
     model: geminiModel(),
     contents,
     config: {
@@ -99,7 +106,19 @@ export async function extractBatch(input: BatchInput, platform: Platform): Promi
       responseJsonSchema: RESPONSE_JSON_SCHEMA,
       temperature: 0,
     },
-  });
+  };
+
+  // Google answers with 503 "high demand" or 429 during spikes; retry briefly before giving up on the batch.
+  let response: Awaited<ReturnType<typeof ai.models.generateContent>> | undefined;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      response = await ai.models.generateContent(request);
+      break;
+    } catch (err) {
+      if (!isRetryable(err) || attempt >= RETRY_DELAYS_MS.length) throw err;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+    }
+  }
 
   const text = response.text;
   if (!text) {

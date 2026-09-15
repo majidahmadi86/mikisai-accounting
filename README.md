@@ -41,7 +41,7 @@ A positive delta means that person holds more than their share, so the banner re
 
    The migration creates every table with `business_id`, enables RLS for authenticated members of the business only, adds the customer auto-insert trigger, creates the private `reports` storage bucket, and seeds one business plus default platform settings.
 
-2. Copy `.env.example` to `.env.local` and fill in the Supabase keys, `MIKISAI_GEMINI` (the Gemini API key), and the two founder emails and passwords.
+2. Copy `.env.example` to `.env.local` and fill in the Supabase keys, `MIKISAI_GEMINI_KEY` (the Gemini API key), and the two founder emails and passwords.
 
 3. Install and seed:
 
@@ -71,7 +71,7 @@ To check the import flow, sign in, open `/import`, choose the platform, and uplo
 
 ## Deploy to Vercel
 
-Set the four environment variables from `.env.example` (never expose `SUPABASE_SERVICE_ROLE_KEY` or `MIKISAI_GEMINI` with a `NEXT_PUBLIC_` prefix). The parse route sets `maxDuration = 300`, which needs a plan that allows long function durations for very long reports.
+Set the four environment variables from `.env.example` (never expose `SUPABASE_SERVICE_ROLE_KEY` or `MIKISAI_GEMINI_KEY` with a `NEXT_PUBLIC_` prefix). The parse route sets `maxDuration = 300`, which needs a plan that allows long function durations for very long reports.
 
 ## Conventions
 
