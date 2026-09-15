@@ -108,3 +108,10 @@ export async function deleteTransaction(id: string) {
   await removeTransaction(id);
   redirect("/transactions");
 }
+
+/** Quick-entry sheet: validates the client payload and inserts without a redirect. */
+export async function quickAddTransaction(input: unknown): Promise<SaveResult> {
+  const parsed = TransactionSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  return insertTransaction(parsed.data);
+}

@@ -1,6 +1,8 @@
 import { Brand } from "./Brand";
 import { LangToggle } from "./LangToggle";
 import { NavLinks } from "./NavLinks";
+import { AddButton } from "./AddButton";
+import { TabBar } from "./TabBar";
 import { signOut } from "@/app/login/actions";
 import type { Locale, Translator } from "@/lib/i18n/dictionary";
 
@@ -16,16 +18,15 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const links = [
-    { href: "/", label: tr("nav.dashboard") },
-    { href: "/transactions", label: tr("nav.transactions") },
-    { href: "/import", label: tr("nav.import") },
-    { href: "/payouts", label: tr("nav.payouts") },
-    { href: "/customers", label: tr("nav.customers") },
-    { href: "/settings", label: tr("nav.settings") },
+    { href: "/", label: tr("nav.home") },
+    { href: "/transactions", label: tr("nav.ledger") },
+    { href: "/reports", label: tr("nav.reports") },
+    { href: "/insights", label: tr("nav.insights") },
+    { href: "/more", label: tr("nav.more") },
   ];
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-ivory/85 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between gap-4">
@@ -33,24 +34,25 @@ export function AppShell({
               <Brand />
               <NavLinks links={links} className="hidden md:flex" />
             </div>
-            <div className="flex items-center gap-3">
-              <span className="hidden text-xs text-plum-soft sm:inline">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <AddButton label={tr("nav.add")} className="hidden md:inline-flex" />
+              <span className="hidden text-xs text-plum-soft lg:inline">
                 {tr("nav.signedInAs")} <span className="font-medium text-plum">{displayName}</span>
               </span>
               <LangToggle locale={locale} />
-              <form action={signOut}>
+              <form action={signOut} className="hidden md:block">
                 <button type="submit" className="min-h-11 px-2 text-xs text-plum-soft transition-colors hover:text-plum">
                   {tr("nav.signOut")}
                 </button>
               </form>
             </div>
           </div>
-          <NavLinks links={links} className="-mt-2 flex overflow-x-auto pb-3 md:hidden" />
         </div>
       </header>
-      <main className="flex-1">
-        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">{children}</div>
+      <main className="flex-1 pb-24 md:pb-0">
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10">{children}</div>
       </main>
+      <TabBar />
     </div>
   );
 }
