@@ -24,6 +24,8 @@ import { YesterdayCard } from "@/components/dashboard/YesterdayCard";
 import { buildYesterday } from "@/lib/dashboard/yesterday";
 import { summariseItems } from "@/lib/inventory/units";
 import { todayIso } from "@/lib/money";
+import { lastHealthRun } from "@/lib/health/run";
+import { formatDateTime } from "@/lib/money";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
@@ -40,6 +42,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const productsById = new Map(snapshot.products.map((p) => [p.id, p]));
   const itemsOf = (id: string) => summariseItems(snapshot.items.filter((i) => i.transaction_id === id), productsById, locale, (n) => tr("transactions.items", { n }));
   const yesterday = buildYesterday(snapshot, todayIso());
+  const health = await lastHealthRun(session.supabase, session.profile.business_id);
   const transfers = snapshot.transfers.slice(0, 20);
   const pendingPlatforms = PLATFORMS.filter((p) => balance.pendingByPlatform[p].orders > 0);
   const transferError = typeof sp.transfer === "string" ? sp.transfer : null;
@@ -51,6 +54,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
       <BalanceBanner balance={balance} tr={tr} />
 
       <YesterdayCard data={yesterday} tr={tr} locale={locale} />
+
+      <p className="-mt-3 mb-6 text-xs text-plum-faint">
+        <Link href="/more/health" className={health && health.issues > 0 ? "font-medium text-warning-ink hover:underline" : "hover:underline"}>
+          {health ? (health.issues > 0 ? tr("health.homeIssues", { n: health.issues, time: formatDateTime(health.ran_at, locale) }) : tr("health.homeOk", { time: formatDateTime(health.ran_at, locale) })) : tr("health.homeNever")} →
+        </Link>
+      </p>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label={tr("dashboard.settledIncome")} value={thb(balance.settledIncome)} tone="berry" info={<InfoTip text={tr("tips.settledIncome")} />} />

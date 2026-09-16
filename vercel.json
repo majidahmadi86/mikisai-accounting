@@ -1,9 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["sin1"],
+  "regions": [
+    "sin1"
+  ],
   "functions": {
     "src/app/**": {
-      "regions": ["sin1"]
+      "regions": [
+        "sin1"
+      ]
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/health/daily",
+      "schedule": "0 22 * * *"
+    }
+  ]
 }

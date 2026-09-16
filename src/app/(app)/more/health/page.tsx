@@ -1,0 +1,71 @@
+import Link from "next/link";
+import { ButtonLink } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Pill } from "@/components/ui/Pill";
+import { requireSession } from "@/lib/auth";
+import { getLedgerSnapshot } from "@/lib/data/ledger";
+import { getLocale, t } from "@/lib/i18n/server";
+import type { HealthKey } from "@/lib/health/checks";
+import { loadAuditForHealth, recordHealthRun, runHealth } from "@/lib/health/run";
+import { formatDateTime, todayIso } from "@/lib/money";
+import { cn } from "@/lib/cn";
+
+export const dynamic = "force-dynamic";
+
+/** Runs every check on load and records the run. Admin sees every row; a contributor sees the same counts and rows except the audit-based check. */
+export default async function DataHealthPage() {
+  const [session, locale] = await Promise.all([requireSession(), getLocale()]);
+  const tr = t(locale);
+  const admin = session.profile.role === "admin";
+  const today = todayIso();
+  const snapshot = await getLedgerSnapshot(session.profile.business_id);
+  const audit = admin ? await loadAuditForHealth(session.supabase, session.profile.business_id) : null;
+  const result = await runHealth(snapshot, audit, today);
+  await recordHealthRun(session.supabase, session.profile.business_id, result, "page", session.userId);
+
+  return (
+    <div className="max-w-3xl">
+      <PageHeader title={tr("health.title")} subtitle={tr("health.subtitle")} action={<ButtonLink href={`/more/health?ran=${encodeURIComponent(result.ranAt)}`} variant="secondary">{tr("health.run")}</ButtonLink>} />
+      <Card tone={result.ok ? "success" : "berry"} className="mb-4 px-5 py-5">
+        <p className={cn("text-2xl font-medium", result.ok ? "text-success" : "text-berry")}>{result.ok ? tr("health.allClear") : tr("health.issues", { n: result.issues })}</p>
+        <p className="mt-1 text-xs text-plum-soft">
+          {tr("health.ranAt", { time: formatDateTime(result.ranAt, locale) })} · {tr("health.daily")}
+          {!admin ? ` · ${tr("health.readOnly")}` : ""}
+        </p>
+      </Card>
+
+      <div className="space-y-3">
+        {result.checks.map((c) => (
+          <Card key={c.key} tone={c.skipped ? "ivory" : c.count ? "warning" : "card"} className="px-5 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-base font-medium text-plum">{tr(`health.${c.key}` as `health.${HealthKey}`)}</p>
+                <p className="mt-0.5 text-xs text-plum-soft">{tr(`health.${c.key}.desc` as `health.${HealthKey}.desc`)}</p>
+              </div>
+              {c.skipped ? <Pill tone="neutral">{tr("health.adminOnly")}</Pill> : <Pill tone={c.count ? "warning" : "success"}>{c.count}</Pill>}
+            </div>
+            {c.count ? (
+              <ul className="mt-3 divide-y divide-line/60">
+                {c.issues.slice(0, 50).map((i, idx) => (
+                  <li key={`${i.id}-${idx}`} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate text-plum">
+                      {i.label}
+                      {i.detail ? <span className="ml-2 text-xs text-plum-faint">{i.detail}</span> : null}
+                    </span>
+                    {i.href ? (
+                      <Link href={i.href} className="shrink-0 whitespace-nowrap text-xs font-medium text-berry hover:underline">
+                        {tr("health.openRow")} →
+                      </Link>
+                    ) : null}
+                  </li>
+                ))}
+                {c.issues.length > 50 ? <li className="py-2 text-xs text-plum-faint">{tr("health.more", { n: c.issues.length - 50 })}</li> : null}
+              </ul>
+            ) : null}
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
