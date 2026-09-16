@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { recordAudit } from "@/lib/audit";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
-import { inventoryTables, isReportId, reportTables, transferTable, type ExportTable } from "@/lib/exports/tables";
+import { inventoryTables, isReportId, reportTables, transferTable, unitsTable, type ExportTable } from "@/lib/exports/tables";
+import { buildUnitsReport, last14Days } from "@/lib/inventory/units";
+import { todayIso } from "@/lib/money";
 import { buildWorkbook } from "@/lib/exports/xlsx";
 import { renderReportPdf } from "@/lib/exports/pdf";
 import { getLocale, t } from "@/lib/i18n/server";
@@ -25,12 +27,18 @@ export async function GET(request: Request) {
   const format = url.searchParams.get("format") === "pdf" ? "pdf" : "xlsx";
   const reportParam = url.searchParams.get("report") ?? "all";
   const report = isReportId(reportParam) ? reportParam : "all";
-  const period = resolvePeriod({ period: url.searchParams.get("period"), from: url.searchParams.get("from"), to: url.searchParams.get("to") });
+  const period = url.searchParams.get("period") ? resolvePeriod({ period: url.searchParams.get("period"), from: url.searchParams.get("from"), to: url.searchParams.get("to") }) : report === "units" ? last14Days(todayIso()) : resolvePeriod({});
 
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const bundle = buildReports(snapshot, period);
   const all = [...reportTables(bundle, tr, locale), ...inventoryTables(bundle, tr)];
   let tables: ExportTable[] = report === "all" ? all : all.filter((x) => x.id === report);
+  if (report === "units" || report === "all") {
+    const g = url.searchParams.get("granularity");
+    const granularity = g === "week" || g === "month" ? g : "day";
+    const units = unitsTable(buildUnitsReport({ products: snapshot.products, movements: snapshot.movements, items: snapshot.items, sales: snapshot.transactions.filter((x) => x.type === "income").map((x) => ({ id: x.id, date: x.date })) }, period, granularity), tr, locale);
+    tables = report === "units" ? [units] : [...tables, units];
+  }
   if (report === "all" || report === "owes") {
     const idx = tables.findIndex((x) => x.id === "owes");
     if (idx >= 0) tables = [...tables.slice(0, idx + 1), transferTable(bundle, tr, locale), ...tables.slice(idx + 1)];

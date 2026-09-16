@@ -69,6 +69,12 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <EmptyState title={tr("reports.empty")} body={tr("reports.emptyBody")} action={<AddButton label={tr("dashboard.addFirst")} />} />
       ) : (
         <div className="space-y-5">
+          <Link href={`/reports/units?${qs}`} className="flex items-center justify-between gap-3 rounded-card border border-lavender bg-lavender-tint px-5 py-4 transition-colors hover:bg-lavender-soft">
+            <span className="min-w-0">
+              <span className="block text-base font-medium text-plum">{tr("units.title")} →</span>
+              <span className="block text-sm text-plum-soft">{tr("units.subtitle")}</span>
+            </span>
+          </Link>
           <Card>
             <CardHeader title={byId.pl.title} subtitle={tr("reports.plDescAccrual")} action={<ExportLinks small report="pl" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
             <div className="px-5 pb-5 sm:px-6 sm:pb-6">

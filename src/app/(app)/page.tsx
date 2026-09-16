@@ -19,6 +19,11 @@ import { categoryById, categoryLabel } from "@/lib/categories";
 import { formatDate, thb } from "@/lib/money";
 import { PLATFORMS } from "@/lib/types";
 import { createTransfer } from "./transfers/actions";
+import { ItemsSummary } from "@/components/transactions/ItemsSummary";
+import { YesterdayCard } from "@/components/dashboard/YesterdayCard";
+import { buildYesterday } from "@/lib/dashboard/yesterday";
+import { summariseItems } from "@/lib/inventory/units";
+import { todayIso } from "@/lib/money";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
@@ -32,6 +37,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
     snapshot.transfers,
   );
   const recent = snapshot.transactions.slice(0, 8);
+  const productsById = new Map(snapshot.products.map((p) => [p.id, p]));
+  const itemsOf = (id: string) => summariseItems(snapshot.items.filter((i) => i.transaction_id === id), productsById, locale, (n) => tr("transactions.items", { n }));
+  const yesterday = buildYesterday(snapshot, todayIso());
   const transfers = snapshot.transfers.slice(0, 20);
   const pendingPlatforms = PLATFORMS.filter((p) => balance.pendingByPlatform[p].orders > 0);
   const transferError = typeof sp.transfer === "string" ? sp.transfer : null;
@@ -41,6 +49,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
     <div>
       <Tour autoOpen />
       <BalanceBanner balance={balance} tr={tr} />
+
+      <YesterdayCard data={yesterday} tr={tr} locale={locale} />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label={tr("dashboard.settledIncome")} value={thb(balance.settledIncome)} tone="berry" info={<InfoTip text={tr("tips.settledIncome")} />} />
@@ -110,6 +120,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-plum-faint">
                           <span>{formatDate(row.date, locale)}</span>
+                          {(() => {
+                            const s = itemsOf(row.id);
+                            return s ? <span className="text-plum-soft">· <ItemsSummary label={s.label} lines={s.lines} /></span> : null;
+                          })()}
                           <span>· {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}</span>
                           {row.type === "income" && row.settlement ? (
                             <Pill tone={statusTone(row.settlement.status)} className="px-2 py-0 text-[10px]">

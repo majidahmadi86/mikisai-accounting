@@ -69,8 +69,10 @@ export function addTableSheet(workbook: ExcelJS.Workbook, table: ExportTable, me
       if (kind === "pct") cell.numFmt = PCT_FORMAT;
       if (kind === "int") cell.numFmt = "0";
       cell.alignment = { horizontal: kind === "text" || kind === "date" ? "left" : "right" };
-      cell.font = { name: "Calibri", size: 10, color: { argb: XLSX_COLORS.plum } };
-      if (r % 2 === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: XLSX_COLORS.ivoryDeep } };
+      const emphasis = (table.emphasis ?? []).includes(r);
+      cell.font = { name: "Calibri", size: 10, bold: emphasis, color: { argb: XLSX_COLORS.plum } };
+      if (emphasis) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFE9F7" } };
+      else if (r % 2 === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: XLSX_COLORS.ivoryDeep } };
     });
   });
 

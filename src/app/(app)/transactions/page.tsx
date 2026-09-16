@@ -7,6 +7,8 @@ import { Pill } from "@/components/ui/Pill";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
 import { Table, Td, Th } from "@/components/ui/Table";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
+import { ItemsSummary } from "@/components/transactions/ItemsSummary";
+import { summariseItems } from "@/lib/inventory/units";
 import { requireSession } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone, productName, statusName, statusTone, typeTone } from "@/lib/labels";
@@ -29,6 +31,10 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const categories = categoryById(snapshot.categories);
   const tr = t(locale);
+  const productsById = new Map(snapshot.products.map((p) => [p.id, p]));
+  const itemsByTx = new Map<string, { product_id: string; qty: number }[]>();
+  for (const it of snapshot.items) itemsByTx.set(it.transaction_id, [...(itemsByTx.get(it.transaction_id) ?? []), it]);
+  const itemsOf = (id: string) => summariseItems(itemsByTx.get(id) ?? [], productsById, locale, (n) => tr("transactions.items", { n }));
 
   const filters: Filters = {
     type: pick(sp.type, TRANSACTION_TYPES),
@@ -114,10 +120,14 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                       {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : categoryLabel(categories.get(row.category_id ?? ""), locale) || tr("common.expense")}
                     </p>
                     <p className="mt-0.5 text-xs text-plum-faint">
-                      {formatDate(row.date, locale)} · {productName(tr, row.product_line)}
-                      {row.quantity > 1 ? ` · ${tr("transactions.units", { n: row.quantity })}` : ""}
-                      {" · "}
-                      {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}
+                      {formatDate(row.date, locale)} · {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-plum-soft">
+                      {(() => {
+                        const s = itemsOf(row.id);
+                        if (s) return <ItemsSummary label={s.label} lines={s.lines} />;
+                        return row.type === "income" ? <span className="font-medium text-warning-ink">{tr("transactions.noProduct")}</span> : productName(tr, row.product_line);
+                      })()}
                     </p>
                     <p className="mt-1.5 flex flex-wrap gap-1.5">
                       <Pill tone={typeTone(row.type)}>{row.type === "income" ? tr("common.income") : tr("common.expense")}</Pill>
@@ -165,8 +175,11 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                     <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
                   </Td>
                   <Td className="text-plum-soft">
-                    {productName(tr, row.product_line)}
-                    {row.quantity > 1 ? <span className="text-plum-faint"> · {tr("transactions.units", { n: row.quantity })}</span> : null}
+                    {(() => {
+                      const s = itemsOf(row.id);
+                      if (s) return <ItemsSummary label={s.label} lines={s.lines} />;
+                      return row.type === "income" ? <span className="font-medium text-warning-ink">{tr("transactions.noProduct")}</span> : productName(tr, row.product_line);
+                    })()}
                   </Td>
                   <Td className="max-w-48 truncate text-plum-soft">{row.type === "income" ? (row.customer_name ?? "") : categoryLabel(categories.get(row.category_id ?? ""), locale)}</Td>
                   <Td align="right" className="text-plum-faint">

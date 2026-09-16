@@ -78,6 +78,7 @@ const s = StyleSheet.create({
   headText: { color: C.ivory, fontSize: 7.5, letterSpacing: 0.8, textTransform: "uppercase" },
   stripe: { backgroundColor: C.ivoryDeep },
   total: { backgroundColor: C.ivory, borderTopWidth: 1, borderTopColor: C.plum },
+  emphasis: { backgroundColor: "#EFE9F7" },
   totalText: { color: C.berry },
   cell: { paddingVertical: 4, paddingHorizontal: 5 },
   footer: { position: "absolute", left: 36, right: 36, bottom: 20, flexDirection: "row", justifyContent: "space-between", fontSize: 7.5, color: C.soft, borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 5 },
@@ -113,15 +114,16 @@ function TableBlock({ table, locale }: { table: ExportTable; locale: Locale }) {
       ) : null}
       {rows.map((r, ri) => {
         const isTotal = hasTotal && ri === rows.length - 1;
+        const isEmphasis = !isTotal && (table.emphasis ?? []).includes(ri);
         return (
-          <View key={ri} style={[s.row, ri % 2 === 1 && !isTotal ? s.stripe : {}, isTotal ? s.total : {}]} wrap={false}>
+          <View key={ri} style={[s.row, ri % 2 === 1 && !isTotal && !isEmphasis ? s.stripe : {}, isEmphasis ? s.emphasis : {}, isTotal ? s.total : {}]} wrap={false}>
             {r.map((v, ci) => (
               <Text
                 key={ci}
                 style={[
                   s.cell,
                   { width: `${w[ci] * 100}%`, textAlign: table.columns[ci].kind === "text" || table.columns[ci].kind === "date" ? "left" : "right", fontFamily: bodyFont(v, locale) },
-                  isTotal ? { ...s.totalText, fontWeight: 500 } : {},
+                  isTotal ? { ...s.totalText, fontWeight: 500 } : isEmphasis ? { fontWeight: 500 } : {},
                 ]}
               >
                 {v}

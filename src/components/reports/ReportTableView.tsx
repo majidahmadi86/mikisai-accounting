@@ -3,8 +3,9 @@ import { formatCell } from "@/lib/exports/format";
 import { Table, Td, Th } from "@/components/ui/Table";
 import { cn } from "@/lib/cn";
 
-function rowsWithTotal(table: ExportTable): { cells: string[]; total: boolean }[] {
-  const rows = table.rows.map((r) => ({ cells: r.map((v, i) => formatCell(v, table.columns[i].kind)), total: false }));
+export function rowsWithTotal(table: ExportTable): { cells: string[]; total: boolean; emphasis: boolean }[] {
+  const emphasis = new Set(table.emphasis ?? []);
+  const rows = table.rows.map((r, ri) => ({ cells: r.map((v, i) => formatCell(v, table.columns[i].kind)), total: false, emphasis: emphasis.has(ri) }));
   if (table.totals.length && table.rows.length) {
     rows.push({
       cells: table.columns.map((c, i) => {
@@ -14,6 +15,7 @@ function rowsWithTotal(table: ExportTable): { cells: string[]; total: boolean }[
         return formatCell(Math.round(sum * 100) / 100, c.kind);
       }),
       total: true,
+      emphasis: false,
     });
   }
   return rows;
@@ -28,7 +30,7 @@ export function ReportTableView({ table }: { table: ExportTable }) {
     <>
       <ul className="space-y-2 md:hidden">
         {rows.map((r, ri) => (
-          <li key={ri} className={cn("rounded-xl border px-4 py-3", r.total ? "border-berry/30 bg-berry-tint" : "border-line bg-card")}>
+          <li key={ri} className={cn("rounded-xl border px-4 py-3", r.total ? "border-berry/30 bg-berry-tint" : r.emphasis ? "border-lavender bg-lavender-tint" : "border-line bg-card")}>
             <p className={cn("text-sm font-medium", r.total ? "text-berry" : "text-plum")}>{r.cells[0]}</p>
             <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
               {r.cells.slice(1).map((v, i) =>
@@ -55,7 +57,7 @@ export function ReportTableView({ table }: { table: ExportTable }) {
         </thead>
         <tbody>
           {rows.map((r, ri) => (
-            <tr key={ri} className={cn(r.total ? "bg-berry-tint font-medium text-berry" : ri % 2 === 1 ? "bg-ivory-deep/50" : "")}>
+            <tr key={ri} className={cn(r.total ? "bg-berry-tint font-medium text-berry" : r.emphasis ? "bg-lavender-tint font-medium" : ri % 2 === 1 ? "bg-ivory-deep/50" : "")}>
               {r.cells.map((v, i) => (
                 <Td key={i} align={isNum(i) ? "right" : "left"} className={cn(i === 0 && !r.total && "text-plum")}>
                   {v}

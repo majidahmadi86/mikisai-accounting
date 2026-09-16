@@ -5,6 +5,7 @@ import { platformName, productName } from "@/lib/labels";
 import { productLabel } from "@/lib/inventory/reports";
 import { formatDate } from "@/lib/money";
 import type { ReportBundle } from "@/lib/reports/build";
+import { shortProductName, type UnitsReport, type UnitsRow } from "@/lib/inventory/units";
 
 /**
  * One tabular description of every report. The on-screen page, the XLSX
@@ -23,9 +24,11 @@ export type ExportTable = {
   /** Column indexes that get a SUM formula in the total row. Empty means no total row. */
   totals: number[];
   totalLabel: string;
+  /** Row indexes rendered as subtotals (bold, tinted) on screen and in both exports. */
+  emphasis?: number[];
 };
 
-export const REPORT_IDS = ["pl", "cashflow", "balance", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
+export const REPORT_IDS = ["units", "pl", "cashflow", "balance", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
 export type ReportId = (typeof REPORT_IDS)[number];
 
 export function isReportId(v: unknown): v is ReportId {
@@ -298,6 +301,40 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
       totalLabel: tr("common.total"),
     },
   ];
+}
+
+/** Units per product per day, week or month, with subtotals and a per-product total. */
+export function unitsTable(report: UnitsReport, tr: Translator, locale: Locale): ExportTable {
+  const label = (r: UnitsRow): string => {
+    const range = r.from === r.to ? formatDate(r.from, locale) : `${formatDate(r.from, locale)} → ${formatDate(r.to, locale)}`;
+    if (r.kind === "week") return `${tr("units.weekSubtotal")} · ${range}`;
+    if (r.kind === "month") return `${tr("units.monthSubtotal")} · ${range}`;
+    if (r.kind === "total") return `${tr("common.total")} · ${range}`;
+    return range;
+  };
+  const toCells = (r: UnitsRow): Cell[] => [label(r), shortProductName(r.product, locale), r.orders, r.unitsSold, r.unitsBought, r.samplesOut, r.onHandEnd, r.backlogEnd, r.avgSalePrice, r.avgCostEnd];
+  const all = [...report.rows, ...report.totals];
+  return {
+    id: "units",
+    title: tr("units.title"),
+    description: tr("units.desc"),
+    columns: [
+      { key: "period", label: tr("reports.period"), kind: "text" },
+      { key: "product", label: tr("common.product"), kind: "text" },
+      { key: "orders", label: tr("common.orders"), kind: "int" },
+      { key: "sold", label: tr("units.sold"), kind: "int" },
+      { key: "bought", label: tr("units.bought"), kind: "int" },
+      { key: "samples", label: tr("units.samples"), kind: "int" },
+      { key: "onHand", label: tr("units.onHandEnd"), kind: "int" },
+      { key: "backlog", label: tr("units.backlog"), kind: "int" },
+      { key: "avgPrice", label: tr("units.avgPrice"), kind: "money" },
+      { key: "avgCost", label: tr("units.avgCost"), kind: "money" },
+    ],
+    rows: all.map(toCells),
+    totals: [],
+    totalLabel: tr("common.total"),
+    emphasis: all.map((r, i) => (r.kind === report.granularity ? -1 : i)).filter((i) => i >= 0),
+  };
 }
 
 /** Transfers listed under the who-owes-whom report. */
