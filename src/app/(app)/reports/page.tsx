@@ -48,6 +48,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   const transfers = transferTable(bundle, tr, locale);
   const byId = Object.fromEntries(tables.map((x) => [x.id, x])) as Record<ExportTable["id"], ExportTable>;
   const empty = bundle.pl.orders === 0 && bundle.pl.totalExpenses === 0 && !(bundle.inventory && bundle.inventory.stock.length);
+  const accrual = bundle.accrual;
+  const rec = bundle.reconciliation;
 
   const chart = {
     product: bundle.byProduct.map((r) => ({ label: tr(`product.${r.product}`), value: r.net, display: thb(r.net) })),
@@ -68,28 +70,61 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
       ) : (
         <div className="space-y-5">
           <Card>
-            <CardHeader title={byId.pl.title} subtitle={byId.pl.description} action={<ExportLinks small report="pl" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
+            <CardHeader title={byId.pl.title} subtitle={tr("reports.plDescAccrual")} action={<ExportLinks small report="pl" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
             <div className="px-5 pb-5 sm:px-6 sm:pb-6">
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
                   <p className="eyebrow">{tr("reports.plNet")}</p>
-                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.pl.net)}</p>
-                  <p className="text-xs text-plum-faint">{tr("reports.plOrders", { n: bundle.pl.orders, units: bundle.pl.units })}</p>
+                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(accrual.revenue)}</p>
+                  <p className="text-xs text-plum-faint">{tr("reports.plOrders", { n: accrual.orders, units: accrual.units })}</p>
                 </div>
                 <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
-                  <p className="eyebrow">{tr("reports.plFees")}</p>
-                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.pl.fees)}</p>
+                  <p className="eyebrow">{tr("reports.cogs")}</p>
+                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(accrual.cogs)}</p>
                 </div>
                 <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
-                  <p className="eyebrow">{tr("reports.plExpenses")}</p>
-                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.pl.totalExpenses)}</p>
+                  <p className="eyebrow">{tr("reports.plOperating")}</p>
+                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(accrual.totalOperating)}</p>
                 </div>
-                <div className={`rounded-xl px-4 py-3 ${bundle.pl.profit >= 0 ? "bg-success-tint" : "bg-berry-tint"}`}>
+                <div className={`rounded-xl px-4 py-3 ${accrual.profit >= 0 ? "bg-success-tint" : "bg-berry-tint"}`}>
                   <p className="eyebrow">{tr("reports.plProfit")}</p>
-                  <p className={`mt-1 font-medium text-xl tabular ${bundle.pl.profit >= 0 ? "text-success" : "text-berry"}`}>{thb(bundle.pl.profit)}</p>
+                  <p className={`mt-1 font-medium text-xl tabular ${accrual.profit >= 0 ? "text-success" : "text-berry"}`}>{thb(accrual.profit)}</p>
                 </div>
               </div>
               <ReportTableView table={byId.pl} />
+              <p className="mt-3 text-sm text-plum">
+                {tr("reports.reconcile", { profit: thb(rec.profit), stock: thb(rec.inStock), pending: thb(rec.pending), cash: thb(rec.cash) })}
+                {rec.balanced ? "" : ` ${tr("reports.reconcileOff", { amount: thb(rec.difference) })}`}
+              </p>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title={byId.cashflow.title} subtitle={byId.cashflow.description} action={<ExportLinks small report="cashflow" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
+            <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="mb-4 grid grid-cols-3 gap-3">
+                <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
+                  <p className="eyebrow">{tr("reports.cashInShort")}</p>
+                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.cashFlow.cashIn)}</p>
+                </div>
+                <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
+                  <p className="eyebrow">{tr("reports.cashOut")}</p>
+                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.cashFlow.cashOut)}</p>
+                </div>
+                <div className={`rounded-xl px-4 py-3 ${bundle.cashFlow.net >= 0 ? "bg-success-tint" : "bg-berry-tint"}`}>
+                  <p className="eyebrow">{tr("reports.cashNet")}</p>
+                  <p className={`mt-1 font-medium text-xl tabular ${bundle.cashFlow.net >= 0 ? "text-success" : "text-berry"}`}>{thb(bundle.cashFlow.net)}</p>
+                </div>
+              </div>
+              <ReportTableView table={byId.cashflow} />
+            </div>
+          </Card>
+
+          <Card tone={bundle.balanceSheet.balanced ? "card" : "berry"}>
+            <CardHeader title={byId.balance.title} subtitle={byId.balance.description} action={<ExportLinks small report="balance" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
+            <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <ReportTableView table={byId.balance} />
+              <p className={`mt-3 text-sm ${bundle.balanceSheet.balanced ? "text-success" : "text-berry"}`}>{bundle.balanceSheet.balanced ? tr("reports.bsBalanced") : tr("reports.bsNotBalanced", { amount: thb(bundle.balanceSheet.difference) })}</p>
             </div>
           </Card>
 

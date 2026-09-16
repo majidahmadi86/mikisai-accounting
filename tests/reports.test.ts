@@ -38,11 +38,23 @@ describe("buildReports on the seed ledger", () => {
     expect(bundle.pl.byStatus).toEqual({ pending: 0, settled_not_withdrawn: 801, received_in_bank: 1983 });
   });
 
-  it("sales by product: skincare 2001 net ahead of sugar 783", () => {
-    expect(bundle.byProduct.map((r) => [r.product, r.orders, r.units, r.net, r.expenses, r.profit, r.netPerUnit])).toEqual([
-      ["skincare", 2, 2, 2001, 600, 1401, 1000.5],
-      ["sugar", 2, 3, 783, 240, 543, 261],
+  it("sales by product: skincare 2001 net ahead of sugar 783; no stock tracked so COGS is zero", () => {
+    expect(bundle.byProduct.map((r) => [r.product, r.orders, r.units, r.net, r.cogs, r.grossMargin, r.netPerUnit])).toEqual([
+      ["skincare", 2, 2, 2001, 0, 2001, 1000.5],
+      ["sugar", 2, 3, 783, 0, 783, 261],
     ]);
+  });
+
+  it("accrual profit equals cash profit when no stock is tracked, and the books balance", () => {
+    expect(bundle.accrual.revenue).toBe(2784);
+    expect(bundle.accrual.cogs).toBe(0);
+    expect(bundle.accrual.totalOperating).toBe(840);
+    expect(bundle.accrual.profit).toBe(1944);
+    expect(bundle.cashFlow.cashIn).toBe(1983);
+    expect(bundle.cashFlow.cashOut).toBe(840);
+    expect(bundle.cashFlow.net).toBe(1143);
+    expect(bundle.balanceSheet.balanced).toBe(true);
+    expect(bundle.reconciliation).toMatchObject({ profit: 1944, inStock: 0, pending: 801, cash: 1143, balanced: true });
   });
 
   it("sales by platform with fee percentage", () => {

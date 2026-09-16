@@ -12,6 +12,8 @@ import { platformName, platformTone } from "@/lib/labels";
 import { formatDate, thb, todayIso } from "@/lib/money";
 import { buildMyBalance } from "@/lib/my-balance";
 import { valueStock } from "@/lib/inventory/valuation";
+import { reconcileProfit } from "@/lib/accounting/statements";
+import { thisMonth } from "@/lib/reports/period";
 import { cn } from "@/lib/cn";
 
 const levelStyles = {
@@ -38,6 +40,7 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
     me,
     today,
   );
+  const rec = reconcileProfit(snapshot, thisMonth(today));
   const meName = tr(`common.${me}`);
   const partnerName = tr(`common.${partner}`);
   const level = levelStyles[b.level];
@@ -123,6 +126,10 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
           </div>
           <p className="mt-2 text-3xl font-medium tabular text-plum">{thb(b.stockShare)}</p>
           <p className="mt-1 text-sm text-plum-soft">{tr("balance.stockOf", { total: thb(b.stockValue) })}</p>
+          <p className="mt-3 border-t border-line pt-3 text-sm text-plum">
+            {tr("reports.reconcile", { profit: thb(rec.profit), stock: thb(rec.inStock), pending: thb(rec.pending), cash: thb(rec.cash) })}
+            {rec.balanced ? "" : ` ${tr("reports.reconcileOff", { amount: thb(rec.difference) })}`}
+          </p>
         </Card>
 
         {/* d) Today's action */}

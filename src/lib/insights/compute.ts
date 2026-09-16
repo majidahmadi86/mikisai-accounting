@@ -88,7 +88,8 @@ export function buildProductInsights(tx: ReportTx[], today: string, cogsByTransa
     const income7 = income30.filter((t) => t.date >= from7);
     // Prefer the true cost of units sold (moving average) when stock is tracked; fall back to the line's expenses.
     const cogs30 = cogsByTransaction ? sum(income30.map((t) => cogsByTransaction.get(t.id) ?? 0)) : 0;
-    const expenses30 = cogsByTransaction && cogs30 > 0 ? cogs30 : sum(tx.filter((t) => t.type === "expense" && t.product_line === product && within(t, from30, today)).map((t) => t.net_amount));
+    // With stock tracked the product cost is the cost of the units sold; the old cash fallback only serves ledgers without movements.
+    const expenses30 = cogsByTransaction ? cogs30 : sum(tx.filter((t) => t.type === "expense" && t.product_line === product && within(t, from30, today)).map((t) => t.net_amount));
     const units30 = income30.reduce((a, t) => a + t.quantity, 0);
     const units7 = income7.reduce((a, t) => a + t.quantity, 0);
     const net30 = sum(income30.map((t) => t.net_amount));

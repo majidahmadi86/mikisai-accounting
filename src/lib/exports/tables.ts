@@ -25,22 +25,51 @@ export type ExportTable = {
   totalLabel: string;
 };
 
-export const REPORT_IDS = ["pl", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
+export const REPORT_IDS = ["pl", "cashflow", "balance", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
 export type ReportId = (typeof REPORT_IDS)[number];
 
 export function isReportId(v: unknown): v is ReportId {
   return typeof v === "string" && (REPORT_IDS as readonly string[]).includes(v);
 }
 
+/** Negative of a number without producing -0, which Excel and deep-equality treat differently from 0. */
+const neg = (n: number): number => (n === 0 ? 0 : -n);
+
 export function reportTables(bundle: ReportBundle, tr: Translator, locale: Locale): ExportTable[] {
-  const pl = bundle.pl;
+  const pl = bundle.accrual;
   const plRows: Cell[][] = [
     [tr("reports.plIncome"), pl.gross],
-    [tr("reports.plFees"), -pl.fees],
-    [tr("reports.plNet"), pl.net],
-    ...pl.expenses.map((e): Cell[] => [`${tr("reports.plExpenses")} · ${categoryLabel(e.category, locale)}`, -e.amount]),
-    [tr("reports.plExpenses"), -pl.totalExpenses],
+    [tr("reports.plFees"), neg(pl.fees)],
+    [tr("reports.plNet"), pl.revenue],
+    [tr("reports.cogs"), neg(pl.cogs)],
+    [tr("reports.grossMargin"), pl.grossMargin],
+    ...pl.operating.map((e): Cell[] => [`${tr("reports.plOperating")} · ${categoryLabel(e.category, locale)}`, neg(e.amount)]),
+    ...(pl.corrections !== 0 ? [[`${tr("reports.plOperating")} · ${tr("reports.plCorrections")}`, neg(pl.corrections)] as Cell[]] : []),
+    [tr("reports.plOperating"), neg(pl.totalOperating)],
     [tr("reports.plProfit"), pl.profit],
+    [tr("reports.plStockBought"), pl.stockPurchasesCash],
+  ];
+  const cf = bundle.cashFlow;
+  const cashRows: Cell[][] = [
+    [tr("reports.cashIn"), cf.cashIn],
+    [`${tr("reports.cashOut")} · ${tr("reports.cashOutStock")}`, neg(cf.stockOut)],
+    [`${tr("reports.cashOut")} · ${tr("reports.cashOutOperating")}`, neg(cf.operatingOut)],
+    [tr("reports.cashOut"), neg(cf.cashOut)],
+    [tr("reports.cashNet"), cf.net],
+  ];
+  const bs = bundle.balanceSheet;
+  const balanceRows: Cell[][] = [
+    [tr("reports.bsCash", { name: tr("common.mike") }), bs.cash.mike],
+    [tr("reports.bsCash", { name: tr("common.sai") }), bs.cash.sai],
+    [tr("reports.bsReceivables"), bs.receivables],
+    [tr("reports.bsInventory"), bs.inventory],
+    [tr("reports.bsAssets"), bs.assets],
+    [tr("reports.bsBacklog"), neg(bs.backlog)],
+    [tr("reports.bsEquity"), bs.equity],
+    [tr("reports.bsShare", { name: tr("common.mike") }), bs.equityShare.mike],
+    [tr("reports.bsShare", { name: tr("common.sai") }), bs.equityShare.sai],
+    [tr("reports.bsProfitToDate"), bs.cumulativeProfit],
+    [tr("reports.bsDifference"), bs.difference],
   ];
 
   return [
@@ -57,6 +86,30 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
       totalLabel: tr("common.total"),
     },
     {
+      id: "cashflow",
+      title: tr("reports.cashflow"),
+      description: tr("reports.cashflowDesc"),
+      columns: [
+        { key: "line", label: tr("reports.cashflow"), kind: "text" },
+        { key: "amount", label: tr("common.amount"), kind: "money" },
+      ],
+      rows: cashRows,
+      totals: [],
+      totalLabel: tr("common.total"),
+    },
+    {
+      id: "balance",
+      title: tr("reports.balance"),
+      description: tr("reports.balanceDesc", { date: formatDate(bs.asOf, locale) }),
+      columns: [
+        { key: "line", label: tr("reports.balance"), kind: "text" },
+        { key: "amount", label: tr("common.amount"), kind: "money" },
+      ],
+      rows: balanceRows,
+      totals: [],
+      totalLabel: tr("common.total"),
+    },
+    {
       id: "product",
       title: tr("reports.byProduct"),
       description: tr("reports.byProductDesc"),
@@ -66,11 +119,11 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
         { key: "units", label: tr("reports.units"), kind: "int" },
         { key: "gross", label: tr("common.gross"), kind: "money" },
         { key: "net", label: tr("common.net"), kind: "money" },
-        { key: "expenses", label: tr("reports.plExpenses"), kind: "money" },
-        { key: "profit", label: tr("reports.profit"), kind: "money" },
+        { key: "cogs", label: tr("reports.cogs"), kind: "money" },
+        { key: "grossMargin", label: tr("reports.grossMargin"), kind: "money" },
         { key: "netPerUnit", label: tr("reports.netPerUnit"), kind: "money" },
       ],
-      rows: bundle.byProduct.map((r) => [productName(tr, r.product), r.orders, r.units, r.gross, r.net, r.expenses, r.profit, r.netPerUnit]),
+      rows: bundle.byProduct.map((r) => [productName(tr, r.product), r.orders, r.units, r.gross, r.net, r.cogs, r.grossMargin, r.netPerUnit]),
       totals: [1, 2, 3, 4, 5, 6],
       totalLabel: tr("common.total"),
     },

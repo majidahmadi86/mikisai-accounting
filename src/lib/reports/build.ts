@@ -1,9 +1,10 @@
+import { buildAccrualPL, buildBalanceSheet, buildCashFlow, reconcileProfit, type AccrualPL, type BalanceSheet, type CashFlow, type Reconciliation } from "@/lib/accounting/statements";
 import { computeBalance, type Balance } from "@/lib/balance";
 import { round2 } from "@/lib/money";
 import { addDays, checkpoints, daysBetween, inPeriod, type Period } from "./period";
 import type { ExpenseCategory } from "@/lib/categories";
 import { buildInventoryReports, type InventoryReports, type TransactionItemRow } from "@/lib/inventory/reports";
-import type { Product, StockMovement } from "@/lib/inventory/valuation";
+import { valueStock, type Product, type StockMovement } from "@/lib/inventory/valuation";
 import { PLATFORMS, PRODUCT_LINES, type Person, type Platform, type ProductLine, type SettlementStatus } from "@/lib/types";
 
 /** Structural subset of LedgerTransaction so reports can be built and tested without the server module. */
@@ -50,7 +51,8 @@ export type PLReport = {
   byStatus: Record<SettlementStatus, number>;
 };
 
-export type ProductRow = { product: ProductLine; orders: number; units: number; gross: number; net: number; expenses: number; profit: number; netPerUnit: number };
+/** Per product line: what you received, the cost of the units sold (moving average) and the gross margin. */
+export type ProductRow = { product: ProductLine; orders: number; units: number; gross: number; net: number; cogs: number; grossMargin: number; netPerUnit: number };
 export type PlatformRow = { platform: Platform; orders: number; gross: number; net: number; fees: number; feePct: number };
 export type CategoryRow = { category: ExpenseCategory; count: number; amount: number; share: number; previous: number; changePct: number | null };
 export type StatusRow = { platform: Platform; pendingOrders: number; pending: number; walletOrders: number; wallet: number; bankOrders: number; bank: number; total: number };
@@ -60,7 +62,13 @@ export type CustomerRow = { name: string; platform: Platform; orders: number; gr
 export type ReportBundle = {
   period: Period;
   generatedAt: string;
+  /** Cash view kept for the settlement and who-owes-whom tables. */
   pl: PLReport;
+  /** The one profit: revenue minus cost of units sold minus operating expenses. */
+  accrual: AccrualPL;
+  cashFlow: CashFlow;
+  balanceSheet: BalanceSheet;
+  reconciliation: Reconciliation;
   byProduct: ProductRow[];
   byPlatform: PlatformRow[];
   byCategory: CategoryRow[];
@@ -116,24 +124,24 @@ export function buildProfitLoss(tx: ReportTx[], categories: ExpenseCategory[]): 
   };
 }
 
-export function buildByProduct(tx: ReportTx[]): ProductRow[] {
+export function buildByProduct(tx: ReportTx[], cogsByTransaction: Map<string, number> = new Map()): ProductRow[] {
   return PRODUCT_LINES.map((product) => {
     const income = tx.filter((t) => t.type === "income" && t.product_line === product);
-    const expenses = sum(tx.filter((t) => t.type === "expense" && t.product_line === product).map((t) => t.net_amount));
     const units = income.reduce((a, t) => a + t.quantity, 0);
     const net = sum(income.map((t) => t.net_amount));
+    const cogs = sum(income.map((t) => cogsByTransaction.get(t.id) ?? 0));
     return {
       product,
       orders: income.length,
       units,
       gross: sum(income.map((t) => t.gross_amount)),
       net,
-      expenses,
-      profit: round2(net - expenses),
+      cogs,
+      grossMargin: round2(net - cogs),
       netPerUnit: units > 0 ? round2(net / units) : 0,
     };
   })
-    .filter((r) => r.orders > 0 || r.expenses > 0)
+    .filter((r) => r.orders > 0)
     .sort((a, b) => b.net - a.net);
 }
 
@@ -240,11 +248,17 @@ export function buildReports(input: ReportInput, period: Period, generatedAt = n
   const tx = input.transactions.filter((t) => inPeriod(t.date, period));
   const prev = previousPeriod(period);
   const prevTx = input.transactions.filter((t) => inPeriod(t.date, prev));
+  const statements = { ...input, products: input.products ?? [], movements: input.movements ?? [] };
+  const valuation = valueStock(statements.products, statements.movements);
   return {
     period,
     generatedAt,
     pl: buildProfitLoss(tx, input.categories),
-    byProduct: buildByProduct(tx),
+    accrual: buildAccrualPL(statements, period, valueStock(statements.products, statements.movements, { from: period.from, upTo: period.to })),
+    cashFlow: buildCashFlow(statements, period),
+    balanceSheet: buildBalanceSheet(statements, period.to),
+    reconciliation: reconcileProfit(statements, period),
+    byProduct: buildByProduct(tx, valuation.cogsByTransaction),
     byPlatform: buildByPlatform(tx),
     byCategory: buildByCategory(tx, prevTx, input.categories),
     settlement: buildSettlement(tx),

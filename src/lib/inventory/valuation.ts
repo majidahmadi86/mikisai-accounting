@@ -40,7 +40,14 @@ export type ProductStock = {
   product: Product;
   onHand: number;
   avgCost: number;
+  /** Stock on hand at cost; zero when the product is in backlog. */
   value: number;
+  /** Units sold or given away that no purchase has covered yet (buy-to-order backlog). */
+  backlog: number;
+  /** Cost already charged for the backlog units, carried as a liability until they are bought. */
+  backlogValue: number;
+  /** Signed book value: what went in at cost minus what went out at the average. Equals value minus backlogValue. */
+  bookValue: number;
   /** Cost of units sold, at the average cost when each sale happened. */
   cogs: number;
   /** Cost of units given away as samples. */
@@ -58,31 +65,46 @@ export type Valuation = {
   cogsByTransaction: Map<string, number>;
   /** Cost of samples per expense transaction. */
   sampleCostByTransaction: Map<string, number>;
+  /** Value of units brought in per transaction (stock purchases, and samples bought for giving away). */
+  purchaseByTransaction: Map<string, number>;
+  /** Net cost of manual corrections and returns in the period: units out at average minus units in at cost. */
+  correctionsCost: number;
   totalValue: number;
+  totalBacklogValue: number;
+  /** Sum of book values: inventory minus backlog liability. */
+  totalBookValue: number;
   totalCogs: number;
 };
 
+/** Date, then creation time; on an exact tie units coming in go first so a bought-and-given sample nets to zero. */
 function chronological(a: StockMovement, b: StockMovement): number {
-  return a.date === b.date ? a.created_at.localeCompare(b.created_at) : a.date.localeCompare(b.date);
+  if (a.date !== b.date) return a.date.localeCompare(b.date);
+  if (a.created_at !== b.created_at) return a.created_at.localeCompare(b.created_at);
+  return Math.sign(b.qty) - Math.sign(a.qty);
 }
 
 /**
  * Moving average cost. Walks each product's movements in date order:
  * units coming in with a cost re-average the stock; units going out are
- * charged at the average of that moment. Quantities can go negative if a
- * sale is recorded before its purchase; the average then holds at the last
- * known cost so the numbers stay explainable.
+ * charged at the average of that moment. Quantities go negative when a sale
+ * is recorded before its purchase (buy to order): the average then holds at
+ * the last known cost, the cost charged is carried as a backlog liability,
+ * and the next purchase settles it through the signed book value, so
+ * inventory minus backlog always equals purchases minus what went out.
  */
 export function valueStock(products: Product[], movements: StockMovement[], opts: { upTo?: string; from?: string } = {}): Valuation {
   const cogsByTransaction = new Map<string, number>();
   const sampleCostByTransaction = new Map<string, number>();
+  const purchaseByTransaction = new Map<string, number>();
   const rows: ProductStock[] = [];
+  let correctionsCost = 0;
 
   for (const product of products) {
     if (product.deleted_at) continue;
     const list = movements.filter((m) => m.product_id === product.id && (!opts.upTo || m.date <= opts.upTo)).sort(chronological);
     let onHand = 0;
     let avg = product.default_cost > 0 ? product.default_cost : 0;
+    let book = 0;
     let cogs = 0;
     let samplesCost = 0;
     let samplesQty = 0;
@@ -94,17 +116,26 @@ export function valueStock(products: Product[], movements: StockMovement[], opts
       const inPeriod = !opts.from || m.date >= opts.from;
       if (m.qty > 0) {
         const cost = m.unit_cost ?? avg;
-        const total = onHand > 0 ? onHand * avg + m.qty * cost : m.qty * cost;
+        book += m.qty * cost;
         onHand += m.qty;
-        avg = onHand > 0 ? total / onHand : cost;
-        if (m.kind === "purchase" && inPeriod) {
-          purchasedQty += m.qty;
-          purchasedValue += m.qty * cost;
+        avg = onHand > 0 ? Math.max(0, book / onHand) : cost;
+        if (m.kind === "purchase") {
+          if (inPeriod) {
+            purchasedQty += m.qty;
+            purchasedValue += m.qty * cost;
+          }
+          if (m.transaction_id) purchaseByTransaction.set(m.transaction_id, round2((purchaseByTransaction.get(m.transaction_id) ?? 0) + m.qty * cost));
+        } else if (inPeriod) {
+          correctionsCost -= m.qty * cost;
         }
       } else {
         const out = -m.qty;
         const cost = out * avg;
+        book -= cost;
         onHand -= out;
+        if (m.kind === "adjustment" || m.kind === "return") {
+          if (inPeriod) correctionsCost += cost;
+        }
         if (m.kind === "sale") {
           if (inPeriod) {
             cogs += cost;
@@ -125,7 +156,10 @@ export function valueStock(products: Product[], movements: StockMovement[], opts
       product,
       onHand: round3(onHand),
       avgCost: round2(avg),
-      value: round2(Math.max(0, onHand) * avg),
+      value: onHand > 0 ? round2(Math.max(0, book)) : 0,
+      backlog: onHand < 0 ? round3(-onHand) : 0,
+      backlogValue: onHand < 0 ? round2(Math.max(0, -book)) : 0,
+      bookValue: round2(book),
       cogs: round2(cogs),
       samplesCost: round2(samplesCost),
       samplesQty: round3(samplesQty),
@@ -140,7 +174,11 @@ export function valueStock(products: Product[], movements: StockMovement[], opts
     products: rows,
     cogsByTransaction,
     sampleCostByTransaction,
+    purchaseByTransaction,
+    correctionsCost: round2(correctionsCost),
     totalValue: round2(rows.reduce((a, r) => a + r.value, 0)),
+    totalBacklogValue: round2(rows.reduce((a, r) => a + r.backlogValue, 0)),
+    totalBookValue: round2(rows.reduce((a, r) => a + r.bookValue, 0)),
     totalCogs: round2(rows.reduce((a, r) => a + r.cogs, 0)),
   };
 }

@@ -16,7 +16,7 @@ const meta = { title: "Reports", periodLabel: "September 2026", generatedBy: "Mi
 describe("report tables feed the screen and both exports", () => {
   it("profit and loss rows carry the on-screen numbers", () => {
     const pl = tables.find((x) => x.id === "pl")!;
-    expect(pl.rows.map((r) => r[1])).toEqual([2960, -176, 2784, -240, -600, -840, 1944]);
+    expect(pl.rows.map((r) => r[1])).toEqual([2960, -176, 2784, 0, 2784, -240, -600, -840, 1944, 0]);
     expect(formatCell(1944, "money")).toBe("฿1,944.00");
     expect(formatCell(-176, "money")).toBe("-฿176.00");
   });
