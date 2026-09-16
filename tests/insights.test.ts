@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { REPORT_TODAY, seedLedger } from "@/lib/fixtures/report-data";
 import { buildCashForecast, buildExceptions, buildInsights, buildProductInsights, DEFAULT_LAG_DAYS, observedLagDays } from "@/lib/insights/compute";
+import { cleanNarrative } from "@/lib/insights/clean";
 import type { ReportTx } from "@/lib/reports/build";
 
 function income(id: string, date: string, product: ReportTx["product_line"], net: number, quantity = 1, platform: ReportTx["platform"] = "tiktok", status: "pending" | "received_in_bank" = "pending", settledAt?: string): ReportTx {
@@ -101,5 +102,17 @@ describe("exceptions", () => {
     expect(i.cashTotal).toBe(801);
     expect(i.exceptions).toEqual([]);
     expect(i.drifting).toEqual([]);
+  });
+});
+
+describe("cleanNarrative", () => {
+  it("hides truncated or list-shaped replies and keeps plain paragraphs", () => {
+    expect(cleanNarrative("700.5). * *Margin drift*: None")).toBeNull();
+    expect(cleanNarrative("- Skincare and sugar both sold this week, see the list below for details:")).toBeNull();
+    expect(cleanNarrative(undefined)).toBeNull();
+    expect(cleanNarrative("**Skincare** carried the month with a profit of 1,401 baht. Cash of 801 baht is still to arrive from Shopee. Nothing needs attention.")).toBe(
+      "Skincare carried the month with a profit of 1,401 baht. Cash of 801 baht is still to arrive from Shopee. Nothing needs attention.",
+    );
+    expect(cleanNarrative("สกินแคร์ทำกำไรดีที่สุดในเดือนนี้ 1,401 บาท และยังมีเงินรอเข้าอีก 801 บาทจาก Shopee ไม่มีอะไรต้องดูเป็นพิเศษ")).toContain("สกินแคร์");
   });
 });

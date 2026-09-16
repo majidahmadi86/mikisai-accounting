@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { GoogleGenAI } from "@google/genai";
 import type { Locale } from "@/lib/i18n/dictionary";
 import { geminiModel } from "@/lib/parse/gemini";
+import { cleanNarrative } from "./clean";
 import type { Insights } from "./compute";
 
 export function insightsTag(businessId: string): string {
@@ -34,11 +35,12 @@ export async function getWeeklyNarrative(businessId: string, insights: Insights,
           config: {
             systemInstruction: `You write a short weekly summary for two founders of a small online shop. Use only the facts given. Write one paragraph of three to five sentences in ${language}. Mention the best product, any margin drift, how much cash is still to arrive and anything needing attention. Amounts are Thai baht: write them like ฿1,234. Never use an em dash. No headings, no bullet points, no emoji.`,
             temperature: 0.4,
-            maxOutputTokens: 400,
+            // Thinking models spend output tokens on reasoning first; give room and turn thinking off.
+            maxOutputTokens: 1500,
+            thinkingConfig: { thinkingBudget: 0 },
           },
         });
-        const text = response.text?.trim();
-        return text && text.length > 20 ? text.split(String.fromCharCode(8212)).join(",") : null;
+        return cleanNarrative(response.text);
       } catch (err) {
         console.error("[insights] narrative unavailable", err);
         return null;
