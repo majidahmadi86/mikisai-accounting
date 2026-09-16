@@ -40,7 +40,16 @@ A positive delta means that person holds more than their share, so the banner re
 
 ## Audit log
 
-Every server-side mutation appends a row to `audit_log` (`recordAudit` in `src/lib/audit.ts`): create, update and delete of entries, transfers, payouts, customer notes and settings, plus `confirm_import`, `confirm_payout` and `export`. Rows carry the actor, entity, and a before/after snapshot (updates store only the changed keys). Row level security allows members to read and insert; there is no update or delete policy, so rows cannot be changed through the API. `npm run verify:rls` checks that.
+Every insert, update and delete on transactions, settlements, payouts, internal transfers, customers and platform settings is written to `audit_log` by a database trigger (`audit_row_change` in migration `0003`), stamped with `auth.uid()`. Updates store only the keys that changed. Because the trigger runs inside Postgres, edits made directly through the Supabase API are logged exactly like edits made in the app. The app records only the actions a trigger cannot see (`confirm_import`, `confirm_payout`, `export`) through the `record_action()` RPC, which fixes actor and business from the session. There is no insert, update or delete policy on `audit_log` for users, so rows cannot be forged or changed through the API. `npm run verify:rls` checks all of that.
+
+## Security
+
+- Row level security on every table, scoped by `current_business_id()`. The service-role key is used only for the cached ledger snapshot (scoped by the verified session's business), storage uploads and the seed and reset scripts.
+- Session cookies are `httpOnly`; the app has no browser-side Supabase client.
+- Per-request Content Security Policy with a script nonce and `strict-dynamic`, `frame-ancestors 'none'`, plus `X-Frame-Options`, `nosniff`, referrer and permissions policies and HSTS (`src/proxy.ts`, `next.config.ts`).
+- Every server action and route handler calls `requireSession()` and validates input with zod; ids are checked as UUIDs before they reach a query.
+- The report parser sniffs file magic bytes, caps PDFs at 60 pages and reports at 40 Gemini batches, and accepts one report per user at a time.
+- Public signup must stay disabled in the Supabase dashboard (Authentication → Providers → Email). The app signs out any account without a profile, but disabling signup stops account creation altogether.
 
 ## Speed
 
