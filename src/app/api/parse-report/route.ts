@@ -9,6 +9,7 @@ import { estimateNet } from "@/lib/parse/estimate";
 import type { ParsedOrder, ParseResponse, ReviewRow } from "@/lib/parse/schema";
 import { todayIso } from "@/lib/money";
 import { num, PEOPLE, PLATFORMS, type Platform, type PlatformSetting } from "@/lib/types";
+import { matchProduct } from "@/lib/inventory/match";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -172,8 +173,12 @@ export async function POST(request: Request) {
   const succeeded = results.filter((r) => r !== null);
   if (succeeded.length === 0) return NextResponse.json({ error: "parse-failed" }, { status: 502 });
 
-  // 3. Merge, dedupe on order id, fill missing net from platform settings.
-  const { data: settingsRows } = await supabase.from("platform_settings").select("platform, commission_pct, fixed_fee");
+  // 3. Merge, dedupe on order id, fill missing net from platform settings, match products.
+  const [{ data: settingsRows }, { data: productRows }] = await Promise.all([
+    supabase.from("platform_settings").select("platform, commission_pct, fixed_fee"),
+    supabase.from("products").select("id, name, variant, product_line, active").eq("business_id", businessId).is("deleted_at", null),
+  ]);
+  const products = (productRows ?? []).filter((p) => p.active);
   const settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[] = (settingsRows ?? []).map((r) => ({
     platform: r.platform as Platform,
     commission_pct: num(r.commission_pct),
@@ -191,6 +196,7 @@ export async function POST(request: Request) {
         seen.add(key);
       }
       const netEstimated = order.net_amount == null && order.gross_amount != null;
+      const match = matchProduct(products, order.product_name, order.variant, order.note, order.product_line);
       rows.push({
         ...order,
         order_id: key || null,
@@ -202,6 +208,10 @@ export async function POST(request: Request) {
         include: true,
         platform,
         received_by,
+        quantity: order.quantity && order.quantity > 0 ? Math.round(order.quantity) : 1,
+        product_line: match?.product_line ?? order.product_line,
+        product_id: match?.id ?? null,
+        product_matched: Boolean(match),
       });
     }
   }

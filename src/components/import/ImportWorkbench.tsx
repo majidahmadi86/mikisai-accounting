@@ -10,13 +10,14 @@ import { useT } from "@/lib/i18n/client";
 import { platformName } from "@/lib/labels";
 import type { ParseResponse, ReviewRow } from "@/lib/parse/schema";
 import { PEOPLE, PLATFORMS, type Person, type Platform, type PlatformSetting } from "@/lib/types";
+import type { Product } from "@/lib/inventory/valuation";
 
 type Phase = { name: "idle" } | { name: "parsing" } | { name: "review"; result: ParseResponse } | { name: "done"; inserted: number };
 
 export const MAX_FILES = 12;
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
-export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[]; defaultReceivedBy: Person }) {
+export function ImportWorkbench({ settings, defaultReceivedBy, products }: { settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[]; defaultReceivedBy: Person; products: Product[] }) {
   const t = useT();
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +56,10 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
   function confirm(uploadIds: string[]) {
     const selected = rows.filter((r) => r.include);
     if (!selected.length) return;
+    if (selected.some((r) => !r.product_id || !r.quantity || r.quantity < 1)) {
+      setError(t("import.needProducts"));
+      return;
+    }
     setError(null);
     startSaving(async () => {
       const result: CommitResult = await commitImport({
@@ -70,6 +75,8 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
           customer_name: r.customer_name,
           order_id: r.order_id,
           note: r.note,
+          product_id: r.product_id as string,
+          quantity: r.quantity ?? 1,
         })),
       });
       if (result.ok) setPhase({ name: "done", inserted: result.inserted });
@@ -131,7 +138,7 @@ export function ImportWorkbench({ settings, defaultReceivedBy }: { settings: Pic
           ) : null}
           {error ? <p className="mt-3 text-sm text-berry">{error}</p> : null}
         </Card>
-        {rows.length === 0 ? <Card className="p-6 text-sm text-plum-soft">{t("import.noRows")}</Card> : <ReviewTable rows={rows} onChange={setRows} settings={settings} />}
+        {rows.length === 0 ? <Card className="p-6 text-sm text-plum-soft">{t("import.noRows")}</Card> : <ReviewTable rows={rows} onChange={setRows} settings={settings} products={products} />}
       </div>
     );
   }

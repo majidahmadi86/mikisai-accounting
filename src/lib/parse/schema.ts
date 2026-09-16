@@ -13,6 +13,9 @@ export const ParsedOrderSchema = z.object({
     .describe("The estimated amount the seller receives after platform fees (ยอดเงินโดยประมาณที่จะได้รับ or similar). null if the report does not show it"),
   status: z.enum(["pending", "settled_not_withdrawn", "received_in_bank"]).describe("Payout status mapped from any wording; pending when unclear"),
   note: z.string().nullable().describe("Short product or line summary, else null"),
+  product_name: z.string().nullable().describe("Product name as printed, without variant or quantity, else null"),
+  variant: z.string().nullable().describe("Variant or size label as printed (for example 10 kg, 500 g, 30 ml), else null"),
+  quantity: z.number().nullable().describe("Units ordered, from wording like x1 or จำนวน 2, else null"),
 });
 
 export const ParsedBatchSchema = z.object({
@@ -30,6 +33,9 @@ export type ReviewRow = ParsedOrder & {
   net_estimated: boolean;
   platform: "tiktok" | "shopee" | "fb" | "other";
   received_by: "mike" | "sai";
+  /** Matched product, or null when the picker must be used. */
+  product_id: string | null;
+  product_matched: boolean;
 };
 
 export type ParseResponse = {

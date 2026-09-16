@@ -49,7 +49,9 @@ Field rules:
 
 7. customer_name is the buyer's display name or username as printed. order_id is the platform order number as printed, without any "#" prefix. note is a short product summary such as "Coconut sugar 500g x2".
 
-8. Skip cancelled, refunded or returned orders entirely and mention each skipped order id in warnings. Also add a warning for any order whose amounts were unreadable. Warnings are short English sentences. If there are no warnings return an empty array.
+8. product_name is the product as printed without the size or count; variant is the size or option label printed with it (10 kg, 500 g, 30 ml, สีขาว); quantity is the unit count from wording like "x1", "x 2", "จำนวน 2" or "2 ชิ้น". Use 1 when a single item is clearly shown and null when nothing indicates the count.
+
+9. Skip cancelled, refunded or returned orders entirely and mention each skipped order id in warnings. Also add a warning for any order whose amounts were unreadable. Warnings are short English sentences. If there are no warnings return an empty array.
 
 Read Thai carefully. Digits printed with Thai numerals (๐-๙) are converted to Arabic numerals.`;
 

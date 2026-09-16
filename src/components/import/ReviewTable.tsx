@@ -9,6 +9,8 @@ import { round2, thb } from "@/lib/money";
 import { estimateNet } from "@/lib/parse/estimate";
 import type { ReviewRow } from "@/lib/parse/schema";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, type PlatformSetting } from "@/lib/types";
+import type { Product } from "@/lib/inventory/valuation";
+import { productLabel } from "@/lib/inventory/reports";
 import { cn } from "@/lib/cn";
 
 const cell = cn(controlClass, "min-h-10 px-2 py-1 text-xs rounded-lg min-w-24");
@@ -18,10 +20,12 @@ export function ReviewTable({
   rows,
   onChange,
   settings,
+  products,
 }: {
   rows: ReviewRow[];
   onChange: (rows: ReviewRow[]) => void;
   settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[];
+  products: Product[];
 }) {
   const t = useT();
 
@@ -73,6 +77,22 @@ export function ReviewTable({
                 {r.net_estimated ? <Pill tone="warning">{t("common.estimated")}</Pill> : null}
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="block col-span-2">
+                  <span className="eyebrow mb-1 block">{t("import.product")}</span>
+                  <select className={cn(mobileCell, !r.product_id && "border-warning bg-warning-tint/40")} value={r.product_id ?? ""} onChange={(e) => patch(r.key, { product_id: e.target.value || null, product_matched: true, product_line: products.find((p) => p.id === e.target.value)?.product_line ?? r.product_line })}>
+                    <option value="">{t("import.unmatched")}</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {productLabel(p)}
+                      </option>
+                    ))}
+                  </select>
+                  {r.product_name ? <span className="mt-0.5 block text-[11px] text-plum-faint">{r.product_name}{r.variant ? ` · ${r.variant}` : ""}</span> : null}
+                </label>
+                <label className="block">
+                  <span className="eyebrow mb-1 block">{t("import.qty")}</span>
+                  <input type="number" inputMode="numeric" min="1" step="1" className={cn(mobileCell, "tabular")} value={r.quantity ?? 1} onChange={(e) => patch(r.key, { quantity: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} />
+                </label>
                 <label className="block">
                   <span className="eyebrow mb-1 block">{t("common.gross")}</span>
                   <input type="number" inputMode="decimal" step="0.01" min="0" className={cn(mobileCell, "tabular")} value={r.gross_amount ?? ""} onChange={(e) => patch(r.key, { gross_amount: e.target.value === "" ? null : Number(e.target.value) })} />
@@ -156,6 +176,8 @@ export function ReviewTable({
             <Th>{t("import.orderId")}</Th>
             <Th>{t("common.date")}</Th>
             <Th>{t("common.customer")}</Th>
+            <Th>{t("import.product")}</Th>
+            <Th align="right">{t("import.qty")}</Th>
             <Th>{t("common.platform")}</Th>
             <Th>{t("common.product")}</Th>
             <Th align="right">{t("common.gross")}</Th>
@@ -179,6 +201,20 @@ export function ReviewTable({
               </Td>
               <Td>
                 <input className={cn(cell, "min-w-32")} value={r.customer_name ?? ""} onChange={(e) => patch(r.key, { customer_name: e.target.value || null })} />
+              </Td>
+              <Td>
+                <select className={cn(cell, "min-w-40", !r.product_id && "border-warning bg-warning-tint/40")} value={r.product_id ?? ""} onChange={(e) => patch(r.key, { product_id: e.target.value || null, product_matched: true, product_line: products.find((p) => p.id === e.target.value)?.product_line ?? r.product_line })}>
+                  <option value="">{t("import.unmatched")}</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {productLabel(p)}
+                    </option>
+                  ))}
+                </select>
+                {r.product_name ? <p className="mt-0.5 text-[10px] text-plum-faint">{r.product_name}{r.variant ? ` · ${r.variant}` : ""}</p> : null}
+              </Td>
+              <Td align="right">
+                <input type="number" min="1" step="1" className={cn(cell, "min-w-16 text-right")} value={r.quantity ?? 1} onChange={(e) => patch(r.key, { quantity: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} />
               </Td>
               <Td>
                 <select className={cell} value={r.platform} onChange={(e) => patch(r.key, { platform: e.target.value as ReviewRow["platform"] })}>
@@ -243,6 +279,8 @@ export function ReviewTable({
             <Td className="text-plum-soft">{t("common.total")}</Td>
             <Td></Td>
             <Td></Td>
+            <Td></Td>
+            <Td align="right" className="tabular">{included.reduce((s, r) => s + (r.quantity ?? 1), 0)}</Td>
             <Td></Td>
             <Td></Td>
             <Td align="right" className="text-plum-faint">

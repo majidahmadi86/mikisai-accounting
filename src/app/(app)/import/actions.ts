@@ -5,6 +5,7 @@ import { recordAudit } from "@/lib/audit";
 import { requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
 import { round2 } from "@/lib/money";
+import { writeItems } from "@/lib/ledger/insert";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES } from "@/lib/types";
 
 const money = z.coerce.number().min(0).max(99_999_999);
@@ -20,6 +21,8 @@ const CommitRowSchema = z.object({
   customer_name: z.string().trim().max(200).nullable(),
   order_id: z.string().trim().max(100).nullable(),
   note: z.string().trim().max(2000).nullable(),
+  product_id: z.string().uuid(),
+  quantity: z.coerce.number().int().min(1).max(100_000),
 });
 
 export type CommitRow = z.infer<typeof CommitRowSchema>;
@@ -53,6 +56,7 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
     payer: null,
     category_id: null,
     customer_name: r.customer_name || null,
+    quantity: r.quantity,
     note: [r.order_id ? `#${r.order_id}` : "", r.note ?? ""].filter(Boolean).join(" · "),
   }));
 
@@ -70,6 +74,14 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
     await supabase.from("transactions").delete().in("id", inserted.map((t) => t.id));
     return { ok: false, error: "save" };
   }
+
+  // One product line per imported order; the RPC also writes the sale movement.
+  await Promise.all(
+    inserted.map((tx, i) => {
+      const r = parsed.data.rows[i];
+      return writeItems(supabase, tx.id, [{ product_id: r.product_id, qty: r.quantity, unit_price: round2(r.gross_amount / r.quantity) }], "none");
+    }),
+  );
 
   if (parsed.data.upload_ids.length) {
     await supabase.from("report_uploads").update({ parsed: true }).in("id", parsed.data.upload_ids).eq("business_id", profile.business_id);
