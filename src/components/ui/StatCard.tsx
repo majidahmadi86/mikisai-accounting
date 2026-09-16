@@ -19,7 +19,7 @@ export function StatCard({
         <p className="eyebrow">{label}</p>
         {info}
       </div>
-      <p className="mt-2 text-2xl font-display tabular text-plum">{value}</p>
+      <p className="mt-2 text-2xl font-medium tabular text-plum">{value}</p>
       {hint ? <p className="mt-1 text-xs text-plum-faint">{hint}</p> : null}
     </Card>
   );

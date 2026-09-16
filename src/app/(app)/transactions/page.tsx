@@ -56,10 +56,10 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
         title={tr("transactions.title")}
         subtitle={tr("transactions.subtitle")}
         action={
-          <>
-            <AddButton label={tr("transactions.addExpense")} type="expense" variant="secondary" className="hidden md:inline-flex" />
-            <AddButton label={tr("transactions.addIncome")} type="income" className="hidden md:inline-flex" />
-          </>
+          <span className="hidden gap-2 md:flex">
+            <AddButton label={tr("transactions.addExpense")} type="expense" variant="secondary" />
+            <AddButton label={tr("transactions.addIncome")} type="income" />
+          </span>
         }
       />
 

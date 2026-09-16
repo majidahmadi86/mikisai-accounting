@@ -18,7 +18,7 @@ export function BalanceBanner({ balance, tr }: { balance: Balance; tr: Translato
         {(["mike", "sai"] as const).map((p) => (
           <div key={p} className="rounded-xl bg-card/80 px-4 py-3">
             <dt className="eyebrow">{tr("dashboard.balanceOf", { name: tr(`common.${p}`) })}</dt>
-            <dd className="mt-1 font-display text-xl tabular text-plum sm:text-2xl">{thb(balance.holdings[p])}</dd>
+            <dd className="mt-1 font-medium text-xl tabular text-plum sm:text-2xl">{thb(balance.holdings[p])}</dd>
             <dd className="text-xs text-plum-faint">{tr("dashboard.target", { amount: thb(balance.target) })}</dd>
           </div>
         ))}

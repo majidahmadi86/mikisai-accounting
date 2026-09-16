@@ -71,20 +71,20 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
                   <p className="eyebrow">{tr("reports.plNet")}</p>
-                  <p className="mt-1 font-display text-xl tabular text-plum">{thb(bundle.pl.net)}</p>
+                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.pl.net)}</p>
                   <p className="text-xs text-plum-faint">{tr("reports.plOrders", { n: bundle.pl.orders, units: bundle.pl.units })}</p>
                 </div>
                 <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
                   <p className="eyebrow">{tr("reports.plFees")}</p>
-                  <p className="mt-1 font-display text-xl tabular text-plum">{thb(bundle.pl.fees)}</p>
+                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.pl.fees)}</p>
                 </div>
                 <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
                   <p className="eyebrow">{tr("reports.plExpenses")}</p>
-                  <p className="mt-1 font-display text-xl tabular text-plum">{thb(bundle.pl.totalExpenses)}</p>
+                  <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.pl.totalExpenses)}</p>
                 </div>
                 <div className={`rounded-xl px-4 py-3 ${bundle.pl.profit >= 0 ? "bg-success-tint" : "bg-berry-tint"}`}>
                   <p className="eyebrow">{tr("reports.plProfit")}</p>
-                  <p className={`mt-1 font-display text-xl tabular ${bundle.pl.profit >= 0 ? "text-success" : "text-berry"}`}>{thb(bundle.pl.profit)}</p>
+                  <p className={`mt-1 font-medium text-xl tabular ${bundle.pl.profit >= 0 ? "text-success" : "text-berry"}`}>{thb(bundle.pl.profit)}</p>
                 </div>
               </div>
               <ReportTableView table={byId.pl} />

@@ -19,7 +19,7 @@ function InsightCard({ eyebrow, headline, tone = "card", children }: { eyebrow: 
   return (
     <Card tone={tone} className="px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-2">{eyebrow}</div>
-      <p className="mt-2 font-display text-2xl tabular text-plum">{headline}</p>
+      <p className="mt-2 font-medium text-2xl tabular text-plum">{headline}</p>
       <div className="mt-2 space-y-2 text-sm leading-relaxed text-plum-soft">{children}</div>
     </Card>
   );
@@ -145,7 +145,7 @@ export default async function InsightsPage() {
             ) : (
               <Card tone="lavender" className="px-5 py-4">
                 <p className="eyebrow">{tr("dashboard.pendingTitle")}</p>
-                <p className="mt-1 font-display text-2xl tabular text-plum">{tr("insights.cashHeadline", { amount: thb(insights.cashTotal) })}</p>
+                <p className="mt-1 font-medium text-2xl tabular text-plum">{tr("insights.cashHeadline", { amount: thb(insights.cashTotal) })}</p>
                 <ul className="mt-3 divide-y divide-line">
                   {insights.cash.map((c) => (
                     <li key={c.platform} className="py-3">

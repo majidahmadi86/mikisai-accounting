@@ -35,7 +35,9 @@ export function AppShell({
               <NavLinks links={links} className="hidden md:flex" />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <AddButton label={tr("nav.add")} className="hidden md:inline-flex" />
+              <span className="hidden md:block">
+                <AddButton label={tr("nav.add")} />
+              </span>
               <span className="hidden text-xs text-plum-soft lg:inline">
                 {tr("nav.signedInAs")} <span className="font-medium text-plum">{displayName}</span>
               </span>

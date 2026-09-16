@@ -77,15 +77,15 @@ export function ReconcilePanel({
         <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
           <div>
             <dt className="eyebrow">{t("payouts.amountReceived")}</dt>
-            <dd className="font-display text-lg tabular sm:text-xl">{thb(amountReceived)}</dd>
+            <dd className="font-medium text-lg tabular sm:text-xl">{thb(amountReceived)}</dd>
           </div>
           <div>
             <dt className="eyebrow">{t("payouts.selectedTotal")}</dt>
-            <dd className="font-display text-lg tabular sm:text-xl">{thb(total)}</dd>
+            <dd className="font-medium text-lg tabular sm:text-xl">{thb(total)}</dd>
           </div>
           <div>
             <dt className="eyebrow">{t("payouts.difference")}</dt>
-            <dd className={cn("font-display text-lg tabular sm:text-xl", within ? "text-success" : "text-berry")}>
+            <dd className={cn("font-medium text-lg tabular sm:text-xl", within ? "text-success" : "text-berry")}>
               {difference > 0 ? "+" : ""}
               {thb(difference)}
             </dd>

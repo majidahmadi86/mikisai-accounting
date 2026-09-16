@@ -77,7 +77,7 @@ export default async function PayoutsPage() {
                       </p>
                       {p.note ? <p className="mt-1 truncate text-xs text-plum-soft">{p.note}</p> : null}
                     </div>
-                    <p className="shrink-0 font-display text-xl tabular text-plum">{thb(p.amount_received)}</p>
+                    <p className="shrink-0 font-medium text-xl tabular text-plum">{thb(p.amount_received)}</p>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2">
                     <Link href={`/payouts/${p.id}/reconcile`} className="inline-flex min-h-11 items-center text-sm font-medium text-berry">

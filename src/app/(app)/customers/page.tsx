@@ -61,7 +61,7 @@ export default async function CustomersPage() {
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-display text-xl tabular text-plum">{thb(c.totals.net)}</p>
+                    <p className="font-medium text-xl tabular text-plum">{thb(c.totals.net)}</p>
                     <p className="text-xs text-plum-faint tabular">{thb(c.totals.gross)}</p>
                   </div>
                 </div>

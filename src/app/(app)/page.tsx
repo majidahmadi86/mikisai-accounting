@@ -64,7 +64,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                           {b.settled_not_withdrawn > 0 ? ` · ${statusName(tr, "settled_not_withdrawn")} ${thb(b.settled_not_withdrawn)}` : ""}
                         </p>
                       </div>
-                      <span className="font-display text-xl tabular text-plum">{thb(b.total)}</span>
+                      <span className="font-medium text-xl tabular text-plum">{thb(b.total)}</span>
                     </li>
                   );
                 })}
