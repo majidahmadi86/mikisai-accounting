@@ -4,21 +4,22 @@ Accounting for the two MikiSai founders, built for phones first. Next.js App Rou
 
 ## What is where
 
-Phones get a bottom tab bar: Home · Add · Ledger · Reports · More. Desktop gets the same routes in the header.
+Phones get a bottom tab bar: Home · Ledger · Add · My Balance · More. Desktop gets the same routes in the header.
 
 | Route | What it does |
 | --- | --- |
 | `/` | Who owes whom, money in the bank, expenses, profit, what each platform still owes, recent entries, transfers between the founders |
 | Add (the plus button) | Quick-entry sheet from any screen: Income or Expense, amount with the numeric keypad, one-tap platform, product, person and category chips, live "you receive" estimate, customer autocomplete, save with a six second undo, "Save and add another", "Import from screenshot" |
-| `/transactions` | Filterable ledger. Tap an entry to edit it; the detail shows who added it and who last edited it |
+| `/transactions` | Filterable ledger. Tap an entry to edit it; the admin also sees who added it and who last edited it |
+| `/balance` | My Balance: the signed-in founder's own side. Owed to me now, half of what is still with the platforms with expected arrival dates, my money in the partner's hands against the exposure limit, today's action with "Mark as sent", capital I have put in, and a 30-day chart |
 | `/reports` | This week, this month or a custom period. Profit and loss, sales by product, sales by platform, expenses by category, payout status, who-owes-whom history, customer list. Every report downloads as Excel or PDF |
 | `/insights` | Computed from the ledger: product ranking with "push this" or "review pricing" tags, best platform per product, velocity (7 vs 30 days), margin drift alerts, cash forecast per platform, reconciliation exceptions. Optional weekly paragraph from Gemini |
-| `/more` | Import, Payouts, Customers, Insights, Audit, Settings, Help, language, sign out |
+| `/more` | Reports, Import, Payouts, Customers, Insights, Settings, Help, language, sign out; the admin also gets Audit and Recently deleted |
 | `/import` | Paste text or upload screenshots and PDFs of a TikTok, Shopee or Facebook report. Gemini extracts orders into a review table. Nothing is saved until you confirm |
 | `/payouts` | Record a bank payout, then match it to orders: FIFO proposal within ±2%, adjust with checkboxes, confirm |
 | `/customers` | Built from customer names on sales, with totals and an editable note |
 | `/audit` | Every change: who, what, when, before and after. Filter by person, action, record and date. Download as Excel |
-| `/settings` | Commission % and fixed fee per platform, used to estimate what you receive when a report has no payout line |
+| `/settings` | Per platform: commission %, fixed fee, days until payout and early-payout %. Plus the exposure limit for My Balance. Admin only; contributors read |
 | `/more/help` | Plain-words answers and the five-step tour |
 | `/login` | Email and password. No public signup |
 
@@ -37,6 +38,28 @@ delta[p]    = holdings[p] - target
 ```
 
 A positive delta means that person holds more than their share, so the banner reads "Mike owes Sai ฿X" when Mike's delta is positive. Anything under ฿1 shows as Balanced. The pure function lives in `src/lib/balance.ts` and is unit tested against a hand calculation.
+
+## Roles and soft delete
+
+`profiles.role` is `admin` (Mike) or `contributor` (Sai), and the rules live in Postgres row level security (migration `0004`), not only in the UI:
+
+- Both roles read everything in the business except the audit log, which is admin only.
+- Both roles insert entries, payouts, transfers, customers and report uploads; every row is stamped with `created_by`.
+- A contributor may update only rows they created, and only for 24 hours. Settings, the exposure limit and profiles are admin only.
+- No table has a DELETE policy. "Delete" sets `deleted_at` and `deleted_by`; every query hides such rows, the admin gets a ten second Undo toast and a Recently deleted list under More that restores. There is no reset, clear or bulk delete anywhere in the UI.
+- Soft deletes, restores, settings changes and refused attempts (`denied`) all land in the audit log.
+
+`npm run verify:rls` signs in as both founders and proves each rule against the live project.
+
+## My Balance
+
+`src/lib/my-balance.ts`, tested on the seed fixture plus a capital transfer and a 70% early-payout Shopee order:
+
+- Owed to me now reuses the balance formula: `owed_to_me = max(0, target - my_holdings)`.
+- Still coming, half mine: 50% of the net of every order not yet in the bank, grouped by platform. Each order's money arrives after the platform's `settlement_lag_days`; when `daily_payout_pct` is under 100 that share arrives on the settlement day (or the order day) and the rest after the lag.
+- Exposure = the two above, compared with `businesses.exposure_limit`: green under 80%, amber to 100%, red above with a "Settle before any new stock purchase" banner.
+- Today's action is the single transfer that returns both partners to even; "Mark as sent" opens the transfer form prefilled and records nothing until confirmed.
+- Transfers carry a `kind`: `settlement` (paying the partner their share) or `capital` (my own money in to buy stock).
 
 ## Audit log
 
