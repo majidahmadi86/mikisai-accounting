@@ -9,6 +9,7 @@ import { TransferForm } from "@/components/transfers/TransferForm";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Pill } from "@/components/ui/Pill";
 import { StatCard } from "@/components/ui/StatCard";
+import { ExpandableNote } from "@/components/ui/ExpandableNote";
 import { requireSession } from "@/lib/auth";
 import { computeBalance } from "@/lib/balance";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
@@ -102,7 +103,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                   <li key={row.id}>
                     <Link href={`/transactions/${row.id}/edit`} className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-lavender-tint">
                       <div className="min-w-0">
-                        <p className="truncate text-sm text-plum">
+                        <p className="line-clamp-2 text-sm text-plum">
                           {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : row.note || (row.category ? tr(`category.${row.category}`) : tr("common.expense"))}
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-plum-faint">
@@ -144,13 +145,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                           {tr(`common.${tf.from_person}`)} → {tr(`common.${tf.to_person}`)}
                           <span className="ml-2 font-medium tabular">{thb(tf.amount)}</span>
                           <Pill tone={tf.kind === "capital" ? "lavender" : "neutral"} className="ml-2">
-                            {tf.kind === "capital" ? tr("transfer.kindCapital") : tr("transfer.kindSettlement")}
+                            {tr(`transfer.reason.${tf.reason}`)}
                           </Pill>
                         </p>
-                        <p className="truncate text-xs text-plum-faint">
-                          {formatDate(tf.date, locale)}
-                          {tf.note ? ` · ${tf.note}` : ""} · {tr("common.edit")} →
+                        <p className="text-xs text-plum-faint">
+                          {formatDate(tf.date, locale)} · {tr("common.edit")} →
                         </p>
+                        {tf.note ? <ExpandableNote text={tf.note} className="text-xs text-plum-soft" /> : null}
                       </Link>
                       {admin ? <SoftDeleteButton entity="internal_transfer" id={tf.id} variant="ghost" className="px-3 text-xs" /> : null}
                     </li>

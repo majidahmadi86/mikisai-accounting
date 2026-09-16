@@ -6,7 +6,7 @@ export function StackedList({ children, className }: { children: React.ReactNode
 }
 
 export function StackedItem({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <li className={cn("rounded-card border border-line bg-card px-4 py-3", className)}>{children}</li>;
+  return <li className={cn("min-w-0 rounded-card border border-line bg-card px-4 py-3", className)}>{children}</li>;
 }
 
 /** Label and value pair inside a stacked card. */

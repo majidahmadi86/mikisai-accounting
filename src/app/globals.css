@@ -123,6 +123,24 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+  Layout safety on phones. Flex and grid children default to min-width: auto,
+  so one long unbroken word can push a card past the viewport; letting every
+  child shrink and every text wrap anywhere removes the whole class of bug.
+*/
+.flex > *,
+.grid > * {
+  min-width: 0;
+}
+
+body {
+  overflow-wrap: anywhere;
+}
+
+main {
+  overflow-x: clip;
+}
+
 /* Section eyebrow: uppercase, letterspaced, matching the brand board. */
 .eyebrow {
   font-size: 0.72rem;

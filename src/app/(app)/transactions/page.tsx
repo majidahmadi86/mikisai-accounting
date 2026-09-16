@@ -91,7 +91,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
               <StackedItem key={row.id} className="p-0">
                 <Link href={`/transactions/${row.id}/edit`} className="flex items-start justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-plum">
+                    <p className="line-clamp-2 text-sm font-medium text-plum">
                       {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : row.category ? categoryName(tr, row.category) : tr("common.expense")}
                     </p>
                     <p className="mt-0.5 text-xs text-plum-faint">

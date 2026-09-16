@@ -12,7 +12,8 @@
     "seed": "tsx scripts/seed.ts",
     "reset:ledger": "tsx scripts/reset-ledger.ts",
     "verify:rls": "tsx scripts/verify-rls.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",
@@ -28,6 +29,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24",
     "@types/react": "^19",

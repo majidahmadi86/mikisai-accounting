@@ -6,6 +6,7 @@ import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
+import { ExpandableNote } from "@/components/ui/ExpandableNote";
 import { Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
@@ -76,7 +77,7 @@ export default async function PayoutsPage() {
                       <p className="mt-2">
                         <Status p={p} />
                       </p>
-                      {p.note ? <p className="mt-1 truncate text-xs text-plum-soft">{p.note}</p> : null}
+                      {p.note ? <ExpandableNote text={p.note} className="mt-1 text-xs text-plum-soft" /> : null}
                     </div>
                     <p className="shrink-0 font-medium text-xl tabular text-plum">{thb(p.amount_received)}</p>
                   </Link>
@@ -122,7 +123,7 @@ export default async function PayoutsPage() {
                     <Td>
                       <Status p={p} />
                     </Td>
-                    <Td className="max-w-56 truncate text-plum-soft">{p.note}</Td>
+                    <Td className="max-w-56 text-plum-soft">{p.note ? <ExpandableNote text={p.note} /> : null}</Td>
                     <Td align="right">
                       <div className="flex items-center justify-end gap-3">
                         <Link href={`/payouts/${p.id}/edit`} className="text-xs text-berry hover:underline whitespace-nowrap">

@@ -4,6 +4,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
+import { ExpandableNote } from "@/components/ui/ExpandableNote";
 import { partnerOf, personOf, requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
@@ -138,8 +139,10 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
                 {b.capital.map((c) => (
                   <li key={c.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                     <div className="min-w-0">
-                      <p className="text-plum">{formatDate(c.date, locale)}</p>
-                      {c.note ? <p className="truncate text-xs text-plum-faint">{c.note}</p> : null}
+                      <p className="text-plum">
+                        {formatDate(c.date, locale)} <span className="text-plum-faint">· {tr(`transfer.reason.${c.reason}`)}</span>
+                      </p>
+                      {c.note ? <ExpandableNote text={c.note} className="text-xs text-plum-faint" /> : null}
                     </div>
                     <span className="tabular font-medium text-plum">{thb(c.amount)}</span>
                   </li>
