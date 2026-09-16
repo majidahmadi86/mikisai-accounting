@@ -35,9 +35,9 @@ export function ReportTableView({ table }: { table: ExportTable }) {
             <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
               {r.cells.slice(1).map((v, i) =>
                 v === "" ? null : (
-                  <div key={i} className="flex items-baseline justify-between gap-2 text-xs">
-                    <dt className="eyebrow text-[0.6rem]">{table.columns[i + 1].label}</dt>
-                    <dd className={cn("tabular whitespace-nowrap text-plum", r.total && "font-medium text-berry")}>{v}</dd>
+                  <div key={i} className={cn("flex items-baseline justify-between gap-2 text-xs", table.columns[i + 1].kind === "text" && "col-span-2")}>
+                    <dt className="eyebrow shrink-0 text-[0.6rem]">{table.columns[i + 1].label}</dt>
+                    <dd className={cn("min-w-0 text-right text-plum", table.columns[i + 1].kind === "text" ? "[overflow-wrap:anywhere]" : "tabular whitespace-nowrap", r.total && "font-medium text-berry")}>{v}</dd>
                   </div>
                 ),
               )}

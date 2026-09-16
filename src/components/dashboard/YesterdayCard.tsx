@@ -21,7 +21,7 @@ export function YesterdayCard({ data, tr, locale }: { data: Yesterday; tr: Trans
       />
       <div className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6 lg:grid-cols-2">
         <div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <div className="rounded-xl bg-ivory-deep/70 px-3 py-2.5">
               <p className="eyebrow">{tr("dashboard.yesterdayOrders")}</p>
               <p className="mt-1 text-xl font-medium tabular text-plum">{data.orders}</p>
@@ -30,9 +30,9 @@ export function YesterdayCard({ data, tr, locale }: { data: Yesterday; tr: Trans
               <p className="eyebrow">{tr("dashboard.yesterdayUnits")}</p>
               <p className="mt-1 text-xl font-medium tabular text-plum">{data.units}</p>
             </div>
-            <div className="rounded-xl bg-ivory-deep/70 px-3 py-2.5">
+            <div className="col-span-2 rounded-xl bg-ivory-deep/70 px-3 py-2.5 sm:col-span-1">
               <p className="eyebrow">{tr("dashboard.yesterdayRevenue")}</p>
-              <p className="mt-1 text-xl font-medium tabular text-plum">{thb(data.revenue)}</p>
+              <p className="mt-1 text-xl font-medium tabular whitespace-nowrap text-plum">{thb(data.revenue)}</p>
             </div>
           </div>
           {data.perProduct.length === 0 ? (
