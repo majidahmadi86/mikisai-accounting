@@ -20,8 +20,13 @@ export type Product = {
   active: boolean;
   photo_path: string | null;
   notes: string;
+  /** buy_to_order: sold before bought, negative stock is a backlog. stocked: must never go negative. */
+  stock_mode: StockMode;
   deleted_at?: string | null;
 };
+
+export const STOCK_MODES = ["buy_to_order", "stocked"] as const;
+export type StockMode = (typeof STOCK_MODES)[number];
 
 export type StockMovement = {
   id: string;
@@ -166,7 +171,8 @@ export function valueStock(products: Product[], movements: StockMovement[], opts
       soldQty: round3(soldQty),
       purchasedQty: round3(purchasedQty),
       purchasedValue: round2(purchasedValue),
-      low: product.active && onHand <= product.low_stock_threshold,
+      // Low stock only means something for a product you keep on the shelf.
+      low: product.active && product.stock_mode === "stocked" && onHand <= product.low_stock_threshold,
     });
   }
 

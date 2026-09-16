@@ -7,6 +7,7 @@ import { Field, Input } from "@/components/ui/Field";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
+import { StockPill } from "@/components/products/StockPill";
 import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
@@ -19,14 +20,14 @@ import { formatDate, thb, todayIso } from "@/lib/money";
 import { UUID } from "@/lib/soft-delete";
 import { cn } from "@/lib/cn";
 
-function Stat({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: string; tone?: "ok" | "warn" }) {
+function Stat({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: string; tone?: "ok" | "warn" | "berry" }) {
   return (
-    <div className={cn("rounded-xl px-4 py-3", tone === "warn" ? "bg-warning-tint" : tone === "ok" ? "bg-success-tint" : "bg-ivory-deep/70")}>
+    <div className={cn("rounded-xl px-4 py-3", tone === "warn" ? "bg-warning-tint" : tone === "ok" ? "bg-success-tint" : tone === "berry" ? "bg-berry-tint" : "bg-ivory-deep/70")}>
       <div className="flex items-center justify-between gap-2">
         <p className="eyebrow">{label}</p>
         {hint ? <InfoTip text={hint} /> : null}
       </div>
-      <p className="mt-1 text-xl font-medium tabular text-plum">{value}</p>
+      <p className={cn("mt-1 text-xl font-medium tabular", tone === "berry" ? "text-berry" : "text-plum")}>{value}</p>
     </div>
   );
 }
@@ -77,13 +78,20 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
         {p.photo_path ? <Image src={photoUrl(p.photo_path)} alt="" width={96} height={96} unoptimized className="h-24 w-24 rounded-2xl object-cover" /> : null}
         <div className="flex flex-wrap gap-2">
           <Pill tone={p.active ? "success" : "neutral"}>{p.active ? tr("settings.active") : tr("settings.inactive")}</Pill>
+          <Pill tone="lavender">{tr(`products.stockMode.${p.stock_mode}`)}</Pill>
           {row.low ? <Pill tone="warning">{tr("reports.lowStock")}</Pill> : null}
+          {row.backlog > 0 ? <StockPill row={row} tr={tr} /> : null}
           {p.name_th && locale !== "th" ? <Pill tone="lavender">{p.name_th}</Pill> : null}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Stat label={tr("reports.onHand")} value={`${stats.onHand} ${tr(`products.unit.${p.unit_label as "box"}`)}`} hint={tr("products.onHandHint")} tone={row.low ? "warn" : undefined} />
+        <Stat
+          label={row.backlog > 0 ? tr("products.backlogStat") : tr("reports.onHand")}
+          value={row.backlog > 0 ? `${row.backlog} ${tr(`products.unit.${p.unit_label as "box"}`)}` : `${stats.onHand} ${tr(`products.unit.${p.unit_label as "box"}`)}`}
+          hint={row.backlog > 0 ? tr("dashboard.toBuyHint") : tr("products.onHandHint")}
+          tone={row.backlog > 0 ? (p.stock_mode === "buy_to_order" ? "berry" : "warn") : row.low ? "warn" : undefined}
+        />
         <Stat label={tr("reports.avgCost")} value={thb(stats.avgCost)} hint={tr("products.avgCostHint")} />
         <Stat
           label={tr("products.costVariance")}

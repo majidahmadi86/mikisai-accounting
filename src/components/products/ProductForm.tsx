@@ -4,7 +4,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import type { Translator } from "@/lib/i18n/dictionary";
 import { UNIT_LABELS, type ListPrices } from "@/lib/inventory/product-stats";
-import type { Product } from "@/lib/inventory/valuation";
+import { STOCK_MODES, type Product } from "@/lib/inventory/valuation";
 import { productName } from "@/lib/labels";
 import { PLATFORMS, PRODUCT_LINES } from "@/lib/types";
 
@@ -38,6 +38,15 @@ export function ProductForm({ tr, product, photoUrl, error }: { tr: Translator; 
             {UNIT_LABELS.map((u) => (
               <option key={u} value={u}>
                 {tr(`products.unit.${u}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={tr("products.stockMode")} htmlFor="p-mode" hint={tr("products.stockModeHint")}>
+          <Select id="p-mode" name="stock_mode" defaultValue={product?.stock_mode ?? "buy_to_order"}>
+            {STOCK_MODES.map((m) => (
+              <option key={m} value={m}>
+                {tr(`products.stockMode.${m}`)}
               </option>
             ))}
           </Select>

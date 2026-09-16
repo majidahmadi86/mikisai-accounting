@@ -11,6 +11,7 @@ import { useLocale, useT } from "@/lib/i18n/client";
 import { categoryLabel } from "@/lib/categories";
 import { productLabel } from "@/lib/inventory/reports";
 import { salePriceFor } from "@/lib/inventory/product-stats";
+import { coversBacklog } from "@/lib/inventory/backlog";
 import { platformName, productName } from "@/lib/labels";
 import type { TransactionInput } from "@/lib/ledger/transaction-input";
 import { round2, thb, todayIso } from "@/lib/money";
@@ -167,7 +168,9 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
       : { type: "expense", date, platform, product_line: productLine, amount, quantity, payer: person, category_id: category, note: note.trim() || undefined, items };
 
     remember({ platform, product: productLine, category, productId: pid ?? undefined });
-    submit(input, keepOpen);
+    // A stock purchase against a backlog says how much of it this delivery clears.
+    const cover = stockEffect === "purchase" && pid ? coversBacklog(data.backlog[pid] ?? 0, quantity) : null;
+    submit(input, keepOpen, cover && cover.of > 0 ? t("inventory.coversBacklog", { n: cover.covers, m: cover.of }) : undefined);
     if (keepOpen) {
       setAmountText("");
       setAmountTouched(false);

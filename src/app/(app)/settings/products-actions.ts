@@ -5,6 +5,7 @@ import { z } from "zod";
 import { recordDenied, requireAdmin, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
 import { UNIT_LABELS } from "@/lib/inventory/product-stats";
+import { STOCK_MODES } from "@/lib/inventory/valuation";
 import { UUID } from "@/lib/soft-delete";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PRODUCT_LINES } from "@/lib/types";
@@ -18,6 +19,7 @@ const ProductSchema = z.object({
   variant: z.string().trim().max(120).default(""),
   product_line: z.enum(PRODUCT_LINES).default("other"),
   unit_label: z.enum(UNIT_LABELS).default("box"),
+  stock_mode: z.enum(STOCK_MODES).default("buy_to_order"),
   default_cost: money.default(0),
   default_price: money.default(0),
   list_tiktok: optionalMoney,

@@ -4,6 +4,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
+import { StockPill } from "@/components/products/StockPill";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
 import { Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
@@ -22,6 +23,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const stock = valueStock(snapshot.products, snapshot.movements).products.sort((a, b) => Number(b.product.active) - Number(a.product.active) || a.product.name.localeCompare(b.product.name));
   const total = stock.reduce((a, r) => a + r.value, 0);
+  const toBuy = stock.filter((r) => r.backlog > 0);
   const displayName = (p: { name: string; name_th: string }) => (locale === "th" && p.name_th ? p.name_th : p.name);
 
   return (
@@ -31,6 +33,20 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       <p className="mb-4 text-sm text-plum-soft">
         {tr("products.stockTotal", { amount: thb(total) })} {!admin ? `· ${tr("products.viewOnly")}` : ""}
       </p>
+      {toBuy.length ? (
+        <div className="mb-4 rounded-card border border-berry/20 bg-berry-tint px-5 py-4">
+          <p className="eyebrow">{tr("units.toBuyToday")}</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {toBuy.map((r) => (
+              <li key={r.product.id}>
+                <Pill tone="berry">
+                  {r.product.variant || r.product.name} · {tr("units.backlogUnits", { n: r.backlog })}
+                </Pill>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {stock.length === 0 ? (
         <EmptyState title={tr("products.empty")} body={tr("products.emptyBody")} action={<ButtonLink href="/products/new">{tr("products.add")}</ButtonLink>} />
@@ -47,9 +63,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                       {r.product.variant || productName(tr, r.product.product_line)} · {thb(r.product.default_price)}
                     </span>
                     <span className="mt-1 flex flex-wrap gap-1.5">
-                      <Pill tone={r.low ? "warning" : "success"}>
-                        {r.onHand} {tr(`products.unit.${r.product.unit_label as "box"}`)}
-                      </Pill>
+                      <StockPill row={r} tr={tr} />
                       {!r.product.active ? <Pill tone="neutral">{tr("settings.inactive")}</Pill> : null}
                     </span>
                   </span>
@@ -86,9 +100,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                   </Td>
                   <Td className="text-plum-soft">{r.product.variant}</Td>
                   <Td align="right">
-                    <Pill tone={r.low ? "warning" : "success"}>
-                      {r.onHand} {tr(`products.unit.${r.product.unit_label as "box"}`)}
-                    </Pill>
+                    <StockPill row={r} tr={tr} />
                   </Td>
                   <Td align="right">{thb(r.avgCost)}</Td>
                   <Td align="right" className="text-plum-soft">

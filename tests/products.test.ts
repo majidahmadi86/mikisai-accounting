@@ -17,6 +17,7 @@ const box: Product = {
   active: true,
   photo_path: null,
   notes: "",
+  stock_mode: "buy_to_order",
 };
 
 describe("quantities are whole units", () => {

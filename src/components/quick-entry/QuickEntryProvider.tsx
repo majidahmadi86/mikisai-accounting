@@ -22,6 +22,8 @@ export type QuickEntryContextData = {
   categories: ExpenseCategory[];
   products: Product[];
   lastProductId: string | null;
+  /** Units sold or given away per product that no purchase has covered yet. */
+  backlog: Record<string, number>;
 };
 
 export type Notice = { message: string; actionLabel?: string; onAction?: () => void | Promise<void>; durationMs?: number };
@@ -31,7 +33,7 @@ type Ctx = {
   close: () => void;
   isOpen: boolean;
   data: QuickEntryContextData;
-  submit: (input: TransactionInput, keepOpen: boolean) => void;
+  submit: (input: TransactionInput, keepOpen: boolean, note?: string) => void;
   /** Shows a toast with an optional one-tap action (used for delete undo). */
   notify: (notice: Notice) => void;
 };
@@ -70,7 +72,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
    * reopen the sheet with the same values.
    */
   const submit = useCallback(
-    (input: TransactionInput, keepOpen: boolean) => {
+    (input: TransactionInput, keepOpen: boolean, note?: string) => {
       clearTimer();
       const amount = input.type === "income" ? (input.net_amount ?? input.gross_amount) : input.amount;
       const sign = input.type === "income" ? "+" : "-";
@@ -86,7 +88,8 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
           return;
         }
         router.refresh();
-        setToast({ kind: "saved", message: t("quick.saved", { amount: `${sign}${thb(amount)}` }), actionLabel: t("quick.undo"), id: result.id });
+        const saved = t("quick.saved", { amount: `${sign}${thb(amount)}` });
+        setToast({ kind: "saved", message: note ? `${saved} · ${note}` : saved, actionLabel: t("quick.undo"), id: result.id });
         timer.current = setTimeout(() => setToast(null), UNDO_MS);
       })();
     },

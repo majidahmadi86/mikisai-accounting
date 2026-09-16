@@ -2,6 +2,7 @@ import { AppShell } from "@/components/nav/AppShell";
 import { QuickEntryProvider, type QuickEntryContextData } from "@/components/quick-entry/QuickEntryProvider";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
+import { fifoBacklog } from "@/lib/inventory/backlog";
 import { LocaleProvider } from "@/lib/i18n/client";
 import { getLocale, t } from "@/lib/i18n/server";
 
@@ -20,6 +21,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     customers: snapshot.customers.slice(0, 300).map((c) => ({ name: c.name, platform: c.platform })),
     categories: snapshot.categories.filter((c) => c.active),
     products: snapshot.products.filter((p) => p.active),
+    backlog: Object.fromEntries(Array.from(fifoBacklog(snapshot.movements).values()).filter((b) => b.backlog > 0).map((b) => [b.product_id, b.backlog])),
     lastProductId: (() => {
       // The most recent sale that names a product, so the sheet preselects what was sold last.
       for (const tx of snapshot.transactions) {

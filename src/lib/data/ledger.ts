@@ -84,7 +84,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         })),
         customers: (cu.data ?? []) as Customer[],
         categories: (ec.data ?? []) as ExpenseCategory[],
-        products: (pr.data ?? []).map((p) => ({ ...(p as Product), name_th: p.name_th ?? "", list_prices: (p.list_prices ?? {}) as Record<string, number>, photo_path: p.photo_path ?? null, notes: p.notes ?? "", default_cost: num(p.default_cost), default_price: num(p.default_price), low_stock_threshold: num(p.low_stock_threshold) })),
+        products: (pr.data ?? []).map((p) => ({ ...(p as Product), name_th: p.name_th ?? "", list_prices: (p.list_prices ?? {}) as Record<string, number>, photo_path: p.photo_path ?? null, notes: p.notes ?? "", stock_mode: (p.stock_mode ?? "buy_to_order") as Product["stock_mode"], default_cost: num(p.default_cost), default_price: num(p.default_price), low_stock_threshold: num(p.low_stock_threshold) })),
         movements: (mv.data ?? []).map((m) => ({ ...(m as StockMovement), qty: num(m.qty), unit_cost: m.unit_cost == null ? null : num(m.unit_cost) })),
         items: (it.data ?? []).map((i) => ({ id: i.id as string, transaction_id: i.transaction_id as string, product_id: i.product_id as string, qty: num(i.qty), unit_price: num(i.unit_price), unit_cost: i.unit_cost == null ? null : num(i.unit_cost) })),
         business: { id: businessId, name: bz.data?.name ?? "MikiSai", exposure_limit: bz.data ? num(bz.data.exposure_limit) : 3000 },
