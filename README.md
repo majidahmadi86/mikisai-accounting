@@ -23,6 +23,23 @@ Phones get a bottom tab bar: Home · Ledger · Add · My Balance · More. Deskto
 | `/more/help` | Plain-words answers and the five-step tour |
 | `/login` | Email and password. No public signup |
 
+## Accounting model (v2.4)
+
+One profit, accrual basis, in `src/lib/accounting/statements.ts`:
+
+```
+Profit = Revenue (you received) - Cost of units sold (moving average) - Operating expenses
+```
+
+- Stock purchases are not expenses; they become inventory. Each expense row contributes cash paid minus the value of units it brought into stock plus the cost of units it took out. A stock purchase with product lines contributes zero, a Samples row with a cost per unit (bought and given away) contributes its cash once, a Samples row taken from existing stock contributes the average cost of the unit. Nothing is counted twice.
+- Cash flow: order money that reached a bank account in the period (payouts and direct bank transfers, by settled date) against every payment made, stock included.
+- Balance sheet at the period end: cash held by each partner, money still with the platforms, stock on hand at cost; minus the purchase backlog liability (units sold before they were bought, at the cost already charged). Assets minus liabilities equals the partners' equity, which equals profit to date. `checkBooks` asserts this; More → Check books runs it on live data and the reconciliation suite (`tests/reconciliation.test.ts`) runs it on the seed fixture and on a fixture matching the real 15 September data (9 orders, 5 x 1 and 4 x 2 boxes; 16 September purchase of 12; 14 September samples ฿890).
+- My Balance and Who owes whom keep their cash definition and show the reconciliation line: profit this period, of which how much is in stock, pending at platforms, and cash.
+- Buy to order: `products.stock_mode` is `buy_to_order` or `stocked`. Negative stock on a buy-to-order product is a purchase backlog (FIFO, `src/lib/inventory/backlog.ts`) shown in berry, never as a red negative; "Units to buy today" appears on Home, Products and the Units report. Stocked products below zero are a Data health issue.
+- Units report (`/reports/units`): per product per day, week or month, with weekly and monthly subtotals, exports to XLSX and PDF. Ledger rows show product and quantity, never the product line alone.
+- Quantities: a sale cannot be saved without a product and a whole-unit quantity. Import reads "x2", "จำนวน 2" and kg or box variants deterministically (`src/lib/inventory/quantity.ts`): "20 kg" or "2 กล่อง" is the 10 kg box times two. A missing quantity is red in review and blocks confirm. When you receive per unit is outside 0.6x to 1.6x the standard price the app warns "Amount looks like N units, not M" without blocking.
+- Data health (More → Data health): automated checks with counts, rows and one-tap open; runs on page load and daily via the Vercel cron in `vercel.json` hitting `/api/health/daily` with `CRON_SECRET`. Home shows the last run.
+
 ## How the balance is computed
 
 Only income whose settlement is `received_in_bank` counts.
