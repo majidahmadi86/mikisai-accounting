@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
 import { UUID } from "@/lib/soft-delete";
+import { STOCK_EFFECTS } from "@/lib/categories";
 
 const Name = z.string().trim().min(1).max(60);
 
@@ -23,7 +24,7 @@ export async function addCategory(formData: FormData) {
 export async function renameCategory(id: string, formData: FormData) {
   const { supabase, profile } = await requireAdmin("expense_category", id, "/settings?error=denied");
   if (!UUID.test(id)) redirect("/settings");
-  const parsed = z.object({ name_en: Name, name_th: Name }).safeParse({ name_en: formData.get("name_en"), name_th: formData.get("name_th") });
+  const parsed = z.object({ name_en: Name, name_th: Name, stock_effect: z.enum(STOCK_EFFECTS).default("none") }).safeParse({ name_en: formData.get("name_en"), name_th: formData.get("name_th"), stock_effect: formData.get("stock_effect") ?? "none" });
   if (!parsed.success) redirect("/settings?error=invalid#categories");
   const { error } = await supabase.from("expense_categories").update(parsed.data).eq("id", id).eq("business_id", profile.business_id);
   if (error) redirect("/settings?error=save#categories");

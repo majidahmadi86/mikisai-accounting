@@ -4,6 +4,8 @@ import type { Translator } from "@/lib/i18n/dictionary";
 import { platformName, productName, statusName } from "@/lib/labels";
 import type { ExpenseCategory } from "@/lib/categories";
 import { CategoryChips } from "./CategoryChips";
+import { ItemsEditor, type ItemDraft } from "./ItemsEditor";
+import type { Product } from "@/lib/inventory/valuation";
 import { todayIso } from "@/lib/money";
 import {
   PEOPLE,
@@ -26,6 +28,8 @@ export function TransactionForm({
   error,
   defaultPerson = "mike",
   categories = [],
+  products = [],
+  initialItems = [],
 }: {
   tr: Translator;
   type: TransactionType;
@@ -35,6 +39,8 @@ export function TransactionForm({
   error?: string | null;
   defaultPerson?: Person;
   categories?: ExpenseCategory[];
+  products?: Product[];
+  initialItems?: ItemDraft[];
 }) {
   const isIncome = type === "income";
   return (
@@ -60,7 +66,7 @@ export function TransactionForm({
             </Field>
             <div className="sm:col-span-2">
               <Field label={tr("common.category")} hint={tr("transactions.categoryHint")}>
-                <CategoryChips categories={categories} defaultValue={initial?.category_id ?? null} />
+                <CategoryChips categories={categories} defaultValue={initial?.category_id ?? null} products={products} initialItems={initialItems} />
               </Field>
             </div>
           </>
@@ -92,9 +98,13 @@ export function TransactionForm({
             ))}
           </Select>
         </Field>
-        <Field label={tr("transactions.quantity")} htmlFor="quantity" hint={tr("transactions.quantityHint")}>
-          <Input id="quantity" name="quantity" type="number" inputMode="numeric" step="1" min="1" defaultValue={initial?.quantity ?? 1} />
-        </Field>
+        {isIncome ? (
+          <div className="sm:col-span-2">
+            <Field label={tr("inventory.items")} hint={tr("inventory.itemsHintSale")}>
+              <ItemsEditor products={products} initial={initialItems} mode="sale" />
+            </Field>
+          </div>
+        ) : null}
         {isIncome ? (
           <Field label={tr("transactions.customerName")} htmlFor="customer_name" hint={tr("transactions.customerHint")}>
             <Input id="customer_name" name="customer_name" defaultValue={initial?.customer_name ?? ""} placeholder={tr("common.optional")} />
@@ -115,7 +125,7 @@ export function TransactionForm({
       <Field label={tr("common.note")} htmlFor="note" hint={tr("transactions.noteHint")}>
         <Textarea id="note" name="note" defaultValue={initial?.note ?? ""} />
       </Field>
-      {error ? <p className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">{tr("common.error")}</p> : null}
+      {error ? <p className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">{error === "denied" ? tr("roles.denied") : error === "items" ? tr("inventory.itemsRequired") : tr("common.error")}</p> : null}
       <div className="sticky bottom-20 z-10 -mx-5 flex gap-2 border-t border-line bg-ivory/95 px-5 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
         <Button type="submit" className="flex-1 md:flex-none">
           {tr("common.save")}

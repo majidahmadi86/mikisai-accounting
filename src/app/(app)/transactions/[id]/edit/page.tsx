@@ -61,6 +61,8 @@ export default async function EditTransactionPage({ params, searchParams }: Page
           settlementStatus={tx.type === "income" ? settlementStatus : undefined}
           error={typeof sp.error === "string" ? sp.error : null}
           categories={selectableCategories(snapshot.categories, tx.category_id)}
+          products={snapshot.products.filter((p) => p.active || snapshot.items.some((i) => i.transaction_id === id && i.product_id === p.id))}
+          initialItems={snapshot.items.filter((i) => i.transaction_id === id).map((i) => ({ product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost ?? undefined }))}
         />
       </Card>
 

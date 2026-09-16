@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
-import { insertTransaction, type SaveResult } from "@/lib/ledger/insert";
+import { insertTransaction, stockEffectFor, type SaveResult } from "@/lib/ledger/insert";
 import { applyTransactionUpdate } from "@/lib/ledger/update";
 import { formToObject, toRow, TransactionSchema } from "@/lib/ledger/transaction-input";
 
@@ -27,7 +27,10 @@ export async function updateTransaction(id: string, formData: FormData) {
   if (!parsed.success) redirect(`/transactions/${id}/edit?error=invalid`);
 
   const row = toRow(parsed.data, profile.business_id);
-  const outcome = await applyTransactionUpdate(supabase, profile.business_id, id, row, parsed.data.type === "income" ? parsed.data.settlement_status : undefined);
+  const effect = parsed.data.type === "expense" ? await stockEffectFor(supabase, parsed.data.category_id) : "none";
+  const items = parsed.data.items ?? [];
+  if (parsed.data.type === "expense" && effect !== "none" && items.length === 0) redirect(`/transactions/${id}/edit?error=items`);
+  const outcome = await applyTransactionUpdate(supabase, profile.business_id, id, row, parsed.data.type === "income" ? parsed.data.settlement_status : undefined, { list: items, effect });
   if (!outcome.ok) {
     if (outcome.reason === "denied") {
       // RLS refused: not the admin, not the author, or older than 24 hours.

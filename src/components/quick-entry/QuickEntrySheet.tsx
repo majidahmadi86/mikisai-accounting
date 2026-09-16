@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createProduct } from "@/app/(app)/settings/products-actions";
 import { Button } from "@/components/ui/Button";
 import { Chips } from "@/components/ui/Chips";
-import { Field, Input, Textarea } from "@/components/ui/Field";
+import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { CameraIcon, CloseIcon } from "@/components/ui/Icons";
-import { useT } from "@/lib/i18n/client";
-import { platformName, productName } from "@/lib/labels";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { categoryLabel } from "@/lib/categories";
-import { useLocale } from "@/lib/i18n/client";
+import { productLabel } from "@/lib/inventory/reports";
+import { platformName, productName } from "@/lib/labels";
 import type { TransactionInput } from "@/lib/ledger/transaction-input";
 import { round2, thb, todayIso } from "@/lib/money";
 import { estimateNet } from "@/lib/parse/estimate";
@@ -17,9 +18,9 @@ import { PEOPLE, PLATFORMS, PRODUCT_LINES, type Person, type Platform, type Prod
 import { cn } from "@/lib/cn";
 import { useQuickEntry } from "./QuickEntryProvider";
 
-const STORAGE_KEY = "mikisai.quick-entry.v1";
+const STORAGE_KEY = "mikisai.quick-entry.v2";
 
-type Remembered = { platform?: Platform; product?: ProductLine; category?: string };
+type Remembered = { platform?: Platform; product?: ProductLine; category?: string; productId?: string };
 
 function readRemembered(): Remembered {
   try {
@@ -45,23 +46,32 @@ function parseAmount(text: string): number | null {
   return Number.isFinite(n) && n >= 0 ? round2(n) : null;
 }
 
+const NEW = "__new__";
+
 export function QuickEntrySheet({ initialType, retryInput }: { initialType: TransactionType; retryInput: TransactionInput | null }) {
   const t = useT();
   const locale = useLocale();
   const { close, data, submit } = useQuickEntry();
   const remembered = useMemo(() => readRemembered(), []);
+  const products = useMemo(() => data.products.filter((p) => p.active), [data.products]);
 
+  const retryItem = retryInput?.items?.[0];
   const [type, setType] = useState<TransactionType>(retryInput?.type ?? initialType);
-  const [amountText, setAmountText] = useState(() => {
-    if (!retryInput) return "";
-    return String(retryInput.type === "income" ? retryInput.gross_amount : retryInput.amount);
-  });
+  const [amountText, setAmountText] = useState(() => (retryInput ? String(retryInput.type === "income" ? retryInput.gross_amount : retryInput.amount) : ""));
+  const [amountTouched, setAmountTouched] = useState(Boolean(retryInput));
   const [netText, setNetText] = useState(() => (retryInput?.type === "income" && retryInput.net_amount != null ? String(retryInput.net_amount) : ""));
   const [editNet, setEditNet] = useState(() => retryInput?.type === "income" && retryInput.net_amount != null);
   const [date, setDate] = useState(retryInput?.date ?? todayIso());
   const [platform, setPlatform] = useState<Platform>(retryInput?.platform ?? remembered.platform ?? data.lastPlatform);
-  const [product, setProduct] = useState<ProductLine>(retryInput?.product_line ?? remembered.product ?? data.lastProduct);
-  const [quantity, setQuantity] = useState<number>(retryInput?.quantity ?? 1);
+  const [productId, setProductId] = useState<string>(() => {
+    const wanted = retryItem?.product_id ?? remembered.productId ?? data.lastProductId;
+    return wanted && products.some((p) => p.id === wanted) ? wanted : products[0]?.id ?? NEW;
+  });
+  const [newName, setNewName] = useState("");
+  const [newVariant, setNewVariant] = useState("");
+  const [newLine, setNewLine] = useState<ProductLine>("sugar");
+  const [quantity, setQuantity] = useState<number>(retryItem?.qty ?? retryInput?.quantity ?? 1);
+  const [unitCostText, setUnitCostText] = useState(() => (retryItem?.unit_cost != null ? String(retryItem.unit_cost) : ""));
   const [person, setPerson] = useState<Person>(retryInput ? (retryInput.type === "income" ? retryInput.received_by : retryInput.payer) : data.person);
   const [category, setCategory] = useState<string>(() => {
     const wanted = retryInput?.type === "expense" ? retryInput.category_id : remembered.category;
@@ -71,10 +81,10 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
   const [note, setNote] = useState(retryInput?.note ?? "");
   const [showNote, setShowNote] = useState(Boolean(retryInput?.note));
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const amountRef = useRef<HTMLInputElement>(null);
 
-  // Focus the amount with the numeric keypad, lock page scroll, close on Escape.
   useEffect(() => {
     const id = window.setTimeout(() => amountRef.current?.focus(), 60);
     const prev = document.body.style.overflow;
@@ -90,57 +100,66 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
     };
   }, [close]);
 
-  const amount = parseAmount(amountText);
+  const isIncome = type === "income";
+  const selectedProduct = products.find((p) => p.id === productId) ?? null;
+  const productLine: ProductLine = selectedProduct?.product_line ?? (productId === NEW ? newLine : remembered.product ?? data.lastProduct);
+  const categoryRow = data.categories.find((c) => c.id === category);
+  const stockEffect = !isIncome ? (categoryRow?.stock_effect ?? "none") : "none";
+  const needsItems = isIncome || stockEffect !== "none";
+  const unitCost = parseAmount(unitCostText);
+
+  // Expense with a stock effect: the amount follows qty x unit cost until the user types an amount.
+  const derivedAmount = !isIncome && stockEffect !== "none" && !amountTouched && unitCost != null ? String(round2(unitCost * quantity)) : null;
+  const shownAmount = derivedAmount ?? amountText;
+  const amount = parseAmount(shownAmount);
   const estimate = amount != null ? estimateNet(amount, platform, data.settings) : null;
   const netOverride = editNet ? parseAmount(netText) : null;
-  const isIncome = type === "income";
 
   const customerNames = useMemo(() => {
     const seen = new Set<string>();
     return data.customers.map((c) => c.name).filter((n) => (seen.has(n.toLowerCase()) ? false : (seen.add(n.toLowerCase()), true)));
   }, [data.customers]);
 
-  function buildInput(): TransactionInput | null {
+  async function resolveProductId(): Promise<string | null> {
+    if (productId !== NEW) return productId;
+    if (!newName.trim()) {
+      setError(t("inventory.nameRequired"));
+      return null;
+    }
+    const result = await createProduct({ name: newName.trim(), variant: newVariant.trim(), product_line: newLine, unit_label: "box", default_price: isIncome && amount && quantity ? round2(amount / quantity) : 0, default_cost: !isIncome && unitCost ? unitCost : 0 });
+    if (!result.ok) {
+      setError(t("common.error"));
+      return null;
+    }
+    return result.id;
+  }
+
+  async function save(keepOpen: boolean) {
     if (amount == null || amount <= 0) {
       setError(t("quick.amountRequired"));
       amountRef.current?.focus();
-      return null;
+      return;
+    }
+    if (needsItems && stockEffect === "purchase" && (unitCost == null || unitCost <= 0)) {
+      setError(t("inventory.unitCostRequired"));
+      return;
     }
     setError(null);
-    if (isIncome) {
-      return {
-        type: "income",
-        date,
-        platform,
-        product_line: product,
-        gross_amount: amount,
-        net_amount: netOverride ?? estimate ?? amount,
-        quantity,
-        received_by: person,
-        customer_name: customer.trim() || undefined,
-        note: note.trim() || undefined,
-      };
-    }
-    return {
-      type: "expense",
-      date,
-      platform,
-      product_line: product,
-      amount,
-      quantity,
-      payer: person,
-      category_id: category,
-      note: note.trim() || undefined,
-    };
-  }
+    setBusy(true);
+    const pid = needsItems ? await resolveProductId() : null;
+    setBusy(false);
+    if (needsItems && !pid) return;
 
-  function save(keepOpen: boolean) {
-    const input = buildInput();
-    if (!input) return;
-    remember({ platform, product, category });
+    const items = needsItems && pid ? [{ product_id: pid, qty: quantity, unit_price: isIncome ? round2(amount / quantity) : undefined, unit_cost: !isIncome ? (unitCost ?? undefined) : undefined }] : undefined;
+    const input: TransactionInput = isIncome
+      ? { type: "income", date, platform, product_line: productLine, gross_amount: amount, net_amount: netOverride ?? estimate ?? amount, quantity, received_by: person, customer_name: customer.trim() || undefined, note: note.trim() || undefined, items: items! }
+      : { type: "expense", date, platform, product_line: productLine, amount, quantity, payer: person, category_id: category, note: note.trim() || undefined, items };
+
+    remember({ platform, product: productLine, category, productId: pid ?? undefined });
     submit(input, keepOpen);
     if (keepOpen) {
       setAmountText("");
+      setAmountTouched(false);
       setNetText("");
       setEditNet(false);
       setCustomer("");
@@ -149,6 +168,30 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
       window.setTimeout(() => amountRef.current?.focus(), 30);
     }
   }
+
+  const productPicker = (
+    <div className="mt-4">
+      <Field label={t("inventory.product")} htmlFor="qe-product" hint={t("inventory.productHint")}>
+        <Select id="qe-product" value={productId} onChange={(e) => setProductId(e.target.value)}>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>
+              {productLabel(p)}
+            </option>
+          ))}
+          <option value={NEW}>+ {t("inventory.newProduct")}</option>
+        </Select>
+      </Field>
+      {productId === NEW ? (
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl bg-lavender-tint p-3">
+          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("inventory.name")} aria-label={t("inventory.name")} />
+          <Input value={newVariant} onChange={(e) => setNewVariant(e.target.value)} placeholder={t("inventory.variant")} aria-label={t("inventory.variant")} />
+          <div className="col-span-2">
+            <Chips label={t("common.product")} options={PRODUCT_LINES.map((p) => ({ value: p, label: productName(t, p) }))} value={newLine} onChange={setNewLine} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-labelledby="quick-entry-title">
@@ -171,7 +214,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
           className="min-h-0 flex-1 overflow-y-auto px-5 pb-4"
           onSubmit={(e) => {
             e.preventDefault();
-            save(false);
+            void save(false);
           }}
         >
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("common.type")}>
@@ -182,10 +225,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
                 role="radio"
                 aria-checked={type === v}
                 onClick={() => setType(v)}
-                className={cn(
-                  "min-h-14 rounded-2xl border text-base font-medium transition-colors",
-                  type === v ? "border-berry bg-berry text-ivory shadow-[0_2px_10px_rgba(143,49,95,0.3)]" : "border-line bg-card text-plum hover:bg-lavender-tint",
-                )}
+                className={cn("min-h-14 rounded-2xl border text-base font-medium transition-colors", type === v ? "border-berry bg-berry text-ivory shadow-[0_2px_10px_rgba(143,49,95,0.3)]" : "border-line bg-card text-plum hover:bg-lavender-tint")}
               >
                 {v === "income" ? t("quick.income") : t("quick.expense")}
               </button>
@@ -203,8 +243,11 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
                   autoComplete="off"
                   enterKeyHint="done"
                   pattern="[0-9]*[.,]?[0-9]*"
-                  value={amountText}
-                  onChange={(e) => setAmountText(e.target.value)}
+                  value={shownAmount}
+                  onChange={(e) => {
+                    setAmountText(e.target.value);
+                    setAmountTouched(true);
+                  }}
                   placeholder="0.00"
                   className="w-full min-h-16 rounded-2xl border border-line bg-card pl-11 pr-4 font-display text-3xl tabular text-plum placeholder:text-plum-faint focus:border-berry focus:outline-none focus:ring-2 focus:ring-lavender"
                 />
@@ -216,7 +259,14 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
                   <Field label={t("quick.netLabel")} htmlFor="qe-net" hint={t("quick.netHint")}>
                     <div className="flex gap-2">
                       <Input id="qe-net" inputMode="decimal" value={netText} onChange={(e) => setNetText(e.target.value)} placeholder={estimate != null ? String(estimate) : ""} className="tabular" />
-                      <Button type="button" variant="ghost" onClick={() => { setEditNet(false); setNetText(""); }}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditNet(false);
+                          setNetText("");
+                        }}
+                      >
                         {t("quick.useEstimate")}
                       </Button>
                     </div>
@@ -240,15 +290,36 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
             </div>
           )}
 
+          {needsItems ? productPicker : null}
+
+          {needsItems ? (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <Field label={t("quick.quantity")} htmlFor="qe-qty" hint={isIncome ? t("quick.quantityHint") : t("inventory.qtyHintPurchase")}>
+                <div className="flex min-h-11 items-stretch overflow-hidden rounded-xl border border-line bg-card">
+                  <button type="button" aria-label="-1" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-11 text-lg text-plum-soft hover:bg-lavender-tint">
+                    −
+                  </button>
+                  <input id="qe-qty" inputMode="numeric" value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(100000, Math.floor(Number(e.target.value) || 1))))} className="w-full border-x border-line bg-card text-center text-sm tabular focus:outline-none" />
+                  <button type="button" aria-label="+1" onClick={() => setQuantity((q) => Math.min(100000, q + 1))} className="w-11 text-lg text-plum-soft hover:bg-lavender-tint">
+                    +
+                  </button>
+                </div>
+              </Field>
+              {isIncome ? (
+                <Field label={t("quick.date")} htmlFor="qe-date" hint={t("quick.dateHint")}>
+                  <Input id="qe-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+                </Field>
+              ) : (
+                <Field label={t("inventory.unitCost")} htmlFor="qe-cost" hint={stockEffect === "sample" ? t("inventory.unitCostHintSample") : t("inventory.unitCostHint")}>
+                  <Input id="qe-cost" inputMode="decimal" value={unitCostText} onChange={(e) => setUnitCostText(e.target.value)} placeholder={selectedProduct?.default_cost ? String(selectedProduct.default_cost) : "0.00"} className="tabular" />
+                </Field>
+              )}
+            </div>
+          ) : null}
+
           <div className="mt-4">
             <Field label={t("quick.platform")} hint={t("quick.platformHint")}>
               <Chips label={t("quick.platform")} options={PLATFORMS.map((p) => ({ value: p, label: platformName(t, p) }))} value={platform} onChange={setPlatform} />
-            </Field>
-          </div>
-
-          <div className="mt-4">
-            <Field label={t("quick.product")} hint={t("quick.productHint")}>
-              <Chips label={t("quick.product")} options={PRODUCT_LINES.map((p) => ({ value: p, label: productName(t, p) }))} value={product} onChange={setProduct} />
             </Field>
           </div>
 
@@ -258,28 +329,13 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
             </Field>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Field label={t("quick.date")} htmlFor="qe-date" hint={t("quick.dateHint")}>
-              <Input id="qe-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </Field>
-            <Field label={t("quick.quantity")} htmlFor="qe-qty" hint={t("quick.quantityHint")}>
-              <div className="flex min-h-11 items-stretch overflow-hidden rounded-xl border border-line bg-card">
-                <button type="button" aria-label="-1" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-11 text-lg text-plum-soft hover:bg-lavender-tint">
-                  −
-                </button>
-                <input
-                  id="qe-qty"
-                  inputMode="numeric"
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, Math.min(100000, Math.floor(Number(e.target.value) || 1))))}
-                  className="w-full border-x border-line bg-card text-center text-sm tabular focus:outline-none"
-                />
-                <button type="button" aria-label="+1" onClick={() => setQuantity((q) => Math.min(100000, q + 1))} className="w-11 text-lg text-plum-soft hover:bg-lavender-tint">
-                  +
-                </button>
-              </div>
-            </Field>
-          </div>
+          {isIncome ? null : (
+            <div className="mt-4">
+              <Field label={t("quick.date")} htmlFor="qe-date2" hint={t("quick.dateHint")}>
+                <Input id="qe-date2" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+              </Field>
+            </div>
+          )}
 
           {isIncome ? (
             <div className="mt-4">
@@ -317,10 +373,10 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
 
         <div className="border-t border-line bg-ivory px-5 pt-3 pb-4 pb-safe">
           <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Button type="button" onClick={() => save(false)} className="min-h-12 text-base">
+            <Button type="button" disabled={busy} onClick={() => void save(false)} className="min-h-12 text-base">
               {t("quick.save")}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => save(true)} className="min-h-12">
+            <Button type="button" disabled={busy} variant="secondary" onClick={() => void save(true)} className="min-h-12">
               {t("quick.saveAnother")}
             </Button>
           </div>

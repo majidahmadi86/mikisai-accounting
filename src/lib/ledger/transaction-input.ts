@@ -2,6 +2,14 @@ import { z } from "zod";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, type Transaction } from "@/lib/types";
 
 const money = z.coerce.number().min(0).max(99_999_999);
+
+export const ItemSchema = z.object({
+  product_id: z.string().uuid(),
+  qty: z.coerce.number().positive().max(100_000),
+  unit_price: z.coerce.number().min(0).max(99_999_999).optional(),
+  unit_cost: z.coerce.number().min(0).max(99_999_999).optional(),
+});
+export type ItemInput = z.infer<typeof ItemSchema>;
 const quantity = z.coerce.number().int().min(1).max(100_000).default(1);
 
 const IncomeSchema = z.object({
@@ -16,6 +24,8 @@ const IncomeSchema = z.object({
   customer_name: z.string().trim().max(200).optional(),
   note: z.string().trim().max(2000).optional(),
   settlement_status: z.enum(SETTLEMENT_STATUSES).optional(),
+  /** A sale always names what was sold. */
+  items: z.array(ItemSchema).min(1).max(50),
 });
 
 const ExpenseSchema = z.object({
@@ -28,18 +38,28 @@ const ExpenseSchema = z.object({
   payer: z.enum(PEOPLE),
   category_id: z.string().uuid(),
   note: z.string().trim().max(2000).optional(),
+  /** Required when the category moves stock (purchase or samples). */
+  items: z.array(ItemSchema).max(50).optional(),
 });
 
 export const TransactionSchema = z.discriminatedUnion("type", [IncomeSchema, ExpenseSchema]);
 export type TransactionInput = z.infer<typeof TransactionSchema>;
 
-export function formToObject(formData: FormData): Record<string, string> {
-  const out: Record<string, string> = {};
+export function formToObject(formData: FormData): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
   for (const [k, v] of formData.entries()) {
     if (typeof v === "string") out[k] = v;
   }
   if (out.net_amount === "") delete out.net_amount;
   if (out.quantity === "") delete out.quantity;
+  // The items editor posts its lines as JSON in one hidden field.
+  if (typeof out.items === "string") {
+    try {
+      out.items = JSON.parse(out.items);
+    } catch {
+      delete out.items;
+    }
+  }
   return out;
 }
 

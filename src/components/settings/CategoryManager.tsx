@@ -1,7 +1,8 @@
 import { addCategory, moveCategory, renameCategory, setCategoryActive } from "@/app/(app)/settings/categories-actions";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Field";
+import { Input, Select } from "@/components/ui/Field";
+import { STOCK_EFFECTS } from "@/lib/categories";
 import { Pill } from "@/components/ui/Pill";
 import type { ExpenseCategory } from "@/lib/categories";
 import type { Translator } from "@/lib/i18n/dictionary";
@@ -20,7 +21,7 @@ export function CategoryManager({ categories, tr, admin }: { categories: Expense
         {sorted.map((c, i) => (
           <li key={c.id} className={cn("py-3", !c.active && "opacity-60")}>
             {admin ? (
-              <form action={renameCategory.bind(null, c.id)} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+              <form action={renameCategory.bind(null, c.id)} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
                 <label className="block">
                   <span className="eyebrow mb-1 block">{tr("settings.nameEn")}</span>
                   <Input name="name_en" defaultValue={c.name_en} required maxLength={60} />
@@ -29,6 +30,16 @@ export function CategoryManager({ categories, tr, admin }: { categories: Expense
                   <span className="eyebrow mb-1 block">{tr("settings.nameTh")}</span>
                   <Input name="name_th" defaultValue={c.name_th} required maxLength={60} />
                 </label>
+                <label className="block">
+                  <span className="eyebrow mb-1 block">{tr("settings.stockEffect")}</span>
+                  <Select name="stock_effect" defaultValue={c.stock_effect}>
+                    {STOCK_EFFECTS.map((e) => (
+                      <option key={e} value={e}>
+                        {tr(`settings.stockEffect.${e}`)}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
                 <Button type="submit" variant="secondary" className="px-3">
                   {tr("common.save")}
                 </Button>
@@ -36,6 +47,7 @@ export function CategoryManager({ categories, tr, admin }: { categories: Expense
             ) : (
               <p className="text-sm text-plum">
                 {c.name_en} <span className="text-plum-faint">· {c.name_th}</span>
+                {c.stock_effect !== "none" ? <span className="ml-2 text-xs text-berry">{tr(`settings.stockEffect.${c.stock_effect}`)}</span> : null}
               </p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2">

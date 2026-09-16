@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { TransactionInsert } from "./transaction-input";
+import type { ItemInput, TransactionInsert } from "./transaction-input";
+import { writeItems } from "./insert";
+import type { StockEffect } from "@/lib/categories";
 import type { Person, Platform, SettlementStatus, TransferKind, TransferReason } from "@/lib/types";
 
 /**
@@ -16,10 +18,15 @@ export async function applyTransactionUpdate(
   id: string,
   row: TransactionInsert,
   settlementStatus?: SettlementStatus,
+  items?: { list: ItemInput[]; effect: StockEffect },
 ): Promise<UpdateOutcome> {
   const { error, count } = await supabase.from("transactions").update(row, { count: "exact" }).eq("id", id).eq("business_id", businessId).is("deleted_at", null);
   if (error) return { ok: false, reason: "error", message: error.message };
   if (!count) return { ok: false, reason: "denied" };
+  if (items) {
+    const ok = await writeItems(supabase, id, items.list, items.effect);
+    if (!ok) return { ok: false, reason: "error", message: "items" };
+  }
 
   if (row.type === "income" && settlementStatus) {
     const { data: existing } = await supabase.from("settlements").select("id, status").eq("transaction_id", id).maybeSingle();

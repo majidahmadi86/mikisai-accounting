@@ -11,6 +11,8 @@ import { thb } from "@/lib/money";
 import { PLATFORMS } from "@/lib/types";
 import { savePlatformSettings } from "./actions";
 import { CategoryManager } from "@/components/settings/CategoryManager";
+import { ProductManager } from "@/components/settings/ProductManager";
+import { valueStock } from "@/lib/inventory/valuation";
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
@@ -74,6 +76,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
       <div className="mt-6">
         <CategoryManager categories={snapshot.categories} tr={tr} admin={admin} />
+      </div>
+      <div className="mt-6">
+        <ProductManager stock={valueStock(snapshot.products, snapshot.movements).products} tr={tr} admin={admin} />
       </div>
     </div>
   );
