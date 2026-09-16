@@ -2,22 +2,7 @@
 
 import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
-
-export const SOFT_DELETE_ENTITIES = ["transaction", "payout", "internal_transfer", "customer"] as const;
-export type SoftDeleteEntity = (typeof SOFT_DELETE_ENTITIES)[number];
-
-const TABLE: Record<SoftDeleteEntity, "transactions" | "payouts" | "internal_transfers" | "customers"> = {
-  transaction: "transactions",
-  payout: "payouts",
-  internal_transfer: "internal_transfers",
-  customer: "customers",
-};
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function valid(entity: unknown, id: unknown): entity is SoftDeleteEntity {
-  return typeof entity === "string" && (SOFT_DELETE_ENTITIES as readonly string[]).includes(entity) && typeof id === "string" && UUID.test(id);
-}
+import { isSoftDeleteTarget, SOFT_DELETE_TABLE, type SoftDeleteEntity } from "@/lib/soft-delete";
 
 /**
  * Marks a row deleted. Nothing is removed: the row is hidden everywhere and
@@ -26,10 +11,9 @@ function valid(entity: unknown, id: unknown): entity is SoftDeleteEntity {
  * quick-entry undo). A refusal is recorded in the audit log.
  */
 export async function softDelete(entity: SoftDeleteEntity, id: string): Promise<{ ok: boolean }> {
-  if (!valid(entity, id)) return { ok: false };
+  if (!isSoftDeleteTarget(entity, id)) return { ok: false };
   const session = await requireSession();
   const { supabase, profile, userId } = session;
-  const table = TABLE[entity];
 
   if (entity === "payout") {
     // Orders matched to this payout go back to waiting so the balance stays honest.
@@ -37,7 +21,7 @@ export async function softDelete(entity: SoftDeleteEntity, id: string): Promise<
   }
 
   const { error, count } = await supabase
-    .from(table)
+    .from(SOFT_DELETE_TABLE[entity])
     .update({ deleted_at: new Date().toISOString(), deleted_by: userId }, { count: "exact" })
     .eq("id", id)
     .eq("business_id", profile.business_id)
@@ -52,7 +36,7 @@ export async function softDelete(entity: SoftDeleteEntity, id: string): Promise<
 
 /** Brings a soft-deleted row back. Admin only by policy; a contributor's attempt is recorded. */
 export async function restore(entity: SoftDeleteEntity, id: string): Promise<{ ok: boolean }> {
-  if (!valid(entity, id)) return { ok: false };
+  if (!isSoftDeleteTarget(entity, id)) return { ok: false };
   const session = await requireSession();
   const { supabase, profile } = session;
   if (profile.role !== "admin") {
@@ -60,7 +44,7 @@ export async function restore(entity: SoftDeleteEntity, id: string): Promise<{ o
     return { ok: false };
   }
   const { error, count } = await supabase
-    .from(TABLE[entity])
+    .from(SOFT_DELETE_TABLE[entity])
     .update({ deleted_at: null, deleted_by: null }, { count: "exact" })
     .eq("id", id)
     .eq("business_id", profile.business_id)

@@ -2,7 +2,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { RestoreButton } from "@/components/ui/RestoreButton";
-import type { SoftDeleteEntity } from "@/app/(app)/deleted/actions";
+import type { SoftDeleteEntity } from "@/lib/soft-delete";
 import { requireAdmin } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
 import { categoryName, platformName, platformTone } from "@/lib/labels";

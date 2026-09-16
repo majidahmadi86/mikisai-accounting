@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { restore, type SoftDeleteEntity } from "@/app/(app)/deleted/actions";
+import { restore } from "@/app/(app)/deleted/actions";
+import type { SoftDeleteEntity } from "@/lib/soft-delete";
 import { useQuickEntry } from "@/components/quick-entry/QuickEntryProvider";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "./Button";
