@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HomeIcon, LedgerIcon, MoreIcon, PlusIcon, ReportsIcon } from "@/components/ui/Icons";
+import { BalanceIcon, HomeIcon, LedgerIcon, MoreIcon, PlusIcon } from "@/components/ui/Icons";
 import { useQuickEntry } from "@/components/quick-entry/QuickEntryProvider";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/cn";
 
-const MORE_ROUTES = ["/more", "/import", "/payouts", "/customers", "/settings", "/insights", "/audit"];
+const MORE_ROUTES = ["/more", "/import", "/payouts", "/customers", "/settings", "/insights", "/audit", "/reports"];
 
 function Tab({ href, label, icon, active }: { href: string; label: string; icon: React.ReactNode; active: boolean }) {
   return (
@@ -22,7 +22,7 @@ function Tab({ href, label, icon, active }: { href: string; label: string; icon:
   );
 }
 
-/** Phone navigation: Home · Add · Ledger · Reports · More. Hidden from md up. */
+/** Phone navigation: Home · Ledger · Add · My Balance · More. Reports moved under More. Hidden from md up. */
 export function TabBar() {
   const t = useT();
   const pathname = usePathname();
@@ -44,7 +44,7 @@ export function TabBar() {
             <PlusIcon className="h-7 w-7" />
           </button>
         </div>
-        <Tab href="/reports" label={t("nav.reports")} icon={<ReportsIcon />} active={pathname.startsWith("/reports")} />
+        <Tab href="/balance" label={t("nav.balance")} icon={<BalanceIcon />} active={pathname.startsWith("/balance")} />
         <Tab href="/more" label={t("nav.more")} icon={<MoreIcon />} active={isMore} />
       </div>
     </nav>

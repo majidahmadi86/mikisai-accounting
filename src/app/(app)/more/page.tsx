@@ -7,16 +7,18 @@ import { signOut } from "@/app/login/actions";
 import { requireSession } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
 
-export default async function MorePage() {
-  const [session, locale] = await Promise.all([requireSession(), getLocale()]);
+export default async function MorePage({ searchParams }: PageProps<"/more">) {
+  const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
   const tr = t(locale);
+  const admin = session.profile.role === "admin";
 
   const items = [
+    { href: "/reports", title: tr("more.reports"), desc: tr("more.reportsDesc") },
     { href: "/import", title: tr("more.import"), desc: tr("more.importDesc") },
     { href: "/payouts", title: tr("more.payouts"), desc: tr("more.payoutsDesc") },
     { href: "/customers", title: tr("more.customers"), desc: tr("more.customersDesc") },
     { href: "/insights", title: tr("more.insights"), desc: tr("more.insightsDesc") },
-    { href: "/audit", title: tr("more.audit"), desc: tr("more.auditDesc") },
+    ...(admin ? [{ href: "/audit", title: tr("more.audit"), desc: tr("more.auditDesc") }, { href: "/more/deleted", title: tr("more.deleted"), desc: tr("more.deletedDesc") }] : []),
     { href: "/settings", title: tr("more.settings"), desc: tr("more.settingsDesc") },
     { href: "/more/help", title: tr("more.help"), desc: tr("more.helpDesc") },
   ];
@@ -24,6 +26,7 @@ export default async function MorePage() {
   return (
     <div className="max-w-2xl">
       <PageHeader title={tr("more.title")} subtitle={tr("more.subtitle")} />
+      {sp.denied ? <p className="mb-4 rounded-xl bg-warning-tint px-4 py-3 text-sm text-warning-ink">{tr("roles.denied")}</p> : null}
       <Card className="divide-y divide-line overflow-hidden">
         {items.map((item) => (
           <Link key={item.href} href={item.href} className="flex min-h-16 items-center gap-4 px-5 py-3 transition-colors hover:bg-lavender-tint">
@@ -49,6 +52,7 @@ export default async function MorePage() {
             <p className="mt-1 text-sm text-plum">
               {session.profile.display_name} <span className="text-plum-faint">· {session.email}</span>
             </p>
+            <p className="mt-1 text-xs text-plum-soft">{admin ? tr("roles.admin") : `${tr("roles.contributor")} · ${tr("roles.editWindow")}`}</p>
           </div>
           <form action={signOut}>
             <button type="submit" className="min-h-11 rounded-full border border-line px-4 text-sm text-plum-soft transition-colors hover:border-berry hover:text-berry">

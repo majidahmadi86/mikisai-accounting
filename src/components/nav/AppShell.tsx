@@ -20,6 +20,7 @@ export function AppShell({
   const links = [
     { href: "/", label: tr("nav.home") },
     { href: "/transactions", label: tr("nav.ledger") },
+    { href: "/balance", label: tr("nav.balance") },
     { href: "/reports", label: tr("nav.reports") },
     { href: "/insights", label: tr("nav.insights") },
     { href: "/more", label: tr("nav.more") },

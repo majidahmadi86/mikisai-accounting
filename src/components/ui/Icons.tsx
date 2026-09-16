@@ -46,6 +46,17 @@ export function LedgerIcon(p: IconProps) {
   );
 }
 
+export function BalanceIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M12 4v16" />
+      <path d="M5 8h14" />
+      <path d="m7 8-3 6h6l-3-6ZM17 8l-3 6h6l-3-6Z" />
+      <path d="M8 20h8" />
+    </Svg>
+  );
+}
+
 export function ReportsIcon(p: IconProps) {
   return (
     <Svg {...p}>
