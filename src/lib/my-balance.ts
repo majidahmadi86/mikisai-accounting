@@ -2,9 +2,9 @@ import { computeBalance, type BalanceTransaction } from "./balance";
 import { round2 } from "./money";
 import { addDays } from "./reports/period";
 import type { ReportTransfer, ReportTx } from "./reports/build";
-import { PLATFORMS, type Person, type Platform, type TransferKind } from "./types";
+import { PLATFORMS, type Person, type Platform, type TransferKind, type TransferReason } from "./types";
 
-export type BalanceTransferInput = ReportTransfer & { kind: TransferKind };
+export type BalanceTransferInput = ReportTransfer & { kind: TransferKind; reason: TransferReason };
 export type PayoutTiming = { platform: Platform; settlement_lag_days: number; daily_payout_pct: number };
 
 export type MyBalanceInput = {

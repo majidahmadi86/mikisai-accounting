@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TransactionInsert } from "./transaction-input";
-import type { Person, Platform, SettlementStatus, TransferKind } from "@/lib/types";
+import type { Person, Platform, SettlementStatus, TransferKind, TransferReason } from "@/lib/types";
 
 /**
  * The one update path for ledger rows, shared by the server actions and the
@@ -46,7 +46,7 @@ export async function applyPayoutUpdate(supabase: SupabaseClient, businessId: st
   return { ok: true };
 }
 
-export type TransferPatch = { date: string; from_person: Person; to_person: Person; amount: number; kind: TransferKind; note: string };
+export type TransferPatch = { date: string; from_person: Person; to_person: Person; amount: number; kind: TransferKind; reason: TransferReason; note: string };
 
 export async function applyTransferUpdate(supabase: SupabaseClient, businessId: string, id: string, patch: TransferPatch): Promise<UpdateOutcome> {
   const { error, count } = await supabase.from("internal_transfers").update(patch, { count: "exact" }).eq("id", id).eq("business_id", businessId).is("deleted_at", null);

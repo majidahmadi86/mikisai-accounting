@@ -16,7 +16,7 @@ import type { ReportTx } from "@/lib/reports/build";
  */
 function fixture(): MyBalanceInput {
   const base = seedLedger();
-  const capital: BalanceTransferInput = { id: "cap1", date: "2026-09-06", from_person: "mike", to_person: "sai", amount: 1000, note: "Stock purchase", kind: "capital" };
+  const capital: BalanceTransferInput = { id: "cap1", date: "2026-09-06", from_person: "mike", to_person: "sai", amount: 1000, note: "Stock purchase", kind: "capital", reason: "stock_purchase" };
   const extra: ReportTx = {
     id: "sp2",
     type: "income",
@@ -36,7 +36,7 @@ function fixture(): MyBalanceInput {
   };
   return {
     transactions: [...base.transactions, extra],
-    transfers: [...base.transfers.map((t) => ({ ...t, kind: "settlement" as const })), capital],
+    transfers: [...base.transfers.map((t) => ({ ...t, kind: "settlement" as const, reason: "profit_settlement" as const })), capital],
     settings: [
       { platform: "tiktok", settlement_lag_days: 9, daily_payout_pct: 100 },
       { platform: "shopee", settlement_lag_days: 10, daily_payout_pct: 70 },

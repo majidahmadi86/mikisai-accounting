@@ -42,7 +42,7 @@ suite("editing a row through the app's update path", () => {
       .select("id")
       .single();
     const po = await admin.from("payouts").insert({ business_id: SEED_BUSINESS_ID, date: "2026-09-16", platform: "shopee", amount_received: 90, received_by: "sai", note: "edit-probe", created_by: mikeId, created_at: stamp }).select("id").single();
-    const tf = await admin.from("internal_transfers").insert({ business_id: SEED_BUSINESS_ID, date: "2026-09-16", from_person: "sai", to_person: "mike", amount: 50, kind: "settlement", note: "edit-probe", created_by: mikeId, created_at: stamp }).select("id").single();
+    const tf = await admin.from("internal_transfers").insert({ business_id: SEED_BUSINESS_ID, date: "2026-09-16", from_person: "sai", to_person: "mike", amount: 50, kind: "settlement", reason: "profit_settlement", note: "edit-probe", created_by: mikeId, created_at: stamp }).select("id").single();
     if (tx.error || po.error || tf.error) throw tx.error ?? po.error ?? tf.error;
     ids.tx = tx.data.id;
     ids.payout = po.data.id;
@@ -78,7 +78,7 @@ suite("editing a row through the app's update path", () => {
   });
 
   it("changes a transfer's date the same way", async () => {
-    const outcome = await applyTransferUpdate(mike, SEED_BUSINESS_ID, ids.transfer, { date: "2026-09-15", from_person: "sai", to_person: "mike", amount: 50, kind: "settlement", note: "edit-probe" });
+    const outcome = await applyTransferUpdate(mike, SEED_BUSINESS_ID, ids.transfer, { date: "2026-09-15", from_person: "sai", to_person: "mike", amount: 50, kind: "settlement", reason: "profit_settlement", note: "edit-probe" });
     expect(outcome).toEqual({ ok: true });
     const { data: audit } = await admin.from("audit_log").select("before, after").eq("entity_id", ids.transfer).eq("action", "update").limit(1);
     expect(audit?.[0]).toMatchObject({ before: { date: "2026-09-16" }, after: { date: "2026-09-15" } });

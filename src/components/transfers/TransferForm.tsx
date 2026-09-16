@@ -1,6 +1,6 @@
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
-import { KindChips } from "./KindChips";
+import { ReasonChips } from "./ReasonChips";
 import type { Translator } from "@/lib/i18n/dictionary";
 import { todayIso } from "@/lib/money";
 import { PEOPLE, type InternalTransfer } from "@/lib/types";
@@ -32,8 +32,8 @@ export function TransferForm({
       <Field label={tr("common.date")} htmlFor={`${idp}-date`} hint={tr("transfer.dateHint")}>
         <Input id={`${idp}-date`} name="date" type="date" required defaultValue={initial?.date ?? todayIso()} />
       </Field>
-      <Field label={tr("transfer.kind")} hint={tr("transfer.kindHint")}>
-        <KindChips defaultValue={initial?.kind ?? "settlement"} />
+      <Field label={tr("transfer.reason")}>
+        <ReasonChips defaultValue={initial?.reason ?? "profit_settlement"} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label={tr("transfer.from")} htmlFor={`${idp}-from`}>
