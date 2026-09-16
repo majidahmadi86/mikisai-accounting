@@ -4,7 +4,8 @@ import { AddButton } from "@/components/nav/AddButton";
 import { Tour } from "@/components/tour/Tour";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { DeleteButton } from "@/components/ui/DeleteButton";
+import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
+import { KindChips } from "@/components/transfers/KindChips";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Pill } from "@/components/ui/Pill";
@@ -16,12 +17,13 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone, statusName, statusTone } from "@/lib/labels";
 import { formatDate, thb, todayIso } from "@/lib/money";
 import { PEOPLE, PLATFORMS } from "@/lib/types";
-import { createTransfer, deleteTransfer } from "./transfers/actions";
+import { createTransfer } from "./transfers/actions";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
   const tr = t(locale);
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
+  const admin = session.profile.role === "admin";
 
   const balance = computeBalance(
     snapshot.transactions.map((tx) => ({ type: tx.type, platform: tx.platform, net_amount: tx.net_amount, payer: tx.payer, received_by: tx.received_by, settlement_status: tx.settlement?.status ?? null })),
@@ -136,22 +138,22 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
             ) : (
               <ul className="divide-y divide-line">
                 {transfers.map((tf) => {
-                  const remove = deleteTransfer.bind(null, tf.id);
                   return (
                     <li key={tf.id} className="flex items-center justify-between gap-3 py-2.5">
                       <div className="min-w-0">
                         <p className="text-sm text-plum">
                           {tr(`common.${tf.from_person}`)} → {tr(`common.${tf.to_person}`)}
                           <span className="ml-2 font-medium tabular">{thb(tf.amount)}</span>
+                          <Pill tone={tf.kind === "capital" ? "lavender" : "neutral"} className="ml-2">
+                            {tf.kind === "capital" ? tr("transfer.kindCapital") : tr("transfer.kindSettlement")}
+                          </Pill>
                         </p>
                         <p className="truncate text-xs text-plum-faint">
                           {formatDate(tf.date, locale)}
                           {tf.note ? ` · ${tf.note}` : ""}
                         </p>
                       </div>
-                      <form action={remove}>
-                        <DeleteButton variant="ghost" className="px-3 text-xs" />
-                      </form>
+                      {admin ? <SoftDeleteButton entity="internal_transfer" id={tf.id} variant="ghost" className="px-3 text-xs" /> : null}
                     </li>
                   );
                 })}
@@ -164,6 +166,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
               <span className="text-plum-faint transition-transform group-open:rotate-90 lg:hidden">→</span>
             </summary>
             <form action={createTransfer} className="space-y-3 px-4 pb-4">
+              <Field label={tr("transfer.kind")} hint={tr("transfer.kindHint")}>
+                <KindChips />
+              </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label={tr("transfer.from")} htmlFor="from_person">
                   <Select id="from_person" name="from_person" defaultValue="mike">
