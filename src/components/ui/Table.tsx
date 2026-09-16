@@ -8,7 +8,7 @@ type Align = "left" | "right" | "center";
  */
 export function Table({ children, className, mobile = "hidden" }: { children: React.ReactNode; className?: string; mobile?: "hidden" | "scroll" }) {
   return (
-    <div className={cn("rounded-card border border-line bg-card", mobile === "hidden" ? "hidden md:block" : "overflow-x-auto", className)}>
+    <div className={cn("min-w-0 max-w-full overflow-x-auto rounded-card border border-line bg-card", mobile === "hidden" ? "hidden md:block" : "", className)}>
       <table className="w-full text-sm">{children}</table>
     </div>
   );
@@ -35,7 +35,7 @@ export function Td({ children, className, align = "left" }: { children?: React.R
     <td
       className={cn(
         "border-b border-line/70 px-4 py-3 align-middle",
-        align === "right" && "text-right tabular",
+        align === "right" && "text-right tabular whitespace-nowrap",
         align === "center" && "text-center",
         className,
       )}

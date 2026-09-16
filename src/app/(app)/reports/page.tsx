@@ -1,5 +1,5 @@
-import dynamic from "next/dynamic";
 import { AddButton } from "@/components/nav/AddButton";
+import { BarList } from "@/components/charts/BarList";
 import { PeriodPicker } from "@/components/reports/PeriodPicker";
 import { ReportTableView } from "@/components/reports/ReportTableView";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -16,10 +16,6 @@ import { periodLabel } from "@/lib/reports/label";
 import { periodQuery, resolvePeriod } from "@/lib/reports/period";
 import { categoryLabel } from "@/lib/categories";
 import Link from "next/link";
-
-const BarList = dynamic(() => import("@/components/charts/BarList").then((m) => m.BarList), {
-  loading: () => <div className="h-20 animate-pulse rounded-xl bg-ivory-deep" aria-hidden="true" />,
-});
 
 function ExportLinks({ report, qs, xlsx, pdf, small = false }: { report: string; qs: string; xlsx: string; pdf: string; small?: boolean }) {
   const base = small
@@ -135,9 +131,9 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
           </Card>
 
           {(["product", "platform", "category"] as const).map((id) => (
-            <Card key={id}>
+            <Card key={id} className="overflow-hidden">
               <CardHeader title={byId[id].title} subtitle={byId[id].description} action={<ExportLinks small report={id} qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
-              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="min-w-0 px-5 pb-5 sm:px-6 sm:pb-6">
                 {chart[id].length ? <BarList data={chart[id]} className="mb-4" /> : null}
                 <ReportTableView table={byId[id]} />
                 {id === "category" && bundle.byCategory.length ? (
@@ -168,9 +164,13 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
           <Card>
             <CardHeader title={byId.owes.title} subtitle={byId.owes.description} action={<ExportLinks small report="owes" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
             <div className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
+              {bundle.owesHistory.length === 1 && bundle.owesHistory[0].asOf === period.to && !period.to.endsWith("-31") && !period.to.endsWith("-30") && !period.to.endsWith("-28") && !period.to.endsWith("-29") ? <p className="text-xs text-plum-faint">{tr("reports.owesEmpty")}</p> : null}
               <ReportTableView table={byId.owes} />
+              <p className="text-sm text-plum">
+                {tr("reports.reconcile", { profit: thb(rec.profit), stock: thb(rec.inStock), pending: thb(rec.pending), cash: thb(rec.cash) })}
+              </p>
               <div>
-                <p className="eyebrow mb-2">{tr("reports.transfersInPeriod")}</p>
+                <p className="eyebrow mb-2">{tr("reports.transfersInPeriodCount", { n: transfers.rows.length })}</p>
                 {transfers.rows.length ? <ReportTableView table={transfers} /> : <p className="text-sm text-plum-soft">{tr("reports.noTransfers")}</p>}
               </div>
             </div>
@@ -179,16 +179,26 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
           <Card>
             <CardHeader title={byId.customers.title} subtitle={byId.customers.description} action={<ExportLinks small report="customers" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
             <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-              <ReportTableView table={byId.customers} />
+              {bundle.customers.length ? <ReportTableView table={byId.customers} /> : <p className="rounded-xl border border-dashed border-lavender bg-lavender-tint/60 px-4 py-4 text-sm text-plum-soft">{tr("reports.customersNone")}</p>}
             </div>
           </Card>
 
           {bundle.inventory ? (
             <>
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader title={byId.stock.title} subtitle={byId.stock.description} action={<ExportLinks small report="stock" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
-                <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-                  <p className="mb-3 font-medium text-2xl tabular text-plum">{thb(bundle.inventory.valuation.totalValue)}</p>
+                <div className="min-w-0 px-5 pb-5 sm:px-6 sm:pb-6">
+                  <div className="mb-3 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-ivory-deep/70 px-4 py-3">
+                      <p className="eyebrow">{tr("reports.value")}</p>
+                      <p className="mt-1 font-medium text-xl tabular text-plum">{thb(bundle.inventory.valuation.totalValue)}</p>
+                    </div>
+                    <div className={`rounded-xl px-4 py-3 ${bundle.inventory.valuation.totalBacklogValue > 0 ? "bg-berry-tint" : "bg-success-tint"}`}>
+                      <p className="eyebrow">{tr("reports.backlogValue")}</p>
+                      <p className={`mt-1 font-medium text-xl tabular ${bundle.inventory.valuation.totalBacklogValue > 0 ? "text-berry" : "text-success"}`}>{thb(bundle.inventory.valuation.totalBacklogValue)}</p>
+                      <p className="text-xs text-plum-faint">{bundle.inventory.valuation.products.filter((r) => r.backlog > 0).map((r) => `${r.product.variant || r.product.name} · ${tr("units.backlogUnits", { n: r.backlog })}`).join(", ") || tr("units.toBuyNone")}</p>
+                    </div>
+                  </div>
                   <ReportTableView table={byId.stock} />
                 </div>
               </Card>

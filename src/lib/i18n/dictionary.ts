@@ -421,6 +421,7 @@ const en = {
   "reports.holds": "{name} holds",
   "reports.balanced": "Balanced",
   "reports.transfersInPeriod": "Transfers in this period",
+  "reports.transfersInPeriodCount": "Transfers in this period ({n})",
   "reports.noTransfers": "No transfers in this period.",
   "reports.customers": "Customers",
   "reports.customersDesc": "Everyone who bought in this period, with totals.",
@@ -659,6 +660,8 @@ const en = {
 
   "reports.stock": "Stock on hand",
   "reports.stockDesc": "Units left per product, their average cost and what they are worth today.",
+  "reports.stockDescBacklog": "Units left per product at average cost. Units sold before they were bought show as a purchase backlog, never as negative stock.",
+  "reports.backlogValue": "Purchase backlog at cost",
   "reports.onHand": "On hand",
   "reports.avgCost": "Average cost",
   "reports.value": "Value",
@@ -1282,6 +1285,7 @@ const th: Record<DictionaryKey, string> = {
   "reports.holds": "{name} ถืออยู่",
   "reports.balanced": "สมดุล",
   "reports.transfersInPeriod": "การโอนในช่วงนี้",
+  "reports.transfersInPeriodCount": "การโอนในช่วงนี้ ({n})",
   "reports.noTransfers": "ไม่มีการโอนในช่วงนี้",
   "reports.customers": "ลูกค้า",
   "reports.customersDesc": "ทุกคนที่ซื้อในช่วงนี้ พร้อมยอดรวม",
@@ -1520,6 +1524,8 @@ const th: Record<DictionaryKey, string> = {
 
   "reports.stock": "สต็อกคงเหลือ",
   "reports.stockDesc": "หน่วยที่เหลือต่อสินค้า ต้นทุนเฉลี่ย และมูลค่าวันนี้",
+  "reports.stockDescBacklog": "หน่วยที่เหลือต่อสินค้าที่ต้นทุนเฉลี่ย หน่วยที่ขายก่อนซื้อแสดงเป็นค้างซื้อ ไม่ใช่สต็อกติดลบ",
+  "reports.backlogValue": "ค้างซื้อที่ต้นทุน",
   "reports.onHand": "คงเหลือ",
   "reports.avgCost": "ต้นทุนเฉลี่ย",
   "reports.value": "มูลค่า",

@@ -148,8 +148,8 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
     },
     {
       id: "category",
-      title: tr("reports.byCategory"),
-      description: tr("reports.byCategoryDesc"),
+      title: tr("reports.byCategoryCash"),
+      description: tr("reports.byCategoryCashDesc"),
       columns: [
         { key: "category", label: tr("common.category"), kind: "text" },
         { key: "count", label: tr("reports.count"), kind: "int" },
@@ -228,7 +228,7 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
     {
       id: "stock",
       title: tr("reports.stock"),
-      description: tr("reports.stockDesc"),
+      description: tr("reports.stockDescBacklog"),
       columns: [
         { key: "product", label: tr("common.product"), kind: "text" },
         { key: "unit", label: tr("inventory.unit"), kind: "text" },

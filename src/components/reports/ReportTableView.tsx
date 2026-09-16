@@ -37,7 +37,7 @@ export function ReportTableView({ table }: { table: ExportTable }) {
                 v === "" ? null : (
                   <div key={i} className="flex items-baseline justify-between gap-2 text-xs">
                     <dt className="eyebrow text-[0.6rem]">{table.columns[i + 1].label}</dt>
-                    <dd className={cn("tabular text-plum", r.total && "font-medium text-berry")}>{v}</dd>
+                    <dd className={cn("tabular whitespace-nowrap text-plum", r.total && "font-medium text-berry")}>{v}</dd>
                   </div>
                 ),
               )}
