@@ -38,6 +38,9 @@ export function TransactionForm({
     <form action={action} className="space-y-5">
       <input type="hidden" name="type" value={type} />
       <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={tr("common.date")} htmlFor="date" hint={tr("transactions.dateHint")}>
+          <Input id="date" name="date" type="date" required defaultValue={initial?.date ?? todayIso()} />
+        </Field>
         {isIncome ? (
           <>
             <Field label={tr("common.gross")} htmlFor="gross_amount" hint={tr("transactions.grossHint")}>
@@ -63,9 +66,6 @@ export function TransactionForm({
             </Field>
           </>
         )}
-        <Field label={tr("common.date")} htmlFor="date" hint={tr("transactions.dateHint")}>
-          <Input id="date" name="date" type="date" required defaultValue={initial?.date ?? todayIso()} />
-        </Field>
         <Field label={isIncome ? tr("transactions.receivedBy") : tr("transactions.paidBy")} htmlFor="person" hint={isIncome ? tr("transactions.personIncomeHint") : tr("transactions.personExpenseHint")}>
           <Select id="person" name={isIncome ? "received_by" : "payer"} defaultValue={(isIncome ? initial?.received_by : initial?.payer) ?? defaultPerson} required>
             {PEOPLE.map((p) => (

@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+/** Integration tests hit the linked Supabase project; run them on demand with `npm run test:integration`. */
 export default defineConfig({
   resolve: {
     alias: {
@@ -9,8 +10,9 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["tests/**/*.test.ts"],
-    exclude: ["tests/integration/**", "node_modules/**"],
+    include: ["tests/integration/**/*.test.ts"],
     environment: "node",
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
 });

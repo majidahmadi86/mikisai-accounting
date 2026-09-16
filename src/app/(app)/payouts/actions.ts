@@ -3,8 +3,9 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
-import { requireSession } from "@/lib/auth";
+import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
+import { applyPayoutUpdate } from "@/lib/ledger/update";
 import { PEOPLE, PLATFORMS } from "@/lib/types";
 
 const PayoutSchema = z.object({
@@ -82,3 +83,22 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
   redirect("/payouts?matched=1");
 }
 
+
+export async function updatePayout(id: string, formData: FormData) {
+  const session = await requireSession();
+  const { supabase, profile } = session;
+  if (!UUID.test(id)) redirect("/payouts");
+  const parsed = PayoutSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) redirect(`/payouts/${id}/edit?error=invalid`);
+
+  const outcome = await applyPayoutUpdate(supabase, profile.business_id, id, { ...parsed.data, note: parsed.data.note ?? "" });
+  if (!outcome.ok) {
+    if (outcome.reason === "denied") {
+      await recordDenied(session, "payout", id, { attempted: "update" });
+      redirect(`/payouts/${id}/edit?error=denied`);
+    }
+    redirect(`/payouts/${id}/edit?error=save`);
+  }
+  ledgerChanged(profile.business_id);
+  redirect("/payouts?saved=1");
+}

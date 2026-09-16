@@ -65,7 +65,7 @@ export default async function PayoutsPage() {
             {rows.map((p) => {
               return (
                 <StackedItem key={p.id}>
-                  <div className="flex items-start justify-between gap-3">
+                  <Link href={`/payouts/${p.id}/edit`} className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2">
                         <Pill tone={platformTone(p.platform)}>{platformName(tr, p.platform)}</Pill>
@@ -79,7 +79,7 @@ export default async function PayoutsPage() {
                       {p.note ? <p className="mt-1 truncate text-xs text-plum-soft">{p.note}</p> : null}
                     </div>
                     <p className="shrink-0 font-medium text-xl tabular text-plum">{thb(p.amount_received)}</p>
-                  </div>
+                  </Link>
                   <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2">
                     <Link href={`/payouts/${p.id}/reconcile`} className="inline-flex min-h-11 items-center text-sm font-medium text-berry">
                       {tr("payouts.reconcile")} →
@@ -125,6 +125,9 @@ export default async function PayoutsPage() {
                     <Td className="max-w-56 truncate text-plum-soft">{p.note}</Td>
                     <Td align="right">
                       <div className="flex items-center justify-end gap-3">
+                        <Link href={`/payouts/${p.id}/edit`} className="text-xs text-berry hover:underline whitespace-nowrap">
+                          {tr("common.edit")} →
+                        </Link>
                         <Link href={`/payouts/${p.id}/reconcile`} className="text-xs text-berry hover:underline whitespace-nowrap">
                           {tr("payouts.reconcile")} →
                         </Link>

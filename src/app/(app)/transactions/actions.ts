@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
 import { insertTransaction, type SaveResult } from "@/lib/ledger/insert";
+import { applyTransactionUpdate } from "@/lib/ledger/update";
 import { formToObject, toRow, TransactionSchema } from "@/lib/ledger/transaction-input";
 
 export async function createTransaction(formData: FormData) {
@@ -26,27 +27,14 @@ export async function updateTransaction(id: string, formData: FormData) {
   if (!parsed.success) redirect(`/transactions/${id}/edit?error=invalid`);
 
   const row = toRow(parsed.data, profile.business_id);
-  const { error, count } = await supabase.from("transactions").update(row, { count: "exact" }).eq("id", id).eq("business_id", profile.business_id).is("deleted_at", null);
-  if (error) redirect(`/transactions/${id}/edit?error=save`);
-  if (!count) {
-    // RLS refused: not the admin, not the author, or older than 24 hours.
-    await recordDenied(session, "transaction", id, { attempted: "update" });
-    redirect(`/transactions/${id}/edit?error=denied`);
-  }
-
-  if (parsed.data.type === "income" && parsed.data.settlement_status) {
-    const status = parsed.data.settlement_status;
-    const { data: existing } = await supabase.from("settlements").select("id, status").eq("transaction_id", id).maybeSingle();
-    if (existing) {
-      if (existing.status !== status) {
-        await supabase
-          .from("settlements")
-          .update({ status, settled_at: status === "received_in_bank" ? new Date().toISOString() : null, payout_id: status === "received_in_bank" ? undefined : null })
-          .eq("id", existing.id);
-      }
-    } else {
-      await supabase.from("settlements").insert({ business_id: profile.business_id, transaction_id: id, status });
+  const outcome = await applyTransactionUpdate(supabase, profile.business_id, id, row, parsed.data.type === "income" ? parsed.data.settlement_status : undefined);
+  if (!outcome.ok) {
+    if (outcome.reason === "denied") {
+      // RLS refused: not the admin, not the author, or older than 24 hours.
+      await recordDenied(session, "transaction", id, { attempted: "update" });
+      redirect(`/transactions/${id}/edit?error=denied`);
     }
+    redirect(`/transactions/${id}/edit?error=save`);
   }
 
   ledgerChanged(profile.business_id);

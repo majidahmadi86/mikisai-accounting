@@ -2,11 +2,10 @@ import Link from "next/link";
 import { BalanceBanner } from "@/components/dashboard/BalanceBanner";
 import { AddButton } from "@/components/nav/AddButton";
 import { Tour } from "@/components/tour/Tour";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
-import { KindChips } from "@/components/transfers/KindChips";
-import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { TransferForm } from "@/components/transfers/TransferForm";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Pill } from "@/components/ui/Pill";
 import { StatCard } from "@/components/ui/StatCard";
@@ -15,8 +14,8 @@ import { computeBalance } from "@/lib/balance";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone, statusName, statusTone } from "@/lib/labels";
-import { formatDate, thb, todayIso } from "@/lib/money";
-import { PEOPLE, PLATFORMS } from "@/lib/types";
+import { formatDate, thb } from "@/lib/money";
+import { PLATFORMS } from "@/lib/types";
 import { createTransfer } from "./transfers/actions";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/">) {
@@ -140,7 +139,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                 {transfers.map((tf) => {
                   return (
                     <li key={tf.id} className="flex items-center justify-between gap-3 py-2.5">
-                      <div className="min-w-0">
+                      <Link href={`/transfers/${tf.id}/edit`} className="min-w-0 flex-1 rounded-lg transition-colors hover:bg-lavender-tint">
                         <p className="text-sm text-plum">
                           {tr(`common.${tf.from_person}`)} → {tr(`common.${tf.to_person}`)}
                           <span className="ml-2 font-medium tabular">{thb(tf.amount)}</span>
@@ -150,9 +149,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                         </p>
                         <p className="truncate text-xs text-plum-faint">
                           {formatDate(tf.date, locale)}
-                          {tf.note ? ` · ${tf.note}` : ""}
+                          {tf.note ? ` · ${tf.note}` : ""} · {tr("common.edit")} →
                         </p>
-                      </div>
+                      </Link>
                       {admin ? <SoftDeleteButton entity="internal_transfer" id={tf.id} variant="ghost" className="px-3 text-xs" /> : null}
                     </li>
                   );
@@ -165,46 +164,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
               {tr("transfer.title")}
               <span className="text-plum-faint transition-transform group-open:rotate-90 lg:hidden">→</span>
             </summary>
-            <form action={createTransfer} className="space-y-3 px-4 pb-4">
-              <Field label={tr("transfer.kind")} hint={tr("transfer.kindHint")}>
-                <KindChips />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={tr("transfer.from")} htmlFor="from_person">
-                  <Select id="from_person" name="from_person" defaultValue="mike">
-                    {PEOPLE.map((p) => (
-                      <option key={p} value={p}>
-                        {tr(`common.${p}`)}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label={tr("transfer.to")} htmlFor="to_person">
-                  <Select id="to_person" name="to_person" defaultValue="sai">
-                    {PEOPLE.map((p) => (
-                      <option key={p} value={p}>
-                        {tr(`common.${p}`)}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label={tr("common.amount")} htmlFor="amount">
-                  <Input id="amount" name="amount" type="number" inputMode="decimal" step="0.01" min="0.01" required />
-                </Field>
-                <Field label={tr("common.date")} htmlFor="tdate">
-                  <Input id="tdate" name="date" type="date" required defaultValue={todayIso()} />
-                </Field>
-              </div>
-              <Field label={tr("common.note")} htmlFor="tnote" hint={tr("dashboard.transferHint")}>
-                <Textarea id="tnote" name="note" className="min-h-16" />
-              </Field>
-              {transferError ? <p className="text-xs text-berry">{tr("common.error")}</p> : null}
-              <div className="flex justify-end">
-                <Button type="submit" variant="secondary">
-                  {tr("dashboard.addTransfer")}
-                </Button>
-              </div>
-            </form>
+            <TransferForm tr={tr} action={createTransfer} error={transferError} submitLabel={tr("dashboard.addTransfer")} compact />
           </details>
         </div>
       </Card>

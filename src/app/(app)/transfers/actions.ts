@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth";
+import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
+import { applyTransferUpdate } from "@/lib/ledger/update";
+import { UUID } from "@/lib/soft-delete";
 import { PEOPLE, TRANSFER_KINDS } from "@/lib/types";
 
 const TransferSchema = z
@@ -38,3 +40,23 @@ export async function createTransfer(formData: FormData) {
   redirect(`${parsed.data.redirect_to ?? "/"}?transfer=saved`);
 }
 
+
+export async function updateTransfer(id: string, formData: FormData) {
+  const session = await requireSession();
+  const { supabase, profile } = session;
+  if (!UUID.test(id)) redirect("/");
+  const parsed = TransferSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) redirect(`/transfers/${id}/edit?error=invalid`);
+
+  const { date, from_person, to_person, amount, kind, note } = parsed.data;
+  const outcome = await applyTransferUpdate(supabase, profile.business_id, id, { date, from_person, to_person, amount, kind, note: note ?? "" });
+  if (!outcome.ok) {
+    if (outcome.reason === "denied") {
+      await recordDenied(session, "internal_transfer", id, { attempted: "update" });
+      redirect(`/transfers/${id}/edit?error=denied`);
+    }
+    redirect(`/transfers/${id}/edit?error=save`);
+  }
+  ledgerChanged(profile.business_id);
+  redirect(`${parsed.data.redirect_to ?? "/"}?transfer=saved`);
+}

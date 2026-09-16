@@ -293,6 +293,8 @@ const en = {
   "transactions.noHistory": "No edits recorded for this entry.",
 
   "payouts.newSubtitle": "Enter what the bank shows. You will match orders on the next screen.",
+  "payouts.editTitle": "Edit payout",
+  "transfer.editTitle": "Edit transfer",
   "payouts.emptyBody": "When TikTok, Shopee or Facebook sends money to the bank, record it here and match it to orders.",
   "payouts.amountHint": "The exact amount that arrived in the bank.",
   "payouts.platformHint": "Which platform sent it.",
@@ -855,6 +857,8 @@ const th: Record<DictionaryKey, string> = {
   "transactions.noHistory": "ยังไม่มีการแก้ไขรายการนี้",
 
   "payouts.newSubtitle": "กรอกตามที่ธนาคารแสดง แล้วจับคู่ออเดอร์ในหน้าถัดไป",
+  "payouts.editTitle": "แก้ไขยอดโอนเข้า",
+  "transfer.editTitle": "แก้ไขการโอน",
   "payouts.emptyBody": "เมื่อ TikTok, Shopee หรือ Facebook โอนเงินเข้าธนาคาร บันทึกที่นี่แล้วจับคู่กับออเดอร์",
   "payouts.amountHint": "ยอดที่เข้าธนาคารจริง",
   "payouts.platformHint": "แพลตฟอร์มไหนโอนมา",
