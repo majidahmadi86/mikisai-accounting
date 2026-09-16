@@ -47,7 +47,11 @@ async function main() {
       check("founder cannot insert for another business", !!insErr, insErr?.message ?? "insert succeeded");
       await authed.from("customers").delete().eq("name", "rls-probe");
 
-      // Audit rows are append-only: a member can read and insert, never update or delete.
+      // Nobody may write audit rows directly; triggers and record_action() are the only writers.
+      const { error: auditInsErr } = await authed.from("audit_log").insert({ business_id: SEED_BUSINESS_ID, actor_user_id: "00000000-0000-4000-8000-000000000000", action: "export", entity_type: "report" });
+      check("founder cannot insert audit rows directly", !!auditInsErr, auditInsErr?.message ?? "insert succeeded");
+
+      // Audit rows are append-only: a member can read, never update or delete.
       const { data: audit } = await authed.from("audit_log").select("id").order("created_at", { ascending: false }).limit(1);
       const auditId = audit?.[0]?.id;
       if (auditId) {

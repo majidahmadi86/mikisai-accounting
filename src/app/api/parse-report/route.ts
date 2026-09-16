@@ -16,7 +16,11 @@ export const maxDuration = 300;
 const MAX_FILES = 12;
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 const PDF_PAGES_PER_BATCH = 3;
+const MAX_PDF_PAGES = 60;
+const MAX_BATCHES = 40;
 const CONCURRENCY = 3;
+/** One report at a time per user; a second request while one runs is refused. */
+const inFlight = new Set<string>();
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
@@ -26,6 +30,22 @@ const FieldsSchema = z.object({
   text: z.string().max(200_000).default(""),
 });
 
+/** Checks the first bytes so a client-declared type cannot smuggle another format into storage or Gemini. */
+function sniffType(bytes: Uint8Array, declared: string): string | null {
+  const hex = Array.from(bytes.subarray(0, 12), (b) => b.toString(16).padStart(2, "0")).join("");
+  const isPng = hex.startsWith("89504e470d0a1a0a");
+  const isJpeg = hex.startsWith("ffd8ff");
+  const isGif = hex.startsWith("474946383");
+  const isWebp = hex.startsWith("52494646") && hex.slice(16, 24) === "57454250";
+  const isPdf = hex.startsWith("255044462d");
+  if (declared === "image/png" && isPng) return declared;
+  if (declared === "image/jpeg" && isJpeg) return declared;
+  if (declared === "image/gif" && isGif) return declared;
+  if (declared === "image/webp" && isWebp) return declared;
+  if (declared === "application/pdf" && isPdf) return declared;
+  return null;
+}
+
 function safeName(name: string): string {
   return name.replace(/[^\w.\-]+/g, "_").slice(0, 80) || "file";
 }
@@ -33,6 +53,7 @@ function safeName(name: string): string {
 async function splitPdf(bytes: Uint8Array, label: string): Promise<BatchInput[]> {
   const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
   const total = src.getPageCount();
+  if (total > MAX_PDF_PAGES) throw new Error(`pdf-too-long:${total}`);
   if (total <= PDF_PAGES_PER_BATCH) {
     return [{ kind: "pdf", data: Buffer.from(bytes).toString("base64"), label }];
   }
@@ -78,7 +99,34 @@ export async function POST(request: Request) {
   }
   if (!text && files.length === 0) return NextResponse.json({ error: "empty" }, { status: 400 });
 
-  // 1. Store the originals and record an upload row per file.
+  if (inFlight.has(user.id)) return NextResponse.json({ error: "busy" }, { status: 429 });
+  inFlight.add(user.id);
+  try {
+    return await handle();
+  } finally {
+    inFlight.delete(user.id);
+  }
+
+  async function handle(): Promise<Response> {
+  // 1. Validate every file (magic bytes, PDF page count) before anything is stored.
+  const prepared: { name: string; type: string; bytes: Uint8Array; pdfBatches?: BatchInput[] }[] = [];
+  for (const f of files) {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const type = sniffType(bytes, f.type);
+    if (!type) return NextResponse.json({ error: "unsupported-type" }, { status: 400 });
+    if (type === "application/pdf") {
+      try {
+        prepared.push({ name: f.name, type, bytes, pdfBatches: await splitPdf(bytes, f.name) });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        return NextResponse.json({ error: msg.startsWith("pdf-too-long") ? "pdf-too-long" : "bad-pdf" }, { status: 400 });
+      }
+    } else {
+      prepared.push({ name: f.name, type, bytes });
+    }
+  }
+
+  // 2. Store the originals and record an upload row per file.
   const admin = createAdminClient();
   const uploadIds: string[] = [];
   const stamp = Date.now();
@@ -98,20 +146,17 @@ export async function POST(request: Request) {
       for (const t of splitTextIntoBatches(text)) batches.push({ kind: "text", text: t });
     }
     const images: ImageInput[] = [];
-    for (const f of files) {
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      await storeAndRecord(`${businessId}/${stamp}-${crypto.randomUUID()}-${safeName(f.name)}`, bytes, f.type);
-      if (f.type === "application/pdf") {
-        batches.push(...(await splitPdf(bytes, f.name)));
-      } else {
-        images.push({ media_type: f.type as ImageInput["media_type"], data: Buffer.from(bytes).toString("base64") });
-      }
+    for (const f of prepared) {
+      await storeAndRecord(`${businessId}/${stamp}-${crypto.randomUUID()}-${safeName(f.name)}`, f.bytes, f.type);
+      if (f.pdfBatches) batches.push(...f.pdfBatches);
+      else images.push({ media_type: f.type as ImageInput["media_type"], data: Buffer.from(f.bytes).toString("base64") });
     }
     for (const group of chunk(images, MAX_IMAGES_PER_BATCH)) batches.push({ kind: "images", images: group });
   } catch (err) {
     console.error("[parse-report] upload failed", err);
     return NextResponse.json({ error: "upload-failed" }, { status: 500 });
   }
+  if (batches.length > MAX_BATCHES) return NextResponse.json({ error: "report-too-long", batches: batches.length, max: MAX_BATCHES }, { status: 413 });
 
   // 2. Paginate: one Gemini call per batch, bounded concurrency, partial failures tolerated.
   const warnings: string[] = [];
@@ -168,4 +213,5 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(body);
+  }
 }

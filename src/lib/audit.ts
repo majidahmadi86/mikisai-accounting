@@ -2,15 +2,22 @@ import "server-only";
 import type { Session } from "@/lib/auth";
 import type { AuditAction, AuditEntity } from "@/lib/types";
 
+/**
+ * Row-level changes (create, update, delete) are written by database
+ * triggers, so the app only records the semantic actions a trigger cannot
+ * see. The RPC stamps actor and business from the session itself.
+ */
+export type SemanticAction = Extract<AuditAction, "confirm_import" | "confirm_payout" | "export">;
+
 export type AuditEntry = {
-  action: AuditAction;
-  entity_type: AuditEntity;
+  action: SemanticAction;
+  entity_type: Extract<AuditEntity, "report" | "payout">;
   entity_id?: string | null;
   before?: Record<string, unknown> | null;
   after?: Record<string, unknown> | null;
 };
 
-/** Columns that never belong in a diff. */
+/** Columns that never belong in a snapshot. */
 const HIDDEN_KEYS = new Set(["business_id"]);
 
 export function auditSnapshot(row: Record<string, unknown> | null | undefined): Record<string, unknown> | null {
@@ -23,25 +30,18 @@ export function auditSnapshot(row: Record<string, unknown> | null | undefined): 
   return out;
 }
 
-/**
- * Appends one row to audit_log. Called by every server-side mutation after it
- * succeeds. Runs through the caller's RLS session so the row is stamped with
- * the real actor; a failure is logged loudly but never hides the mutation.
- */
-export async function recordAudit(session: Pick<Session, "supabase" | "userId" | "profile">, entry: AuditEntry): Promise<void> {
-  const { error } = await session.supabase.from("audit_log").insert({
-    business_id: session.profile.business_id,
-    actor_user_id: session.userId,
-    action: entry.action,
-    entity_type: entry.entity_type,
-    entity_id: entry.entity_id ?? null,
-    before: auditSnapshot(entry.before),
-    after: auditSnapshot(entry.after),
+export async function recordAudit(session: Pick<Session, "supabase">, entry: AuditEntry): Promise<void> {
+  const { error } = await session.supabase.rpc("record_action", {
+    p_action: entry.action,
+    p_entity_type: entry.entity_type,
+    p_entity_id: entry.entity_id ?? null,
+    p_before: auditSnapshot(entry.before),
+    p_after: auditSnapshot(entry.after),
   });
-  if (error) console.error("[audit] failed to write", entry.action, entry.entity_type, entry.entity_id, error.message);
+  if (error) console.error("[audit] failed to record", entry.action, entry.entity_type, entry.entity_id, error.message);
 }
 
-/** Builds the before/after pair for an update, keeping only keys that changed. */
+/** Builds the before/after pair for an update, keeping only keys that changed. Used for settings diffs shown in the UI. */
 export function auditDiff(before: Record<string, unknown>, after: Record<string, unknown>): { before: Record<string, unknown>; after: Record<string, unknown> } {
   const b: Record<string, unknown> = {};
   const a: Record<string, unknown> = {};

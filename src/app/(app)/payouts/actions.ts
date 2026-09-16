@@ -15,20 +15,20 @@ const PayoutSchema = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function createPayout(formData: FormData) {
-  const session = await requireSession();
-  const { supabase, profile } = session;
+  const { supabase, profile } = await requireSession();
   const parsed = PayoutSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) redirect("/payouts/new?error=invalid");
 
   const { data, error } = await supabase
     .from("payouts")
     .insert({ business_id: profile.business_id, ...parsed.data, note: parsed.data.note ?? "" })
-    .select("*")
+    .select("id")
     .single();
   if (error || !data) redirect("/payouts/new?error=save");
 
-  await recordAudit(session, { action: "create", entity_type: "payout", entity_id: data.id, after: data });
   ledgerChanged(profile.business_id);
   redirect(`/payouts/${data.id}/reconcile`);
 }
@@ -41,7 +41,8 @@ export async function createPayout(formData: FormData) {
 export async function confirmPayoutMatch(payoutId: string, settlementIds: string[]) {
   const session = await requireSession();
   const { supabase, profile } = session;
-  const ids = Array.from(new Set(settlementIds.filter((id) => typeof id === "string" && id.length > 0)));
+  if (!UUID.test(payoutId)) redirect("/payouts");
+  const ids = Array.from(new Set((Array.isArray(settlementIds) ? settlementIds : []).filter((id) => typeof id === "string" && UUID.test(id)))).slice(0, 500);
 
   const { data: payout } = await supabase.from("payouts").select("id, platform, amount_received").eq("id", payoutId).eq("business_id", profile.business_id).maybeSingle();
   if (!payout) redirect("/payouts");
@@ -82,15 +83,11 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
 }
 
 export async function deletePayout(id: string) {
-  const session = await requireSession();
-  const { supabase, profile } = session;
-  const { data: before } = await supabase.from("payouts").select("*").eq("id", id).eq("business_id", profile.business_id).maybeSingle();
-  if (!before) redirect("/payouts");
-  const { data: linked } = await supabase.from("settlements").select("id").eq("payout_id", id);
+  const { supabase, profile } = await requireSession();
+  if (!UUID.test(id)) redirect("/payouts");
   // Return matched orders to pending before removing the payout.
   await supabase.from("settlements").update({ status: "pending", settled_at: null, payout_id: null }).eq("payout_id", id);
   await supabase.from("payouts").delete().eq("id", id).eq("business_id", profile.business_id);
-  await recordAudit(session, { action: "delete", entity_type: "payout", entity_id: id, before: { ...before, settlement_ids: (linked ?? []).map((s) => s.id) } });
   ledgerChanged(profile.business_id);
   redirect("/payouts");
 }

@@ -1,35 +1,10 @@
 import type { NextConfig } from "next";
 
 /**
- * Browser hardening. Supabase is the only external origin the browser talks
- * to (auth refresh and storage), fonts are self-hosted by next/font, and the
- * app never embeds third-party frames.
+ * Static browser hardening. The Content-Security-Policy is set per request in
+ * src/proxy.ts so it can carry a script nonce.
  */
-const supabaseOrigin = (() => {
-  try {
-    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
-  } catch {
-    return "";
-  }
-})();
-
-const csp = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "object-src 'none'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "style-src 'self' 'unsafe-inline'",
-  // Next.js needs inline bootstrap scripts; no third-party scripts are loaded.
-  "script-src 'self' 'unsafe-inline'",
-  `connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace("https://", "wss://")}`.trim(),
-  "upgrade-insecure-requests",
-].join("; ");
-
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: csp },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

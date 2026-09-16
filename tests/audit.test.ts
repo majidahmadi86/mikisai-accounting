@@ -3,49 +3,41 @@ import { auditDiff, auditSnapshot, recordAudit } from "@/lib/audit";
 import { auditChanges } from "@/lib/audit-query";
 import type { AuditLog } from "@/lib/types";
 
-type Inserted = { table: string; row: Record<string, unknown> };
+type Call = { fn: string; args: Record<string, unknown> };
 
-/** Minimal stand-in for the Supabase client: records inserts, never touches the network. */
+/** Minimal stand-in for the Supabase client: records RPC calls, never touches the network. */
 function fakeSession(fail = false) {
-  const inserted: Inserted[] = [];
+  const calls: Call[] = [];
   const supabase = {
-    from(table: string) {
-      return {
-        async insert(row: Record<string, unknown>) {
-          inserted.push({ table, row });
-          return { error: fail ? { message: "boom" } : null };
-        },
-      };
+    async rpc(fn: string, args: Record<string, unknown>) {
+      calls.push({ fn, args });
+      return { error: fail ? { message: "boom" } : null };
     },
   };
-  return { inserted, session: { supabase: supabase as never, userId: "user-1", profile: { id: "user-1", business_id: "biz-1", display_name: "Mike" as const } } };
+  return { calls, session: { supabase: supabase as never } };
 }
 
 describe("recordAudit", () => {
-  it("writes actor, business, action, entity and snapshots without business_id", async () => {
-    const { inserted, session } = fakeSession();
+  it("records semantic actions through record_action with snapshots stripped of business_id", async () => {
+    const { calls, session } = fakeSession();
     await recordAudit(session, {
-      action: "create",
-      entity_type: "transaction",
-      entity_id: "tx-1",
-      after: { id: "tx-1", business_id: "biz-1", net_amount: 315, note: "" },
+      action: "confirm_payout",
+      entity_type: "payout",
+      entity_id: "p1",
+      before: { settlement_ids: ["a"] },
+      after: { settlement_ids: ["a", "b"], business_id: "biz-1", orders: 2 },
     });
-    expect(inserted).toHaveLength(1);
-    expect(inserted[0].table).toBe("audit_log");
-    expect(inserted[0].row).toEqual({
-      business_id: "biz-1",
-      actor_user_id: "user-1",
-      action: "create",
-      entity_type: "transaction",
-      entity_id: "tx-1",
-      before: null,
-      after: { id: "tx-1", net_amount: 315, note: "" },
-    });
+    expect(calls).toEqual([
+      {
+        fn: "record_action",
+        args: { p_action: "confirm_payout", p_entity_type: "payout", p_entity_id: "p1", p_before: { settlement_ids: ["a"] }, p_after: { settlement_ids: ["a", "b"], orders: 2 } },
+      },
+    ]);
   });
 
-  it("never throws when the insert fails, so the mutation still completes", async () => {
+  it("never throws when the RPC fails, so the mutation still completes", async () => {
     const { session } = fakeSession(true);
-    await expect(recordAudit(session, { action: "delete", entity_type: "payout", entity_id: "p1", before: { id: "p1" } })).resolves.toBeUndefined();
+    await expect(recordAudit(session, { action: "export", entity_type: "report", entity_id: "pl", after: { format: "pdf" } })).resolves.toBeUndefined();
   });
 });
 

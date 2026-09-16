@@ -12,6 +12,7 @@ import { num, type Payout, type SettlementStatus } from "@/lib/types";
 export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]/reconcile">) {
   const [{ id }, { supabase }, locale] = await Promise.all([params, requireSession(), getLocale()]);
   const tr = t(locale);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
 
   const { data: payoutRow } = await supabase.from("payouts").select("*").eq("id", id).maybeSingle();
   if (!payoutRow) notFound();

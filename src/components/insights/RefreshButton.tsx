@@ -19,8 +19,8 @@ export function RefreshButton() {
       disabled={pending}
       onClick={() =>
         start(async () => {
-          await refreshInsights();
-          router.refresh();
+          const r = await refreshInsights();
+          if (r.ok) router.refresh();
           setDone(true);
           setTimeout(() => setDone(false), 2000);
         })
