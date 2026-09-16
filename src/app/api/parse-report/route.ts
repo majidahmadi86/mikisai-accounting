@@ -10,6 +10,7 @@ import type { ParsedOrder, ParseResponse, ReviewRow } from "@/lib/parse/schema";
 import { todayIso } from "@/lib/money";
 import { num, PEOPLE, PLATFORMS, type Platform, type PlatformSetting } from "@/lib/types";
 import { matchProduct } from "@/lib/inventory/match";
+import { salePriceFor } from "@/lib/inventory/product-stats";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -176,7 +177,7 @@ export async function POST(request: Request) {
   // 3. Merge, dedupe on order id, fill missing net from platform settings, match products.
   const [{ data: settingsRows }, { data: productRows }] = await Promise.all([
     supabase.from("platform_settings").select("platform, commission_pct, fixed_fee"),
-    supabase.from("products").select("id, name, variant, product_line, active").eq("business_id", businessId).is("deleted_at", null),
+    supabase.from("products").select("id, name, variant, product_line, active, default_price, list_prices").eq("business_id", businessId).is("deleted_at", null),
   ]);
   const products = (productRows ?? []).filter((p) => p.active);
   const settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[] = (settingsRows ?? []).map((r) => ({
@@ -195,20 +196,24 @@ export async function POST(request: Request) {
         if (seen.has(key)) continue;
         seen.add(key);
       }
-      const netEstimated = order.net_amount == null && order.gross_amount != null;
+      const netEstimated = order.net_amount == null;
       const match = matchProduct(products, order.product_name, order.variant, order.note, order.product_line);
+      const qty = order.quantity && order.quantity > 0 ? Math.round(order.quantity) : 1;
+      // A matched product's list price fills a missing customer-paid total.
+      const listPrice = match ? salePriceFor({ default_price: num(match.default_price), list_prices: (match.list_prices ?? {}) as Record<string, number> }, platform) : 0;
+      const gross = order.gross_amount == null ? (listPrice > 0 ? Math.round(listPrice * qty * 100) / 100 : null) : Math.round(order.gross_amount * 100) / 100;
       rows.push({
         ...order,
         order_id: key || null,
         date: order.date && /^\d{4}-\d{2}-\d{2}$/.test(order.date) ? order.date : todayIso(),
-        gross_amount: order.gross_amount == null ? null : Math.round(order.gross_amount * 100) / 100,
-        net_amount: netEstimated ? estimateNet(order.gross_amount as number, platform, settings) : order.net_amount == null ? null : Math.round(order.net_amount * 100) / 100,
+        gross_amount: gross,
+        net_amount: order.net_amount == null ? (gross != null ? estimateNet(gross, platform, settings) : null) : Math.round(order.net_amount * 100) / 100,
         net_estimated: netEstimated,
         key: crypto.randomUUID(),
         include: true,
         platform,
         received_by,
-        quantity: order.quantity && order.quantity > 0 ? Math.round(order.quantity) : 1,
+        quantity: qty,
         product_line: match?.product_line ?? order.product_line,
         product_id: match?.id ?? null,
         product_matched: Boolean(match),

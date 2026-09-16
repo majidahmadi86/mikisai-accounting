@@ -163,6 +163,12 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
                   <ReportTableView table={byId.profit} />
                 </div>
               </Card>
+              <Card tone={bundle.inventory.marginPlan.some((r) => r.worse) ? "warning" : "card"}>
+                <CardHeader title={byId.plan.title} subtitle={byId.plan.description} action={<ExportLinks small report="plan" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
+                <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                  {bundle.inventory.marginPlan.length ? <ReportTableView table={byId.plan} /> : <p className="text-sm text-plum-soft">{tr("reports.marginPlanNone")}</p>}
+                </div>
+              </Card>
               <Card>
                 <CardHeader title={byId.samples.title} subtitle={byId.samples.description} action={<ExportLinks small report="samples" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
                 <div className="px-5 pb-5 sm:px-6 sm:pb-6">

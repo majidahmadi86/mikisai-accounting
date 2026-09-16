@@ -10,6 +10,7 @@ import { CameraIcon, CloseIcon } from "@/components/ui/Icons";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { categoryLabel } from "@/lib/categories";
 import { productLabel } from "@/lib/inventory/reports";
+import { salePriceFor } from "@/lib/inventory/product-stats";
 import { platformName, productName } from "@/lib/labels";
 import type { TransactionInput } from "@/lib/ledger/transaction-input";
 import { round2, thb, todayIso } from "@/lib/money";
@@ -72,6 +73,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
   const [newLine, setNewLine] = useState<ProductLine>("sugar");
   const [quantity, setQuantity] = useState<number>(retryItem?.qty ?? retryInput?.quantity ?? 1);
   const [unitCostText, setUnitCostText] = useState(() => (retryItem?.unit_cost != null ? String(retryItem.unit_cost) : ""));
+  const [costTouched, setCostTouched] = useState(Boolean(retryItem?.unit_cost != null));
   const [person, setPerson] = useState<Person>(retryInput ? (retryInput.type === "income" ? retryInput.received_by : retryInput.payer) : data.person);
   const [category, setCategory] = useState<string>(() => {
     const wanted = retryInput?.type === "expense" ? retryInput.category_id : remembered.category;
@@ -106,10 +108,19 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
   const categoryRow = data.categories.find((c) => c.id === category);
   const stockEffect = !isIncome ? (categoryRow?.stock_effect ?? "none") : "none";
   const needsItems = isIncome || stockEffect !== "none";
-  const unitCost = parseAmount(unitCostText);
+  // Standard cost prefills a purchase until the user types one.
+  const shownCost = !costTouched && selectedProduct && selectedProduct.default_cost > 0 && stockEffect !== "none" ? String(selectedProduct.default_cost) : unitCostText;
+  const unitCost = parseAmount(shownCost);
 
   // Expense with a stock effect: the amount follows qty x unit cost until the user types an amount.
-  const derivedAmount = !isIncome && stockEffect !== "none" && !amountTouched && unitCost != null ? String(round2(unitCost * quantity)) : null;
+  // A sale prefills the amount from the platform list price (else the standard price) times units, until the user types.
+  const listPrice = isIncome && selectedProduct ? salePriceFor(selectedProduct, platform) : 0;
+  const derivedAmount =
+    !isIncome && stockEffect !== "none" && !amountTouched && unitCost != null
+      ? String(round2(unitCost * quantity))
+      : isIncome && !amountTouched && listPrice > 0
+        ? String(round2(listPrice * quantity))
+        : null;
   const shownAmount = derivedAmount ?? amountText;
   const amount = parseAmount(shownAmount);
   const estimate = amount != null ? estimateNet(amount, platform, data.settings) : null;
@@ -299,7 +310,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
                   <button type="button" aria-label="-1" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-11 text-lg text-plum-soft hover:bg-lavender-tint">
                     −
                   </button>
-                  <input id="qe-qty" inputMode="numeric" value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(100000, Math.floor(Number(e.target.value) || 1))))} className="w-full border-x border-line bg-card text-center text-sm tabular focus:outline-none" />
+                  <input id="qe-qty" type="number" inputMode="numeric" min={1} step={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(100000, Math.floor(Number(e.target.value) || 1))))} className="w-full border-x border-line bg-card text-center text-sm tabular focus:outline-none" />
                   <button type="button" aria-label="+1" onClick={() => setQuantity((q) => Math.min(100000, q + 1))} className="w-11 text-lg text-plum-soft hover:bg-lavender-tint">
                     +
                   </button>
@@ -310,8 +321,18 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
                   <Input id="qe-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                 </Field>
               ) : (
-                <Field label={t("inventory.unitCost")} htmlFor="qe-cost" hint={stockEffect === "sample" ? t("inventory.unitCostHintSample") : t("inventory.unitCostHint")}>
-                  <Input id="qe-cost" inputMode="decimal" value={unitCostText} onChange={(e) => setUnitCostText(e.target.value)} placeholder={selectedProduct?.default_cost ? String(selectedProduct.default_cost) : "0.00"} className="tabular" />
+                <Field label={t("inventory.unitCost")} htmlFor="qe-cost" hint={stockEffect === "sample" ? t("inventory.unitCostHintSample") : t("inventory.unitCostHintFactory")}>
+                  <Input
+                    id="qe-cost"
+                    inputMode="decimal"
+                    value={shownCost}
+                    onChange={(e) => {
+                      setUnitCostText(e.target.value);
+                      setCostTouched(true);
+                    }}
+                    placeholder="0.00"
+                    className="tabular"
+                  />
                 </Field>
               )}
             </div>

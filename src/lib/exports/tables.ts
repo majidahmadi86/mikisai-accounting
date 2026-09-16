@@ -25,7 +25,7 @@ export type ExportTable = {
   totalLabel: string;
 };
 
-export const REPORT_IDS = ["pl", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "samples"] as const;
+export const REPORT_IDS = ["pl", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
 export type ReportId = (typeof REPORT_IDS)[number];
 
 export function isReportId(v: unknown): v is ReportId {
@@ -211,6 +211,23 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
         { key: "marginPct", label: tr("reports.marginPct"), kind: "pct" },
       ],
       rows: inv.profitability.map((r) => [productLabel(r.product), r.qty, r.revenue, r.cogs, r.grossMargin, r.marginPct]),
+      totals: [1, 2, 3, 4],
+      totalLabel: tr("common.total"),
+    },
+    {
+      id: "plan",
+      title: tr("reports.marginPlan"),
+      description: tr("reports.marginPlanDesc"),
+      columns: [
+        { key: "product", label: tr("common.product"), kind: "text" },
+        { key: "qty", label: tr("reports.units"), kind: "int" },
+        { key: "expected", label: tr("reports.expectedMargin"), kind: "money" },
+        { key: "actual", label: tr("reports.actualMargin"), kind: "money" },
+        { key: "variance", label: tr("reports.variance"), kind: "money" },
+        { key: "variancePct", label: tr("reports.variancePct"), kind: "pct" },
+        { key: "flag", label: tr("reports.flag"), kind: "text" },
+      ],
+      rows: inv.marginPlan.map((r) => [productLabel(r.product), r.qty, r.expectedMargin, r.actualMargin, r.variance, r.variancePct, r.worse ? tr("reports.worse") : ""]),
       totals: [1, 2, 3, 4],
       totalLabel: tr("common.total"),
     },

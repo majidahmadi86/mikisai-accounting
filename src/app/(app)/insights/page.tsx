@@ -11,6 +11,8 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { buildInsights, STALE_ORDER_DAYS, type ProductInsight } from "@/lib/insights/compute";
 import { getWeeklyNarrative } from "@/lib/insights/narrative";
 import { valueStock } from "@/lib/inventory/valuation";
+import { buildInventoryReports, productLabel } from "@/lib/inventory/reports";
+import { thisMonth } from "@/lib/reports/period";
 import { platformName, platformTone, productName } from "@/lib/labels";
 import { formatDate, thb, todayIso } from "@/lib/money";
 
@@ -41,6 +43,7 @@ export default async function InsightsPage() {
   const today = todayIso();
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const insights = buildInsights(snapshot, today, valueStock(snapshot.products, snapshot.movements).cogsByTransaction);
+  const plan = buildInventoryReports({ products: snapshot.products, movements: snapshot.movements, items: snapshot.items, sales: snapshot.transactions.filter((x) => x.type === "income").map((x) => ({ id: x.id, date: x.date, net_amount: x.net_amount })) }, thisMonth(today)).marginPlan;
   const narrative = insights.products.length ? await getWeeklyNarrative(session.profile.business_id, insights, locale) : null;
 
   return (
@@ -111,6 +114,33 @@ export default async function InsightsPage() {
                 </InsightCard>
               ))}
             </div>
+          </section>
+
+          <section>
+            <h2 className="text-2xl text-plum">{tr("reports.marginPlan")}</h2>
+            <p className="mb-3 text-sm text-plum-soft">{tr("insights.marginPlanDesc")}</p>
+            {plan.length === 0 ? (
+              <Card className="px-5 py-4 text-sm text-plum-soft">{tr("reports.marginPlanNone")}</Card>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {plan.map((r) => (
+                  <InsightCard
+                    key={r.product.id}
+                    tone={r.worse ? "warning" : "card"}
+                    eyebrow={
+                      <>
+                        <span className="eyebrow">{productLabel(r.product)}</span>
+                        {r.worse ? <Pill tone="warning">{tr("reports.worse")}</Pill> : <Pill tone="success">{tr("insights.onPlan")}</Pill>}
+                      </>
+                    }
+                    headline={thb(r.actualMargin)}
+                  >
+                    <p>{tr("insights.marginPlanMeans", { expected: thb(r.expectedMargin), actual: thb(r.actualMargin), pct: r.variancePct === null ? "·" : `${r.variancePct}%` })}</p>
+                    <Action>{r.worse ? tr("insights.marginPlanActionWorse") : tr("insights.marginPlanActionOk")}</Action>
+                  </InsightCard>
+                ))}
+              </div>
+            )}
           </section>
 
           <section>
