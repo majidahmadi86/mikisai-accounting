@@ -7,6 +7,7 @@ import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { selectableCategories } from "@/lib/categories";
+import { valueStock } from "@/lib/inventory/valuation";
 import { getLocale, t } from "@/lib/i18n/server";
 import { formatDateTime, thb } from "@/lib/money";
 import { num, type AuditLog, type SettlementStatus, type Transaction } from "@/lib/types";
@@ -63,6 +64,7 @@ export default async function EditTransactionPage({ params, searchParams }: Page
           categories={selectableCategories(snapshot.categories, tx.category_id)}
           products={snapshot.products.filter((p) => p.active || snapshot.items.some((i) => i.transaction_id === id && i.product_id === p.id))}
           initialItems={snapshot.items.filter((i) => i.transaction_id === id).map((i) => ({ product_id: i.product_id, qty: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost ?? undefined }))}
+          avgCost={Object.fromEntries(valueStock(snapshot.products, snapshot.movements).products.map((r) => [r.product.id, r.avgCost]))}
         />
       </Card>
 

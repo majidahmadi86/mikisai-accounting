@@ -30,6 +30,7 @@ export function TransactionForm({
   categories = [],
   products = [],
   initialItems = [],
+  avgCost = {},
 }: {
   tr: Translator;
   type: TransactionType;
@@ -41,6 +42,7 @@ export function TransactionForm({
   categories?: ExpenseCategory[];
   products?: Product[];
   initialItems?: ItemDraft[];
+  avgCost?: Record<string, number>;
 }) {
   const isIncome = type === "income";
   return (
@@ -101,7 +103,7 @@ export function TransactionForm({
         {isIncome ? (
           <div className="sm:col-span-2">
             <Field label={tr("inventory.items")} hint={tr("inventory.itemsHintSale")}>
-              <ItemsEditor products={products} initial={initialItems} mode="sale" />
+              <ItemsEditor products={products} initial={initialItems} mode="sale" avgCost={avgCost} />
             </Field>
           </div>
         ) : null}

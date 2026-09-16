@@ -5,7 +5,7 @@ const money = z.coerce.number().min(0).max(99_999_999);
 
 export const ItemSchema = z.object({
   product_id: z.string().uuid(),
-  qty: z.coerce.number().positive().max(100_000),
+  qty: z.coerce.number().int().min(1).max(100_000),
   unit_price: z.coerce.number().min(0).max(99_999_999).optional(),
   unit_cost: z.coerce.number().min(0).max(99_999_999).optional(),
 });
