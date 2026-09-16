@@ -20,7 +20,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     customers: snapshot.customers.slice(0, 300).map((c) => ({ name: c.name, platform: c.platform })),
     categories: snapshot.categories.filter((c) => c.active),
     products: snapshot.products.filter((p) => p.active),
-    lastProductId: last ? (snapshot.items.find((i) => i.transaction_id === last.id)?.product_id ?? null) : null,
+    lastProductId: (() => {
+      // The most recent sale that names a product, so the sheet preselects what was sold last.
+      for (const tx of snapshot.transactions) {
+        if (tx.type !== "income") continue;
+        const item = snapshot.items.find((i) => i.transaction_id === tx.id);
+        if (item) return item.product_id;
+      }
+      return null;
+    })(),
   };
 
   return (
