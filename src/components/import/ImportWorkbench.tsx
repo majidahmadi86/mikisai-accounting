@@ -56,7 +56,11 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
   function confirm(uploadIds: string[]) {
     const selected = rows.filter((r) => r.include);
     if (!selected.length) return;
-    if (selected.some((r) => !r.product_id || !r.quantity || r.quantity < 1)) {
+    if (selected.some((r) => !r.quantity || r.quantity < 1)) {
+      setError(t("import.needQty"));
+      return;
+    }
+    if (selected.some((r) => !r.product_id)) {
       setError(t("import.needProducts"));
       return;
     }

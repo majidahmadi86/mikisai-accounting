@@ -224,7 +224,7 @@ const en = {
   "quick.product": "Product",
   "quick.productHint": "Which product line this belongs to.",
   "quick.quantity": "Units",
-  "quick.quantityHint": "How many items. Used for per-unit insights.",
+  "quick.quantityHint": "How many units the customer bought. A 20 kg listing is two 10 kg boxes.",
   "quick.receivedBy": "Who receives the money",
   "quick.receivedByHint": "Whose account the payout lands in. You are preselected.",
   "quick.paidBy": "Who paid",
@@ -684,6 +684,9 @@ const en = {
   "import.qty": "Qty",
   "import.unmatched": "Pick a product",
   "import.needProducts": "Every row needs a product and a quantity before saving.",
+  "quick.qtyWarning": "Amount looks like {n} units, not {m}. Check the receipt.",
+  "import.qtyMissing": "Quantity missing",
+  "import.needQty": "Every row needs a quantity. Fill in the red boxes before saving.",
 
   "nav.products": "Products",
   "products.title": "Products",
@@ -1506,6 +1509,9 @@ const th: Record<DictionaryKey, string> = {
   "import.qty": "จำนวน",
   "import.unmatched": "เลือกสินค้า",
   "import.needProducts": "ทุกแถวต้องมีสินค้าและจำนวนก่อนบันทึก",
+  "quick.qtyWarning": "ยอดดูเหมือน {n} หน่วย ไม่ใช่ {m} ตรวจใบเสร็จ",
+  "import.qtyMissing": "ไม่มีจำนวน",
+  "import.needQty": "ทุกแถวต้องมีจำนวน กรอกช่องสีแดงก่อนบันทึก",
 
   "nav.products": "สินค้า",
   "products.title": "สินค้า",

@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/client";
 import { productLabel } from "@/lib/inventory/reports";
 import type { Product } from "@/lib/inventory/valuation";
 import { thb } from "@/lib/money";
+import { unitSanity } from "@/lib/inventory/quantity";
 
 export type ItemDraft = { product_id: string; qty: number; unit_price?: number; unit_cost?: number };
 
@@ -70,6 +71,12 @@ export function ItemsEditor({ products, initial, mode, avgCost = {} }: { product
           </div>
           <p className="mt-1.5 text-xs text-plum-soft">{mode === "purchase" ? t("inventory.unitCostHintFactory") : t("inventory.salePriceHint")}</p>
           {mode === "sale" ? <p className="mt-1 text-xs text-plum-faint">{t("inventory.avgCostLine", { amount: thb(avgCost[r.product_id] ?? 0) })}</p> : null}
+          {(() => {
+            if (mode !== "sale") return null;
+            const p = products.find((x) => x.id === r.product_id);
+            const w = p ? unitSanity((r.unit_price ?? 0) * r.qty, r.qty, p.default_price) : null;
+            return w ? <p className="mt-1 rounded-lg bg-warning-tint px-2 py-1 text-xs text-warning-ink">{t("quick.qtyWarning", { n: w.looksLike, m: w.entered })}</p> : null;
+          })()}
         </div>
       ))}
       <div className="flex gap-3 text-xs">

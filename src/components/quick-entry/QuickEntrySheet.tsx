@@ -12,6 +12,7 @@ import { categoryLabel } from "@/lib/categories";
 import { productLabel } from "@/lib/inventory/reports";
 import { salePriceFor } from "@/lib/inventory/product-stats";
 import { coversBacklog } from "@/lib/inventory/backlog";
+import { unitSanity } from "@/lib/inventory/quantity";
 import { platformName, productName } from "@/lib/labels";
 import type { TransactionInput } from "@/lib/ledger/transaction-input";
 import { round2, thb, todayIso } from "@/lib/money";
@@ -126,6 +127,8 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
   const amount = parseAmount(shownAmount);
   const estimate = amount != null ? estimateNet(amount, platform, data.settings) : null;
   const netOverride = editNet ? parseAmount(netText) : null;
+  // Does the amount fit the unit count? Warns, never blocks.
+  const sanity = isIncome && selectedProduct ? unitSanity(netOverride ?? estimate ?? 0, quantity, selectedProduct.default_price) : null;
 
   const customerNames = useMemo(() => {
     const seen = new Set<string>();
@@ -307,18 +310,24 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
           {needsItems ? productPicker : null}
 
           {needsItems ? (
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4">
               <Field label={t("quick.quantity")} htmlFor="qe-qty" hint={isIncome ? t("quick.quantityHint") : t("inventory.qtyHintPurchase")}>
-                <div className="flex min-h-11 items-stretch overflow-hidden rounded-xl border border-line bg-card">
-                  <button type="button" aria-label="-1" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-11 text-lg text-plum-soft hover:bg-lavender-tint">
+                <div className="flex min-h-14 items-stretch overflow-hidden rounded-2xl border border-line bg-card">
+                  <button type="button" aria-label="-1" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-16 text-2xl text-plum-soft hover:bg-lavender-tint active:bg-lavender-soft">
                     −
                   </button>
-                  <input id="qe-qty" type="number" inputMode="numeric" min={1} step={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(100000, Math.floor(Number(e.target.value) || 1))))} className="w-full border-x border-line bg-card text-center text-sm tabular focus:outline-none" />
-                  <button type="button" aria-label="+1" onClick={() => setQuantity((q) => Math.min(100000, q + 1))} className="w-11 text-lg text-plum-soft hover:bg-lavender-tint">
+                  <input id="qe-qty" type="number" inputMode="numeric" min={1} step={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(100000, Math.floor(Number(e.target.value) || 1))))} className="w-full border-x border-line bg-card text-center font-display text-2xl tabular focus:outline-none" />
+                  <button type="button" aria-label="+1" onClick={() => setQuantity((q) => Math.min(100000, q + 1))} className="w-16 text-2xl text-plum-soft hover:bg-lavender-tint active:bg-lavender-soft">
                     +
                   </button>
                 </div>
               </Field>
+              {sanity ? <p className="mt-2 rounded-xl bg-warning-tint px-3 py-2 text-sm text-warning-ink">{t("quick.qtyWarning", { n: sanity.looksLike, m: sanity.entered })}</p> : null}
+            </div>
+          ) : null}
+
+          {needsItems ? (
+            <div className="mt-4 grid grid-cols-2 gap-3">
               {isIncome ? (
                 <Field label={t("quick.date")} htmlFor="qe-date" hint={t("quick.dateHint")}>
                   <Input id="qe-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />

@@ -12,6 +12,7 @@ import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, type PlatformSet
 import type { Product } from "@/lib/inventory/valuation";
 import { productLabel } from "@/lib/inventory/reports";
 import { cn } from "@/lib/cn";
+import { unitSanity } from "@/lib/inventory/quantity";
 
 const cell = cn(controlClass, "min-h-10 px-2 py-1 text-xs rounded-lg min-w-24");
 const mobileCell = cn(controlClass, "text-sm");
@@ -43,6 +44,25 @@ export function ReviewTable({
     );
   }
 
+  const productById = new Map(products.map((p) => [p.id, p]));
+  const sanityOf = (r: ReviewRow) => {
+    const p = r.product_id ? productById.get(r.product_id) : null;
+    return p && r.net_amount != null && r.quantity ? unitSanity(r.net_amount, r.quantity, p.default_price) : null;
+  };
+  const qtyInput = (r: ReviewRow, className: string) => (
+    <input
+      type="number"
+      inputMode="numeric"
+      min="1"
+      step="1"
+      required
+      aria-invalid={!r.quantity}
+      className={cn(className, "tabular", !r.quantity && "border-berry bg-berry-tint text-berry")}
+      placeholder="?"
+      value={r.quantity ?? ""}
+      onChange={(e) => patch(r.key, { quantity: e.target.value === "" ? null : Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
+    />
+  );
   const included = rows.filter((r) => r.include);
   const totalNet = round2(included.reduce((s, r) => s + (r.net_amount ?? 0), 0));
   const totalGross = round2(included.reduce((s, r) => s + (r.gross_amount ?? 0), 0));
@@ -90,8 +110,10 @@ export function ReviewTable({
                   {r.product_name ? <span className="mt-0.5 block text-[11px] text-plum-faint">{r.product_name}{r.variant ? ` · ${r.variant}` : ""}</span> : null}
                 </label>
                 <label className="block">
-                  <span className="eyebrow mb-1 block">{t("import.qty")}</span>
-                  <input type="number" inputMode="numeric" min="1" step="1" className={cn(mobileCell, "tabular")} value={r.quantity ?? 1} onChange={(e) => patch(r.key, { quantity: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} />
+                  <span className={cn("eyebrow mb-1 block", !r.quantity && "text-berry")}>{t("import.qty")}</span>
+                  {qtyInput(r, mobileCell)}
+                  {!r.quantity ? <span className="mt-0.5 block text-[11px] text-berry">{t("import.qtyMissing")}</span> : null}
+                  {sanityOf(r) ? <span className="mt-0.5 block text-[11px] text-warning-ink">{t("quick.qtyWarning", { n: sanityOf(r)!.looksLike, m: sanityOf(r)!.entered })}</span> : null}
                 </label>
                 <label className="block">
                   <span className="eyebrow mb-1 block">{t("common.gross")}</span>
@@ -214,7 +236,9 @@ export function ReviewTable({
                 {r.product_name ? <p className="mt-0.5 text-[10px] text-plum-faint">{r.product_name}{r.variant ? ` · ${r.variant}` : ""}</p> : null}
               </Td>
               <Td align="right">
-                <input type="number" min="1" step="1" className={cn(cell, "min-w-16 text-right")} value={r.quantity ?? 1} onChange={(e) => patch(r.key, { quantity: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} />
+                {qtyInput(r, cn(cell, "min-w-16 text-right"))}
+                {!r.quantity ? <p className="mt-0.5 text-[10px] text-berry">{t("import.qtyMissing")}</p> : null}
+                {sanityOf(r) ? <p className="mt-0.5 max-w-36 whitespace-normal text-[10px] text-warning-ink">{t("quick.qtyWarning", { n: sanityOf(r)!.looksLike, m: sanityOf(r)!.entered })}</p> : null}
               </Td>
               <Td>
                 <select className={cell} value={r.platform} onChange={(e) => patch(r.key, { platform: e.target.value as ReviewRow["platform"] })}>
@@ -280,7 +304,7 @@ export function ReviewTable({
             <Td></Td>
             <Td></Td>
             <Td></Td>
-            <Td align="right" className="tabular">{included.reduce((s, r) => s + (r.quantity ?? 1), 0)}</Td>
+            <Td align="right" className="tabular">{included.reduce((s, r) => s + (r.quantity ?? 0), 0)}</Td>
             <Td></Td>
             <Td></Td>
             <Td align="right" className="text-plum-faint">

@@ -11,6 +11,7 @@ import { todayIso } from "@/lib/money";
 import { num, PEOPLE, PLATFORMS, type Platform, type PlatformSetting } from "@/lib/types";
 import { matchProduct } from "@/lib/inventory/match";
 import { salePriceFor } from "@/lib/inventory/product-stats";
+import { resolveQuantity } from "@/lib/inventory/quantity";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -197,11 +198,13 @@ export async function POST(request: Request) {
         seen.add(key);
       }
       const netEstimated = order.net_amount == null;
-      const match = matchProduct(products, order.product_name, order.variant, order.note, order.product_line);
-      const qty = order.quantity && order.quantity > 0 ? Math.round(order.quantity) : 1;
+      // "20 kg" or "2 กล่อง" is the base box times two; "x2" or "จำนวน 2" is a count. Nothing found means the reviewer must fill it in.
+      const resolved = resolveQuantity(order);
+      const qty = resolved.quantity;
+      const match = matchProduct(products, order.product_name, resolved.variant, order.note, order.product_line);
       // A matched product's list price fills a missing customer-paid total.
       const listPrice = match ? salePriceFor({ default_price: num(match.default_price), list_prices: (match.list_prices ?? {}) as Record<string, number> }, platform) : 0;
-      const gross = order.gross_amount == null ? (listPrice > 0 ? Math.round(listPrice * qty * 100) / 100 : null) : Math.round(order.gross_amount * 100) / 100;
+      const gross = order.gross_amount == null ? (listPrice > 0 && qty ? Math.round(listPrice * qty * 100) / 100 : null) : Math.round(order.gross_amount * 100) / 100;
       rows.push({
         ...order,
         order_id: key || null,
@@ -214,6 +217,7 @@ export async function POST(request: Request) {
         platform,
         received_by,
         quantity: qty,
+        variant: resolved.variant,
         product_line: match?.product_line ?? order.product_line,
         product_id: match?.id ?? null,
         product_matched: Boolean(match),
