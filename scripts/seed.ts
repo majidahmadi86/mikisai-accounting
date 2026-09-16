@@ -30,7 +30,7 @@ async function ensureUser(email: string, password: string, displayName: "Mike" |
   } else {
     console.log(`user exists ${email}`);
   }
-  const { error: pErr } = await admin.from("profiles").upsert({ id: user.id, business_id: SEED_BUSINESS_ID, display_name: displayName });
+  const { error: pErr } = await admin.from("profiles").upsert({ id: user.id, business_id: SEED_BUSINESS_ID, display_name: displayName, role: displayName === "Mike" ? "admin" : "contributor" });
   if (pErr) throw pErr;
   return user.id;
 }

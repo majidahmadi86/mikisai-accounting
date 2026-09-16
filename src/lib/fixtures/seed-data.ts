@@ -47,6 +47,7 @@ export const SEED_TRANSFER = {
   from_person: "sai" as Person,
   to_person: "mike" as Person,
   amount: 200,
+  kind: "settlement" as const,
   note: "Sai tops up Mike for packaging",
 };
 

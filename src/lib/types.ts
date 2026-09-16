@@ -16,12 +16,26 @@ export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number];
 export const TRANSACTION_TYPES = ["income", "expense"] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
-export type Business = { id: string; name: string };
+export const ROLES = ["admin", "contributor"] as const;
+export type Role = (typeof ROLES)[number];
+
+export const TRANSFER_KINDS = ["settlement", "capital"] as const;
+export type TransferKind = (typeof TRANSFER_KINDS)[number];
+
+export type Business = { id: string; name: string; exposure_limit: number };
 
 export type Profile = {
   id: string;
   business_id: string;
   display_name: "Mike" | "Sai";
+  role: Role;
+};
+
+/** Columns shared by every soft-deletable row. */
+export type Ownership = {
+  created_by: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
 };
 
 export type Transaction = {
@@ -40,7 +54,7 @@ export type Transaction = {
   note: string;
   quantity: number;
   created_at: string;
-};
+} & Ownership;
 
 export type Settlement = {
   id: string;
@@ -61,7 +75,7 @@ export type Payout = {
   received_by: Person;
   note: string;
   created_at: string;
-};
+} & Ownership;
 
 export type InternalTransfer = {
   id: string;
@@ -70,9 +84,10 @@ export type InternalTransfer = {
   from_person: Person;
   to_person: Person;
   amount: number;
+  kind: TransferKind;
   note: string;
   created_at: string;
-};
+} & Ownership;
 
 export type Customer = {
   id: string;
@@ -81,25 +96,29 @@ export type Customer = {
   platform: Platform;
   note: string;
   created_at: string;
-};
+} & Ownership;
 
 export type PlatformSetting = {
   business_id: string;
   platform: Platform;
   commission_pct: number;
   fixed_fee: number;
+  /** Days the platform usually takes from order to bank. */
+  settlement_lag_days: number;
+  /** Share of each order paid on day zero when the platform's early-payout feature is on; 100 means no early payout. */
+  daily_payout_pct: number;
 };
 
-export const AUDIT_ACTIONS = ["create", "update", "delete", "confirm_import", "confirm_payout", "export"] as const;
+export const AUDIT_ACTIONS = ["create", "update", "delete", "soft_delete", "restore", "denied", "confirm_import", "confirm_payout", "export"] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "report_upload", "report"] as const;
+export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "business", "report_upload", "report"] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
 export type AuditLog = {
   id: string;
   business_id: string;
-  actor_user_id: string;
+  actor_user_id: string | null;
   action: AuditAction;
   entity_type: AuditEntity;
   entity_id: string | null;

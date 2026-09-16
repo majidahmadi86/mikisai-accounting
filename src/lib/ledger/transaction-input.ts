@@ -43,7 +43,7 @@ export function formToObject(formData: FormData): Record<string, string> {
   return out;
 }
 
-export type TransactionInsert = Omit<Transaction, "id" | "created_at">;
+export type TransactionInsert = Omit<Transaction, "id" | "created_at" | "created_by" | "deleted_at" | "deleted_by">;
 
 /** Maps validated form input onto a transactions row. Expenses store the amount in both gross and net. */
 export function toRow(input: TransactionInput, businessId: string): TransactionInsert {

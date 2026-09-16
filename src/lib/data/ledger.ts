@@ -1,7 +1,7 @@
 import "server-only";
 import { revalidatePath, unstable_cache, updateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { num, type Customer, type InternalTransfer, type Payout, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
+import { num, type Business, type Customer, type InternalTransfer, type Payout, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
 
 export type LedgerTransaction = Transaction & {
   settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null } | null;
@@ -13,6 +13,7 @@ export type LedgerSnapshot = {
   payouts: Payout[];
   settings: PlatformSetting[];
   customers: Customer[];
+  business: Business;
   fetchedAt: string;
 };
 
@@ -30,17 +31,20 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
   return unstable_cache(
     async () => {
       const admin = createAdminClient();
-      const [tx, tr, po, ps, cu] = await Promise.all([
+      // Soft-deleted rows are hidden everywhere; only the Recently deleted list reads them.
+      const [tx, tr, po, ps, cu, bz] = await Promise.all([
         admin
           .from("transactions")
           .select("*, settlements(status, settled_at, payout_id)")
           .eq("business_id", businessId)
+          .is("deleted_at", null)
           .order("date", { ascending: false })
           .order("created_at", { ascending: false }),
-        admin.from("internal_transfers").select("*").eq("business_id", businessId).order("date", { ascending: false }).order("created_at", { ascending: false }),
-        admin.from("payouts").select("*").eq("business_id", businessId).order("date", { ascending: false }).order("created_at", { ascending: false }),
+        admin.from("internal_transfers").select("*").eq("business_id", businessId).is("deleted_at", null).order("date", { ascending: false }).order("created_at", { ascending: false }),
+        admin.from("payouts").select("*").eq("business_id", businessId).is("deleted_at", null).order("date", { ascending: false }).order("created_at", { ascending: false }),
         admin.from("platform_settings").select("*").eq("business_id", businessId),
-        admin.from("customers").select("*").eq("business_id", businessId).order("name"),
+        admin.from("customers").select("*").eq("business_id", businessId).is("deleted_at", null).order("name"),
+        admin.from("businesses").select("id, name, exposure_limit").eq("id", businessId).maybeSingle(),
       ]);
 
       const transactions: LedgerTransaction[] = (tx.data ?? []).map((row) => {
@@ -60,8 +64,15 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         transactions,
         transfers: (tr.data ?? []).map((r) => ({ ...(r as InternalTransfer), amount: num(r.amount) })),
         payouts: (po.data ?? []).map((r) => ({ ...(r as Payout), amount_received: num(r.amount_received) })),
-        settings: (ps.data ?? []).map((r) => ({ ...(r as PlatformSetting), commission_pct: num(r.commission_pct), fixed_fee: num(r.fixed_fee) })),
+        settings: (ps.data ?? []).map((r) => ({
+          ...(r as PlatformSetting),
+          commission_pct: num(r.commission_pct),
+          fixed_fee: num(r.fixed_fee),
+          settlement_lag_days: r.settlement_lag_days == null ? 10 : num(r.settlement_lag_days),
+          daily_payout_pct: r.daily_payout_pct == null ? 100 : num(r.daily_payout_pct),
+        })),
         customers: (cu.data ?? []) as Customer[],
+        business: { id: businessId, name: bz.data?.name ?? "MikiSai", exposure_limit: bz.data ? num(bz.data.exposure_limit) : 3000 },
         fetchedAt: new Date().toISOString(),
       };
     },
