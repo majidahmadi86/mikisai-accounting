@@ -9,16 +9,16 @@ export const SEED_BUSINESS_ID = "00000000-0000-4000-8000-000000000001";
 
 /** Default categories, ids as created by migration 0006. */
 export const SEED_CATEGORIES: ExpenseCategory[] = [
-  { id: "00000000-0000-4000-8000-0000000000c1", name_en: "Stock purchase", name_th: "ซื้อสต็อก", sort: 10, active: true },
-  { id: "00000000-0000-4000-8000-0000000000c2", name_en: "Samples", name_th: "ตัวอย่างสินค้า", sort: 20, active: true },
-  { id: "00000000-0000-4000-8000-0000000000c3", name_en: "Packaging", name_th: "บรรจุภัณฑ์", sort: 30, active: true },
-  { id: "00000000-0000-4000-8000-0000000000c4", name_en: "Shipping", name_th: "ค่าส่ง", sort: 40, active: true },
-  { id: "00000000-0000-4000-8000-0000000000c5", name_en: "Transport", name_th: "ค่าเดินทาง", sort: 50, active: true },
-  { id: "00000000-0000-4000-8000-0000000000c6", name_en: "Ads", name_th: "ค่าโฆษณา", sort: 60, active: true },
-  { id: "00000000-0000-4000-8000-0000000000c7", name_en: "Office", name_th: "สำนักงาน", sort: 70, active: true },
-  { id: "00000000-0000-4000-8000-0000000000c8", name_en: "Handyman and repairs", name_th: "ช่างและงานซ่อม", sort: 80, active: true },
-  { id: "00000000-0000-4000-8000-0000000000c9", name_en: "Registration and fees", name_th: "ค่าจดทะเบียนและค่าธรรมเนียม", sort: 90, active: true },
-  { id: "00000000-0000-4000-8000-0000000000ca", name_en: "Other", name_th: "อื่น ๆ", sort: 100, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c1", name_en: "Stock purchase", name_th: "ซื้อสต็อก", sort: 10, active: true, stock_effect: "purchase" },
+  { id: "00000000-0000-4000-8000-0000000000c2", name_en: "Samples", name_th: "ตัวอย่างสินค้า", sort: 20, active: true, stock_effect: "sample" },
+  { id: "00000000-0000-4000-8000-0000000000c3", name_en: "Packaging", name_th: "บรรจุภัณฑ์", sort: 30, active: true, stock_effect: "none" },
+  { id: "00000000-0000-4000-8000-0000000000c4", name_en: "Shipping", name_th: "ค่าส่ง", sort: 40, active: true, stock_effect: "none" },
+  { id: "00000000-0000-4000-8000-0000000000c5", name_en: "Transport", name_th: "ค่าเดินทาง", sort: 50, active: true, stock_effect: "none" },
+  { id: "00000000-0000-4000-8000-0000000000c6", name_en: "Ads", name_th: "ค่าโฆษณา", sort: 60, active: true, stock_effect: "none" },
+  { id: "00000000-0000-4000-8000-0000000000c7", name_en: "Office", name_th: "สำนักงาน", sort: 70, active: true, stock_effect: "none" },
+  { id: "00000000-0000-4000-8000-0000000000c8", name_en: "Handyman and repairs", name_th: "ช่างและงานซ่อม", sort: 80, active: true, stock_effect: "none" },
+  { id: "00000000-0000-4000-8000-0000000000c9", name_en: "Registration and fees", name_th: "ค่าจดทะเบียนและค่าธรรมเนียม", sort: 90, active: true, stock_effect: "none" },
+  { id: "00000000-0000-4000-8000-0000000000ca", name_en: "Other", name_th: "อื่น ๆ", sort: 100, active: true, stock_effect: "none" },
 ];
 export const CATEGORY_ID = { stock: SEED_CATEGORIES[0].id, samples: SEED_CATEGORIES[1].id, packaging: SEED_CATEGORIES[2].id, ads: SEED_CATEGORIES[5].id };
 

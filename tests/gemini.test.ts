@@ -45,7 +45,7 @@ describe("Gemini extraction setup", () => {
   });
 
   it("parses fenced and plain JSON replies into the batch schema", () => {
-    const reply = { orders: [{ order_id: "1", date: "2026-09-01", customer_name: "Pim", product_line: "sugar", gross_amount: 350, net_amount: 315, status: "pending", note: null }], warnings: [] };
+    const reply = { orders: [{ order_id: "1", date: "2026-09-01", customer_name: "Pim", product_line: "sugar", gross_amount: 350, net_amount: 315, status: "pending", note: null, product_name: "Coconut sugar", variant: "10 kg", quantity: 1 }], warnings: [] };
     const plain = parseModelJson(JSON.stringify(reply));
     const fenced = parseModelJson("```json\n" + JSON.stringify(reply) + "\n```");
     expect(ParsedBatchSchema.safeParse(plain).success).toBe(true);

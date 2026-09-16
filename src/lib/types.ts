@@ -118,7 +118,7 @@ export type PlatformSetting = {
 export const AUDIT_ACTIONS = ["create", "update", "delete", "soft_delete", "restore", "denied", "confirm_import", "confirm_payout", "export"] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "business", "expense_category", "report_upload", "report"] as const;
+export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "business", "expense_category", "product", "stock_movement", "transaction_item", "report_upload", "report"] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
 export type AuditLog = {

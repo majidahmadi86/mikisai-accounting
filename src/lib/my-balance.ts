@@ -12,6 +12,8 @@ export type MyBalanceInput = {
   transfers: BalanceTransferInput[];
   settings: PayoutTiming[];
   exposureLimit: number;
+  /** Total stock on hand at moving average cost. */
+  stockValue?: number;
 };
 
 export type Arrival = { date: string; amount: number; early: boolean };
@@ -55,6 +57,9 @@ export type MyBalance = {
   capitalTotal: number;
   /** (f) exposure per day, oldest first. */
   series: { date: string; value: number }[];
+  /** My half of the stock on hand at cost. Money in unsold products, kept apart from cash exposure. */
+  stockShare: number;
+  stockValue: number;
 };
 
 const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
@@ -179,5 +184,7 @@ export function buildMyBalance(input: MyBalanceInput, me: Person, today: string)
     capital,
     capitalTotal: sum(capital.map((t) => t.amount)),
     series,
+    stockValue: round2(input.stockValue ?? 0),
+    stockShare: round2((input.stockValue ?? 0) / 2),
   };
 }
