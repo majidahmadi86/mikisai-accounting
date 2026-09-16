@@ -70,6 +70,11 @@ A positive delta means that person holds more than their share, so the banner re
 - Stock is valued at moving average cost. Reports: stock on hand, low stock (threshold per product, default 3), product profitability (revenue, COGS, gross margin, margin %), samples given. Insights rank products by true gross margin when stock is tracked. My Balance shows "My share of stock on hand (at cost)" apart from cash exposure.
 - Import extracts product name, variant and quantity per receipt, fuzzy-matches products and shows a picker for anything unmatched; nothing is saved without a product and quantity.
 - Transfers carry a mandatory reason (stock purchase, samples, profit settlement, expense reimbursement, other with a note); the kind is derived in the database.
+- Quantities are whole units everywhere (step 1, min 1); the schema rejects fractions.
+- `/products` is in the main nav. Admin: create, edit, soft delete (10 s undo, Recently deleted); contributor: view only. Fields: name EN/TH, product line, variant, unit (box, pack, piece, bottle), standard cost, standard sale price, optional platform list prices (TikTok, Shopee, Facebook), low-stock threshold, active, photo (public `product-photos` bucket, JPG/PNG/WebP up to 2 MB, bytes sniffed, path `<business>/<product>.<ext>`), notes. The detail page shows stock on hand, average cost, average vs standard cost, units sold 7 and 30 days, received and gross margin 30 days, last purchase and last sale (`src/lib/inventory/product-stats.ts`).
+- Standard prices drive prefills: a sale prefills the platform list price, else the standard sale price, times units; a stock purchase prefills the standard cost; import review fills a missing customer-paid total from the matched product. All editable.
+- Reports and Insights show "Expected vs actual margin" per product: expected is (standard price minus standard cost) times units sold, actual is received minus COGS at average cost; flagged when actual is worse by more than 5%.
+- Labels: sales show "Sale price per unit" with a read-only "Cost per unit: X (average from stock purchases)"; purchases and samples show only "Cost per unit". A sale never shows a cost field and a purchase never shows a sale price.
 
 ## Audit log
 
