@@ -7,9 +7,6 @@ export type ProductLine = (typeof PRODUCT_LINES)[number];
 export const PEOPLE = ["mike", "sai"] as const;
 export type Person = (typeof PEOPLE)[number];
 
-export const EXPENSE_CATEGORIES = ["product_cost", "packaging", "shipping", "ads", "registration", "other"] as const;
-export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
-
 export const SETTLEMENT_STATUSES = ["pending", "settled_not_withdrawn", "received_in_bank"] as const;
 export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number];
 
@@ -57,7 +54,7 @@ export type Transaction = {
   net_amount: number;
   payer: Person | null;
   received_by: Person | null;
-  category: ExpenseCategory | null;
+  category_id: string | null;
   customer_name: string | null;
   note: string;
   quantity: number;
@@ -121,7 +118,7 @@ export type PlatformSetting = {
 export const AUDIT_ACTIONS = ["create", "update", "delete", "soft_delete", "restore", "denied", "confirm_import", "confirm_payout", "export"] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "business", "report_upload", "report"] as const;
+export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "business", "expense_category", "report_upload", "report"] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
 export type AuditLog = {

@@ -14,6 +14,8 @@ import { thb } from "@/lib/money";
 import { buildReports } from "@/lib/reports/build";
 import { periodLabel } from "@/lib/reports/label";
 import { periodQuery, resolvePeriod } from "@/lib/reports/period";
+import { categoryLabel } from "@/lib/categories";
+import Link from "next/link";
 
 const BarList = dynamic(() => import("@/components/charts/BarList").then((m) => m.BarList), {
   loading: () => <div className="h-20 animate-pulse rounded-xl bg-ivory-deep" aria-hidden="true" />,
@@ -50,7 +52,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   const chart = {
     product: bundle.byProduct.map((r) => ({ label: tr(`product.${r.product}`), value: r.net, display: thb(r.net) })),
     platform: bundle.byPlatform.map((r) => ({ label: tr(`platform.${r.platform}`), value: r.net, display: thb(r.net) })),
-    category: bundle.byCategory.map((r) => ({ label: tr(`category.${r.category}`), value: r.amount, display: thb(r.amount), tone: "lavender" as const })),
+    category: bundle.byCategory.map((r) => ({ label: categoryLabel(r.category, locale), value: r.amount, display: thb(r.amount), tone: "lavender" as const })),
   };
 
   return (
@@ -97,6 +99,20 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
               <div className="px-5 pb-5 sm:px-6 sm:pb-6">
                 {chart[id].length ? <BarList data={chart[id]} className="mb-4" /> : null}
                 <ReportTableView table={byId[id]} />
+                {id === "category" && bundle.byCategory.length ? (
+                  <div className="mt-4">
+                    <p className="eyebrow mb-2">{tr("reports.drillDown")}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {bundle.byCategory
+                        .filter((r) => r.count > 0)
+                        .map((r) => (
+                          <Link key={r.category.id} href={`/transactions?type=expense&category=${r.category.id}&from=${period.from}&to=${period.to}`} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-card px-3.5 text-xs font-medium text-plum hover:border-berry hover:text-berry">
+                            {categoryLabel(r.category, locale)} <span className="tabular text-plum-faint">{r.count}</span> →
+                          </Link>
+                        ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </Card>
           ))}

@@ -1,6 +1,6 @@
 import type { Translator } from "@/lib/i18n/dictionary";
 import type { PillTone } from "@/components/ui/Pill";
-import type { ExpenseCategory, Person, Platform, ProductLine, SettlementStatus } from "@/lib/types";
+import type { Person, Platform, ProductLine, SettlementStatus } from "@/lib/types";
 
 export function platformName(tr: Translator, p: Platform): string {
   return tr(`platform.${p}`);
@@ -8,10 +8,6 @@ export function platformName(tr: Translator, p: Platform): string {
 
 export function productName(tr: Translator, p: ProductLine): string {
   return tr(`product.${p}`);
-}
-
-export function categoryName(tr: Translator, c: ExpenseCategory): string {
-  return tr(`category.${c}`);
 }
 
 export function statusName(tr: Translator, s: SettlementStatus): string {

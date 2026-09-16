@@ -74,7 +74,7 @@ async function main() {
         net_amount: t.net_amount,
         received_by: t.received_by,
         payer: t.payer,
-        category: t.category,
+        category_id: t.category_id,
         customer_name: t.customer_name,
         note: t.note,
       })

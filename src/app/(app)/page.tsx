@@ -15,6 +15,7 @@ import { computeBalance } from "@/lib/balance";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone, statusName, statusTone } from "@/lib/labels";
+import { categoryById, categoryLabel } from "@/lib/categories";
 import { formatDate, thb } from "@/lib/money";
 import { PLATFORMS } from "@/lib/types";
 import { createTransfer } from "./transfers/actions";
@@ -24,6 +25,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const tr = t(locale);
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const admin = session.profile.role === "admin";
+  const categories = categoryById(snapshot.categories);
 
   const balance = computeBalance(
     snapshot.transactions.map((tx) => ({ type: tx.type, platform: tx.platform, net_amount: tx.net_amount, payer: tx.payer, received_by: tx.received_by, settlement_status: tx.settlement?.status ?? null })),
@@ -104,7 +106,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                     <Link href={`/transactions/${row.id}/edit`} className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-lavender-tint">
                       <div className="min-w-0">
                         <p className="line-clamp-2 text-sm text-plum">
-                          {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : row.note || (row.category ? tr(`category.${row.category}`) : tr("common.expense"))}
+                          {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : row.note || categoryLabel(categories.get(row.category_id ?? ""), locale) || tr("common.expense")}
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-plum-faint">
                           <span>{formatDate(row.date, locale)}</span>

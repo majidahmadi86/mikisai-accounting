@@ -70,12 +70,6 @@ const en = {
   "product.skincare": "Skincare",
   "product.other": "Other",
 
-  "category.product_cost": "Product cost",
-  "category.packaging": "Packaging",
-  "category.shipping": "Shipping",
-  "category.ads": "Ads",
-  "category.registration": "Registration",
-  "category.other": "Other",
 
   "dashboard.title": "Dashboard",
   "dashboard.subtitle": "Where the money is today",
@@ -379,6 +373,9 @@ const en = {
   "reports.byCategory": "Expenses by category",
   "reports.byCategoryDesc": "Where the money goes.",
   "reports.share": "Share",
+  "reports.prevPeriod": "Previous period",
+  "reports.change": "Change",
+  "reports.drillDown": "See the entries",
   "reports.count": "Count",
   "reports.settlement": "Payout status",
   "reports.settlementDesc": "How much of each platform's sales has reached the bank.",
@@ -551,6 +548,18 @@ const en = {
   "settings.exposure": "Limit",
   "settings.exposureHint": "My Balance turns amber at 80% of this and red above it, with a reminder to settle before buying stock.",
   "settings.adminOnly": "Only the admin can change settings. You can still read them.",
+  "settings.categories": "Expense categories",
+  "settings.categoriesDesc": "The chips shown when recording an expense, in both languages. Reorder to put the common ones first.",
+  "settings.nameEn": "English",
+  "settings.nameTh": "Thai",
+  "settings.active": "In use",
+  "settings.inactive": "Hidden",
+  "settings.activate": "Show again",
+  "settings.deactivate": "Hide",
+  "settings.moveUp": "Move up",
+  "settings.moveDown": "Move down",
+  "settings.newCategory": "New category",
+  "settings.deactivateHint": "Hidden categories stay on the entries that already use them; they just leave the chips.",
 
   "roles.admin": "Admin",
   "roles.contributor": "Contributor",
@@ -575,6 +584,7 @@ const en = {
   "audit.action.restore": "Restored",
   "audit.action.denied": "Refused",
   "audit.entity.business": "Business",
+  "audit.entity.expense_category": "Expense category",
 } as const;
 
 export type DictionaryKey = keyof typeof en;
@@ -648,12 +658,6 @@ const th: Record<DictionaryKey, string> = {
   "product.skincare": "สกินแคร์",
   "product.other": "อื่น ๆ",
 
-  "category.product_cost": "ต้นทุนสินค้า",
-  "category.packaging": "บรรจุภัณฑ์",
-  "category.shipping": "ค่าส่ง",
-  "category.ads": "ค่าโฆษณา",
-  "category.registration": "ค่าจดทะเบียน",
-  "category.other": "อื่น ๆ",
 
   "dashboard.title": "ภาพรวม",
   "dashboard.subtitle": "เงินอยู่ตรงไหนบ้างในวันนี้",
@@ -957,6 +961,9 @@ const th: Record<DictionaryKey, string> = {
   "reports.byCategory": "รายจ่ายตามหมวด",
   "reports.byCategoryDesc": "เงินไปไหนบ้าง",
   "reports.share": "สัดส่วน",
+  "reports.prevPeriod": "ช่วงก่อนหน้า",
+  "reports.change": "เปลี่ยนแปลง",
+  "reports.drillDown": "ดูรายการ",
   "reports.count": "จำนวน",
   "reports.settlement": "สถานะการโอน",
   "reports.settlementDesc": "ยอดขายของแต่ละแพลตฟอร์มเข้าธนาคารแล้วเท่าไหร่",
@@ -1129,6 +1136,18 @@ const th: Record<DictionaryKey, string> = {
   "settings.exposure": "เพดาน",
   "settings.exposureHint": "หน้ายอดของฉันจะเป็นสีเหลืองที่ 80% และสีแดงเมื่อเกิน พร้อมเตือนให้เคลียร์ยอดก่อนซื้อสต็อก",
   "settings.adminOnly": "แอดมินเท่านั้นที่แก้การตั้งค่าได้ คุณยังอ่านได้",
+  "settings.categories": "หมวดรายจ่าย",
+  "settings.categoriesDesc": "ปุ่มหมวดที่แสดงตอนบันทึกรายจ่าย ทั้งสองภาษา จัดเรียงให้หมวดที่ใช้บ่อยอยู่ก่อน",
+  "settings.nameEn": "อังกฤษ",
+  "settings.nameTh": "ไทย",
+  "settings.active": "ใช้งาน",
+  "settings.inactive": "ซ่อน",
+  "settings.activate": "แสดงอีกครั้ง",
+  "settings.deactivate": "ซ่อน",
+  "settings.moveUp": "เลื่อนขึ้น",
+  "settings.moveDown": "เลื่อนลง",
+  "settings.newCategory": "หมวดใหม่",
+  "settings.deactivateHint": "หมวดที่ซ่อนยังอยู่กับรายการเดิมที่ใช้อยู่ แค่หายจากปุ่มเลือก",
 
   "roles.admin": "แอดมิน",
   "roles.contributor": "ผู้ร่วมบันทึก",
@@ -1153,6 +1172,7 @@ const th: Record<DictionaryKey, string> = {
   "audit.action.restore": "กู้คืน",
   "audit.action.denied": "ปฏิเสธ",
   "audit.entity.business": "ธุรกิจ",
+  "audit.entity.expense_category": "หมวดรายจ่าย",
 };
 
 export const dictionaries: Record<Locale, Record<DictionaryKey, string>> = { en, th };

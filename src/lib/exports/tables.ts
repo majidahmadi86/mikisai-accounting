@@ -1,6 +1,7 @@
 import type { Translator } from "@/lib/i18n/dictionary";
 import type { Locale } from "@/lib/i18n/dictionary";
-import { categoryName, platformName, productName } from "@/lib/labels";
+import { categoryLabel } from "@/lib/categories";
+import { platformName, productName } from "@/lib/labels";
 import { formatDate } from "@/lib/money";
 import type { ReportBundle } from "@/lib/reports/build";
 
@@ -36,7 +37,7 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
     [tr("reports.plIncome"), pl.gross],
     [tr("reports.plFees"), -pl.fees],
     [tr("reports.plNet"), pl.net],
-    ...pl.expenses.map((e): Cell[] => [`${tr("reports.plExpenses")} · ${categoryName(tr, e.category)}`, -e.amount]),
+    ...pl.expenses.map((e): Cell[] => [`${tr("reports.plExpenses")} · ${categoryLabel(e.category, locale)}`, -e.amount]),
     [tr("reports.plExpenses"), -pl.totalExpenses],
     [tr("reports.plProfit"), pl.profit],
   ];
@@ -97,9 +98,11 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
         { key: "count", label: tr("reports.count"), kind: "int" },
         { key: "amount", label: tr("common.amount"), kind: "money" },
         { key: "share", label: tr("reports.share"), kind: "pct" },
+        { key: "previous", label: tr("reports.prevPeriod"), kind: "money" },
+        { key: "change", label: tr("reports.change"), kind: "pct" },
       ],
-      rows: bundle.byCategory.map((r) => [categoryName(tr, r.category), r.count, r.amount, r.share]),
-      totals: [1, 2],
+      rows: bundle.byCategory.map((r) => [categoryLabel(r.category, locale), r.count, r.amount, r.share, r.previous, r.changePct]),
+      totals: [1, 2, 4],
       totalLabel: tr("common.total"),
     },
     {

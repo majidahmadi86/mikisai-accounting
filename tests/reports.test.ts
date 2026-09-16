@@ -54,10 +54,19 @@ describe("buildReports on the seed ledger", () => {
   });
 
   it("expenses by category with share of total", () => {
-    expect(bundle.byCategory.map((r) => [r.category, r.count, r.amount, r.share])).toEqual([
-      ["ads", 1, 600, 71.43],
-      ["packaging", 1, 240, 28.57],
+    expect(bundle.byCategory.map((r) => [r.category.name_en, r.count, r.amount, r.share, r.previous, r.changePct])).toEqual([
+      ["Ads", 1, 600, 71.43, 0, null],
+      ["Packaging", 1, 240, 28.57, 0, null],
     ]);
+  });
+
+  it("month over month compares with the same-length period just before", () => {
+    const input = seedLedger();
+    input.transactions.push({ ...input.transactions.find((t) => t.id === "ex2")!, id: "ex2b", date: "2026-08-20", net_amount: 400, gross_amount: 400 });
+    const b = buildReports(input, month);
+    const ads = b.byCategory.find((r) => r.category.name_en === "Ads")!;
+    expect(ads.previous).toBe(400);
+    expect(ads.changePct).toBe(50);
   });
 
   it("settlement status per platform", () => {

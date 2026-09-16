@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { requireSession } from "@/lib/auth";
+import { getLedgerSnapshot } from "@/lib/data/ledger";
+import { selectableCategories } from "@/lib/categories";
 import { getLocale, t } from "@/lib/i18n/server";
 import { formatDateTime, thb } from "@/lib/money";
 import { num, type AuditLog, type SettlementStatus, type Transaction } from "@/lib/types";
@@ -22,10 +24,11 @@ export default async function EditTransactionPage({ params, searchParams }: Page
   const admin = session.profile.role === "admin";
   const tr = t(locale);
 
-  const [{ data }, { data: auditRows }, { data: profiles }] = await Promise.all([
+  const [{ data }, { data: auditRows }, { data: profiles }, snapshot] = await Promise.all([
     supabase.from("transactions").select("*, settlements(status)").eq("id", id).is("deleted_at", null).maybeSingle(),
     admin ? supabase.from("audit_log").select("*").eq("entity_type", "transaction").eq("entity_id", id).order("created_at", { ascending: false }).limit(20) : Promise.resolve({ data: [] as AuditLog[] }),
     supabase.from("profiles").select("id, display_name"),
+    getLedgerSnapshot(session.profile.business_id),
   ]);
   if (!data) notFound();
 
@@ -57,6 +60,7 @@ export default async function EditTransactionPage({ params, searchParams }: Page
           initial={tx}
           settlementStatus={tx.type === "income" ? settlementStatus : undefined}
           error={typeof sp.error === "string" ? sp.error : null}
+          categories={selectableCategories(snapshot.categories, tx.category_id)}
         />
       </Card>
 

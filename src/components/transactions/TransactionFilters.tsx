@@ -4,7 +4,7 @@ import type { Translator } from "@/lib/i18n/dictionary";
 import { platformName, productName, statusName } from "@/lib/labels";
 import { PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES } from "@/lib/types";
 
-type Filters = { type?: string; platform?: string; product?: string; status?: string };
+type Filters = { type?: string; platform?: string; product?: string; status?: string; category?: string; from?: string; to?: string };
 
 function href(filters: Filters, patch: Partial<Filters>): string {
   const next: Record<string, string | undefined> = { ...filters, ...patch };

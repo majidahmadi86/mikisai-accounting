@@ -7,6 +7,7 @@ import { quickAddTransaction, removeTransaction } from "@/app/(app)/transactions
 import type { TransactionInput } from "@/lib/ledger/transaction-input";
 import { useT } from "@/lib/i18n/client";
 import { thb } from "@/lib/money";
+import type { ExpenseCategory } from "@/lib/categories";
 import type { Customer, Person, Platform, PlatformSetting, ProductLine, TransactionType } from "@/lib/types";
 import { Toast, type ToastState } from "./Toast";
 
@@ -17,6 +18,7 @@ export type QuickEntryContextData = {
   lastProduct: ProductLine;
   settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[];
   customers: Pick<Customer, "name" | "platform">[];
+  categories: ExpenseCategory[];
 };
 
 export type Notice = { message: string; actionLabel?: string; onAction?: () => void | Promise<void>; durationMs?: number };

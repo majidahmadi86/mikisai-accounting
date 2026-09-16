@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EXPENSE_CATEGORIES, PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, type Transaction } from "@/lib/types";
+import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, type Transaction } from "@/lib/types";
 
 const money = z.coerce.number().min(0).max(99_999_999);
 const quantity = z.coerce.number().int().min(1).max(100_000).default(1);
@@ -26,7 +26,7 @@ const ExpenseSchema = z.object({
   amount: money,
   quantity,
   payer: z.enum(PEOPLE),
-  category: z.enum(EXPENSE_CATEGORIES),
+  category_id: z.string().uuid(),
   note: z.string().trim().max(2000).optional(),
 });
 
@@ -59,7 +59,7 @@ export function toRow(input: TransactionInput, businessId: string): TransactionI
       quantity: input.quantity,
       received_by: input.received_by,
       payer: null,
-      category: null,
+      category_id: null,
       customer_name: input.customer_name ? input.customer_name : null,
       note: input.note ?? "",
     };
@@ -75,7 +75,7 @@ export function toRow(input: TransactionInput, businessId: string): TransactionI
     quantity: input.quantity,
     payer: input.payer,
     received_by: null,
-    category: input.category,
+    category_id: input.category_id,
     customer_name: null,
     note: input.note ?? "",
   };

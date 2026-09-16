@@ -2,9 +2,25 @@
  * Shared sample data for scripts/seed.ts and the unit tests, so the numbers
  * the dashboard shows after seeding are the numbers the tests assert.
  */
-import type { ExpenseCategory, Person, Platform, ProductLine, SettlementStatus } from "@/lib/types";
+import type { ExpenseCategory } from "@/lib/categories";
+import type { Person, Platform, ProductLine, SettlementStatus } from "@/lib/types";
 
 export const SEED_BUSINESS_ID = "00000000-0000-4000-8000-000000000001";
+
+/** Default categories, ids as created by migration 0006. */
+export const SEED_CATEGORIES: ExpenseCategory[] = [
+  { id: "00000000-0000-4000-8000-0000000000c1", name_en: "Stock purchase", name_th: "ซื้อสต็อก", sort: 10, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c2", name_en: "Samples", name_th: "ตัวอย่างสินค้า", sort: 20, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c3", name_en: "Packaging", name_th: "บรรจุภัณฑ์", sort: 30, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c4", name_en: "Shipping", name_th: "ค่าส่ง", sort: 40, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c5", name_en: "Transport", name_th: "ค่าเดินทาง", sort: 50, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c6", name_en: "Ads", name_th: "ค่าโฆษณา", sort: 60, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c7", name_en: "Office", name_th: "สำนักงาน", sort: 70, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c8", name_en: "Handyman and repairs", name_th: "ช่างและงานซ่อม", sort: 80, active: true },
+  { id: "00000000-0000-4000-8000-0000000000c9", name_en: "Registration and fees", name_th: "ค่าจดทะเบียนและค่าธรรมเนียม", sort: 90, active: true },
+  { id: "00000000-0000-4000-8000-0000000000ca", name_en: "Other", name_th: "อื่น ๆ", sort: 100, active: true },
+];
+export const CATEGORY_ID = { stock: SEED_CATEGORIES[0].id, samples: SEED_CATEGORIES[1].id, packaging: SEED_CATEGORIES[2].id, ads: SEED_CATEGORIES[5].id };
 
 export type SeedTransaction = {
   ref: string;
@@ -16,7 +32,7 @@ export type SeedTransaction = {
   net_amount: number;
   received_by: Person | null;
   payer: Person | null;
-  category: ExpenseCategory | null;
+  category_id: string | null;
   customer_name: string | null;
   note: string;
   /** Settlement status after the seeded payout has been reconciled. Income only. */
@@ -24,12 +40,12 @@ export type SeedTransaction = {
 };
 
 export const SEED_TRANSACTIONS: SeedTransaction[] = [
-  { ref: "tt1", type: "income", date: "2026-09-01", platform: "tiktok", product_line: "sugar", gross_amount: 350, net_amount: 315, received_by: "mike", payer: null, category: null, customer_name: "Nong Pim", note: "Coconut sugar 500g x2", status_after_payout: "received_in_bank" },
-  { ref: "tt2", type: "income", date: "2026-09-02", platform: "tiktok", product_line: "sugar", gross_amount: 520, net_amount: 468, received_by: "mike", payer: null, category: null, customer_name: "Khun Ploy", note: "Coconut sugar 1kg x2", status_after_payout: "received_in_bank" },
-  { ref: "sp1", type: "income", date: "2026-09-03", platform: "shopee", product_line: "skincare", gross_amount: 890, net_amount: 801, received_by: "sai", payer: null, category: null, customer_name: "Bee", note: "Serum 30ml", status_after_payout: "settled_not_withdrawn" },
-  { ref: "fb1", type: "income", date: "2026-09-04", platform: "fb", product_line: "skincare", gross_amount: 1200, net_amount: 1200, received_by: "sai", payer: null, category: null, customer_name: "Aom", note: "Skincare set, bank transfer", status_after_payout: "received_in_bank" },
-  { ref: "ex1", type: "expense", date: "2026-09-02", platform: "other", product_line: "sugar", gross_amount: 240, net_amount: 240, received_by: null, payer: "mike", category: "packaging", customer_name: null, note: "Kraft pouches", status_after_payout: null },
-  { ref: "ex2", type: "expense", date: "2026-09-05", platform: "fb", product_line: "skincare", gross_amount: 600, net_amount: 600, received_by: null, payer: "sai", category: "ads", customer_name: null, note: "Facebook ads September", status_after_payout: null },
+  { ref: "tt1", type: "income", date: "2026-09-01", platform: "tiktok", product_line: "sugar", gross_amount: 350, net_amount: 315, received_by: "mike", payer: null, category_id: null, customer_name: "Nong Pim", note: "Coconut sugar 500g x2", status_after_payout: "received_in_bank" },
+  { ref: "tt2", type: "income", date: "2026-09-02", platform: "tiktok", product_line: "sugar", gross_amount: 520, net_amount: 468, received_by: "mike", payer: null, category_id: null, customer_name: "Khun Ploy", note: "Coconut sugar 1kg x2", status_after_payout: "received_in_bank" },
+  { ref: "sp1", type: "income", date: "2026-09-03", platform: "shopee", product_line: "skincare", gross_amount: 890, net_amount: 801, received_by: "sai", payer: null, category_id: null, customer_name: "Bee", note: "Serum 30ml", status_after_payout: "settled_not_withdrawn" },
+  { ref: "fb1", type: "income", date: "2026-09-04", platform: "fb", product_line: "skincare", gross_amount: 1200, net_amount: 1200, received_by: "sai", payer: null, category_id: null, customer_name: "Aom", note: "Skincare set, bank transfer", status_after_payout: "received_in_bank" },
+  { ref: "ex1", type: "expense", date: "2026-09-02", platform: "other", product_line: "sugar", gross_amount: 240, net_amount: 240, received_by: null, payer: "mike", category_id: CATEGORY_ID.packaging, customer_name: null, note: "Kraft pouches", status_after_payout: null },
+  { ref: "ex2", type: "expense", date: "2026-09-05", platform: "fb", product_line: "skincare", gross_amount: 600, net_amount: 600, received_by: null, payer: "sai", category_id: CATEGORY_ID.ads, customer_name: null, note: "Facebook ads September", status_after_payout: null },
 ];
 
 export const SEED_PAYOUT = {

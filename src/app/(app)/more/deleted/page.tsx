@@ -6,7 +6,9 @@ import { ExpandableNote } from "@/components/ui/ExpandableNote";
 import type { SoftDeleteEntity } from "@/lib/soft-delete";
 import { requireAdmin } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
-import { categoryName, platformName, platformTone } from "@/lib/labels";
+import { platformName, platformTone } from "@/lib/labels";
+import { categoryById, categoryLabel } from "@/lib/categories";
+import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { formatDate, formatDateTime, thb } from "@/lib/money";
 import { num, type Person, type TransferReason } from "@/lib/types";
 
@@ -16,9 +18,10 @@ export default async function RecentlyDeletedPage() {
   const [session, locale] = await Promise.all([requireAdmin("transaction", "recently-deleted"), getLocale()]);
   const tr = t(locale);
   const { supabase } = session;
+  const categories = categoryById((await getLedgerSnapshot(session.profile.business_id)).categories);
 
   const [tx, po, tf, cu, profiles] = await Promise.all([
-    supabase.from("transactions").select("id, type, date, platform, net_amount, customer_name, category, note, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(200),
+    supabase.from("transactions").select("id, type, date, platform, net_amount, customer_name, category_id, note, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(200),
     supabase.from("payouts").select("id, date, platform, amount_received, note, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(100),
     supabase.from("internal_transfers").select("id, date, from_person, to_person, amount, kind, reason, note, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(100),
     supabase.from("customers").select("id, name, platform, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(100),
@@ -30,7 +33,7 @@ export default async function RecentlyDeletedPage() {
     ...(tx.data ?? []).map((r): Row => ({
       entity: "transaction",
       id: r.id,
-      title: r.type === "income" ? r.customer_name || platformName(tr, r.platform) : r.category ? categoryName(tr, r.category) : tr("common.expense"),
+      title: r.type === "income" ? r.customer_name || platformName(tr, r.platform) : categoryLabel(categories.get(r.category_id ?? ""), locale) || tr("common.expense"),
       detail: `${r.type === "income" ? tr("common.income") : tr("common.expense")} · ${formatDate(r.date, locale)}${r.note ? ` · ${r.note}` : ""}`,
       amount: (r.type === "expense" ? -1 : 1) * num(r.net_amount),
       deletedAt: r.deleted_at,

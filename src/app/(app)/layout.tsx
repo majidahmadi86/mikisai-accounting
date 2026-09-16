@@ -18,6 +18,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     lastProduct: last?.product_line ?? "sugar",
     settings: snapshot.settings.map((s) => ({ platform: s.platform, commission_pct: s.commission_pct, fixed_fee: s.fixed_fee })),
     customers: snapshot.customers.slice(0, 300).map((c) => ({ name: c.name, platform: c.platform })),
+    categories: snapshot.categories.filter((c) => c.active),
   };
 
   return (

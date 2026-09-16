@@ -28,7 +28,7 @@ function fixture(): MyBalanceInput {
     quantity: 1,
     payer: null,
     received_by: "sai",
-    category: null,
+    category_id: null,
     customer_name: "Fon",
     note: "",
     created_at: "2026-09-14T09:00:00Z",

@@ -7,17 +7,19 @@ import { Chips } from "@/components/ui/Chips";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { CameraIcon, CloseIcon } from "@/components/ui/Icons";
 import { useT } from "@/lib/i18n/client";
-import { categoryName, platformName, productName } from "@/lib/labels";
+import { platformName, productName } from "@/lib/labels";
+import { categoryLabel } from "@/lib/categories";
+import { useLocale } from "@/lib/i18n/client";
 import type { TransactionInput } from "@/lib/ledger/transaction-input";
 import { round2, thb, todayIso } from "@/lib/money";
 import { estimateNet } from "@/lib/parse/estimate";
-import { EXPENSE_CATEGORIES, PEOPLE, PLATFORMS, PRODUCT_LINES, type ExpenseCategory, type Person, type Platform, type ProductLine, type TransactionType } from "@/lib/types";
+import { PEOPLE, PLATFORMS, PRODUCT_LINES, type Person, type Platform, type ProductLine, type TransactionType } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useQuickEntry } from "./QuickEntryProvider";
 
 const STORAGE_KEY = "mikisai.quick-entry.v1";
 
-type Remembered = { platform?: Platform; product?: ProductLine; category?: ExpenseCategory };
+type Remembered = { platform?: Platform; product?: ProductLine; category?: string };
 
 function readRemembered(): Remembered {
   try {
@@ -45,6 +47,7 @@ function parseAmount(text: string): number | null {
 
 export function QuickEntrySheet({ initialType, retryInput }: { initialType: TransactionType; retryInput: TransactionInput | null }) {
   const t = useT();
+  const locale = useLocale();
   const { close, data, submit } = useQuickEntry();
   const remembered = useMemo(() => readRemembered(), []);
 
@@ -60,7 +63,10 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
   const [product, setProduct] = useState<ProductLine>(retryInput?.product_line ?? remembered.product ?? data.lastProduct);
   const [quantity, setQuantity] = useState<number>(retryInput?.quantity ?? 1);
   const [person, setPerson] = useState<Person>(retryInput ? (retryInput.type === "income" ? retryInput.received_by : retryInput.payer) : data.person);
-  const [category, setCategory] = useState<ExpenseCategory>(retryInput?.type === "expense" ? retryInput.category : remembered.category ?? "product_cost");
+  const [category, setCategory] = useState<string>(() => {
+    const wanted = retryInput?.type === "expense" ? retryInput.category_id : remembered.category;
+    return wanted && data.categories.some((c) => c.id === wanted) ? wanted : data.categories[0]?.id ?? "";
+  });
   const [customer, setCustomer] = useState(retryInput?.type === "income" ? (retryInput.customer_name ?? "") : "");
   const [note, setNote] = useState(retryInput?.note ?? "");
   const [showNote, setShowNote] = useState(Boolean(retryInput?.note));
@@ -123,7 +129,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
       amount,
       quantity,
       payer: person,
-      category,
+      category_id: category,
       note: note.trim() || undefined,
     };
   }
@@ -229,7 +235,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
           {isIncome ? null : (
             <div className="mt-4">
               <Field label={t("quick.category")} hint={t("quick.categoryHint")}>
-                <Chips label={t("quick.category")} options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryName(t, c) }))} value={category} onChange={setCategory} />
+                <Chips label={t("quick.category")} options={data.categories.map((c) => ({ value: c.id, label: categoryLabel(c, locale) }))} value={category} onChange={setCategory} />
               </Field>
             </div>
           )}

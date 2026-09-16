@@ -2,6 +2,8 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { requireSession } from "@/lib/auth";
+import { getLedgerSnapshot } from "@/lib/data/ledger";
+import { selectableCategories } from "@/lib/categories";
 import { getLocale, t } from "@/lib/i18n/server";
 import { createTransaction } from "../actions";
 
@@ -10,12 +12,13 @@ export default async function NewTransactionPage({ searchParams }: PageProps<"/t
   const type = params.type === "expense" ? "expense" : "income";
   const error = typeof params.error === "string" ? params.error : null;
   const tr = t(locale);
+  const snapshot = await getLedgerSnapshot(session.profile.business_id);
 
   return (
     <div className="max-w-2xl">
       <PageHeader title={type === "income" ? tr("transactions.newIncome") : tr("transactions.newExpense")} subtitle={tr("quick.subtitle")} />
       <Card className="p-5 sm:p-6">
-        <TransactionForm tr={tr} type={type} action={createTransaction} error={error} defaultPerson={session.profile.display_name === "Sai" ? "sai" : "mike"} />
+        <TransactionForm tr={tr} type={type} action={createTransaction} error={error} defaultPerson={session.profile.display_name === "Sai" ? "sai" : "mike"} categories={selectableCategories(snapshot.categories)} />
       </Card>
     </div>
   );

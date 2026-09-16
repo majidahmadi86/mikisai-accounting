@@ -4,7 +4,7 @@
  * to each expectation in the tests.
  */
 import type { ReportInput, ReportTx } from "@/lib/reports/build";
-import { SEED_PAYOUT, SEED_TRANSACTIONS, SEED_TRANSFER } from "./seed-data";
+import { SEED_CATEGORIES, SEED_PAYOUT, SEED_TRANSACTIONS, SEED_TRANSFER } from "./seed-data";
 
 export const REPORT_TODAY = "2026-09-16";
 export const PAYOUT_ID = "payout-1";
@@ -21,7 +21,7 @@ export function seedLedger(): ReportInput {
     quantity: t.ref === "tt2" ? 2 : 1,
     payer: t.payer,
     received_by: t.received_by,
-    category: t.category,
+    category_id: t.category_id,
     customer_name: t.customer_name,
     note: t.note,
     created_at: `${t.date}T09:00:00Z`,
@@ -37,6 +37,7 @@ export function seedLedger(): ReportInput {
   return {
     transactions,
     transfers: [{ id: "tr1", ...SEED_TRANSFER }],
+    categories: SEED_CATEGORIES,
     payouts: [{ id: PAYOUT_ID, date: SEED_PAYOUT.date, platform: SEED_PAYOUT.platform, amount_received: SEED_PAYOUT.amount_received, received_by: SEED_PAYOUT.received_by, note: SEED_PAYOUT.note }],
   };
 }

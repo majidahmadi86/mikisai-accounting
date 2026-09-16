@@ -9,18 +9,25 @@ import { Table, Td, Th } from "@/components/ui/Table";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { requireSession } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
-import { categoryName, platformName, platformTone, productName, statusName, statusTone, typeTone } from "@/lib/labels";
+import { platformName, platformTone, productName, statusName, statusTone, typeTone } from "@/lib/labels";
+import { categoryById, categoryLabel } from "@/lib/categories";
+import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { formatDate, thb } from "@/lib/money";
 import { num, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, TRANSACTION_TYPES, type SettlementStatus, type Transaction } from "@/lib/types";
 
-type Filters = { type?: string; platform?: string; product?: string; status?: string };
+type Filters = { type?: string; platform?: string; product?: string; status?: string; category?: string; from?: string; to?: string };
+const UUID = /^[0-9a-f-]{36}$/i;
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 function pick<T extends readonly string[]>(value: unknown, allowed: T): T[number] | undefined {
   return typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T[number]) : undefined;
 }
 
 export default async function TransactionsPage({ searchParams }: PageProps<"/transactions">) {
-  const [sp, { supabase }, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
+  const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
+  const { supabase } = session;
+  const snapshot = await getLedgerSnapshot(session.profile.business_id);
+  const categories = categoryById(snapshot.categories);
   const tr = t(locale);
 
   const filters: Filters = {
@@ -28,8 +35,11 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
     platform: pick(sp.platform, PLATFORMS),
     product: pick(sp.product, PRODUCT_LINES),
     status: pick(sp.status, SETTLEMENT_STATUSES),
+    category: typeof sp.category === "string" && UUID.test(sp.category) ? sp.category : undefined,
+    from: typeof sp.from === "string" && ISO.test(sp.from) ? sp.from : undefined,
+    to: typeof sp.to === "string" && ISO.test(sp.to) ? sp.to : undefined,
   };
-  const filtered = Boolean(filters.type || filters.platform || filters.product || filters.status);
+  const filtered = Boolean(filters.type || filters.platform || filters.product || filters.status || filters.category || filters.from || filters.to);
 
   const select = filters.status ? "*, settlements!inner(status, payout_id)" : "*, settlements(status, payout_id)";
   let query = supabase.from("transactions").select(select).is("deleted_at", null).order("date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
@@ -37,6 +47,9 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
   if (filters.platform) query = query.eq("platform", filters.platform);
   if (filters.product) query = query.eq("product_line", filters.product);
   if (filters.status) query = query.eq("settlements.status", filters.status);
+  if (filters.category) query = query.eq("category_id", filters.category);
+  if (filters.from) query = query.gte("date", filters.from);
+  if (filters.to) query = query.lte("date", filters.to);
 
   const { data } = await query;
   const rows = (data ?? []).map((row) => {
@@ -64,6 +77,12 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
       />
 
       <TransactionFilters tr={tr} filters={filters} />
+      {filters.category ? (
+        <p className="mb-3 text-xs text-plum-soft">
+          {tr("common.category")}: <span className="font-medium text-plum">{categoryLabel(categories.get(filters.category), locale)}</span>
+          {filters.from || filters.to ? ` · ${filters.from ?? ""} → ${filters.to ?? ""}` : ""}
+        </p>
+      ) : null}
 
       <p className="mb-3 text-xs text-plum-faint">{tr("transactions.count", { n: rows.length })}</p>
 
@@ -92,7 +111,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                 <Link href={`/transactions/${row.id}/edit`} className="flex items-start justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
                     <p className="line-clamp-2 text-sm font-medium text-plum">
-                      {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : row.category ? categoryName(tr, row.category) : tr("common.expense")}
+                      {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : categoryLabel(categories.get(row.category_id ?? ""), locale) || tr("common.expense")}
                     </p>
                     <p className="mt-0.5 text-xs text-plum-faint">
                       {formatDate(row.date, locale)} · {productName(tr, row.product_line)}
@@ -149,7 +168,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                     {productName(tr, row.product_line)}
                     {row.quantity > 1 ? <span className="text-plum-faint"> · {tr("transactions.units", { n: row.quantity })}</span> : null}
                   </Td>
-                  <Td className="max-w-48 truncate text-plum-soft">{row.type === "income" ? (row.customer_name ?? "") : row.category ? categoryName(tr, row.category) : ""}</Td>
+                  <Td className="max-w-48 truncate text-plum-soft">{row.type === "income" ? (row.customer_name ?? "") : categoryLabel(categories.get(row.category_id ?? ""), locale)}</Td>
                   <Td align="right" className="text-plum-faint">
                     {row.type === "income" ? thb(row.gross_amount) : ""}
                   </Td>

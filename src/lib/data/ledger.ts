@@ -1,6 +1,7 @@
 import "server-only";
 import { revalidatePath, unstable_cache, updateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { ExpenseCategory } from "@/lib/categories";
 import { num, type Business, type Customer, type InternalTransfer, type Payout, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
 
 export type LedgerTransaction = Transaction & {
@@ -13,6 +14,7 @@ export type LedgerSnapshot = {
   payouts: Payout[];
   settings: PlatformSetting[];
   customers: Customer[];
+  categories: ExpenseCategory[];
   business: Business;
   fetchedAt: string;
 };
@@ -32,7 +34,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
     async () => {
       const admin = createAdminClient();
       // Soft-deleted rows are hidden everywhere; only the Recently deleted list reads them.
-      const [tx, tr, po, ps, cu, bz] = await Promise.all([
+      const [tx, tr, po, ps, cu, bz, ec] = await Promise.all([
         admin
           .from("transactions")
           .select("*, settlements(status, settled_at, payout_id)")
@@ -45,6 +47,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("platform_settings").select("*").eq("business_id", businessId),
         admin.from("customers").select("*").eq("business_id", businessId).is("deleted_at", null).order("name"),
         admin.from("businesses").select("id, name, exposure_limit").eq("id", businessId).maybeSingle(),
+        admin.from("expense_categories").select("id, name_en, name_th, sort, active").eq("business_id", businessId).order("sort"),
       ]);
 
       const transactions: LedgerTransaction[] = (tx.data ?? []).map((row) => {
@@ -72,6 +75,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
           daily_payout_pct: r.daily_payout_pct == null ? 100 : num(r.daily_payout_pct),
         })),
         customers: (cu.data ?? []) as Customer[],
+        categories: (ec.data ?? []) as ExpenseCategory[],
         business: { id: businessId, name: bz.data?.name ?? "MikiSai", exposure_limit: bz.data ? num(bz.data.exposure_limit) : 3000 },
         fetchedAt: new Date().toISOString(),
       };

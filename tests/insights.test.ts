@@ -16,7 +16,7 @@ function income(id: string, date: string, product: ReportTx["product_line"], net
     quantity,
     payer: null,
     received_by: "mike",
-    category: null,
+    category_id: null,
     customer_name: null,
     note: "",
     created_at: `${date}T00:00:00Z`,

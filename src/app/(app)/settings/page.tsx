@@ -10,6 +10,7 @@ import { platformName, platformTone } from "@/lib/labels";
 import { thb } from "@/lib/money";
 import { PLATFORMS } from "@/lib/types";
 import { savePlatformSettings } from "./actions";
+import { CategoryManager } from "@/components/settings/CategoryManager";
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
@@ -70,6 +71,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           </div>
         ) : null}
       </form>
+
+      <div className="mt-6">
+        <CategoryManager categories={snapshot.categories} tr={tr} admin={admin} />
+      </div>
     </div>
   );
 }

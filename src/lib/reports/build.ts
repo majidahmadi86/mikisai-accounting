@@ -1,7 +1,8 @@
 import { computeBalance, type Balance } from "@/lib/balance";
 import { round2 } from "@/lib/money";
-import { checkpoints, inPeriod, type Period } from "./period";
-import { EXPENSE_CATEGORIES, PLATFORMS, PRODUCT_LINES, type ExpenseCategory, type Person, type Platform, type ProductLine, type SettlementStatus } from "@/lib/types";
+import { addDays, checkpoints, daysBetween, inPeriod, type Period } from "./period";
+import type { ExpenseCategory } from "@/lib/categories";
+import { PLATFORMS, PRODUCT_LINES, type Person, type Platform, type ProductLine, type SettlementStatus } from "@/lib/types";
 
 /** Structural subset of LedgerTransaction so reports can be built and tested without the server module. */
 export type ReportTx = {
@@ -15,7 +16,7 @@ export type ReportTx = {
   quantity: number;
   payer: Person | null;
   received_by: Person | null;
-  category: ExpenseCategory | null;
+  category_id: string | null;
   customer_name: string | null;
   note: string;
   created_at: string;
@@ -25,7 +26,7 @@ export type ReportTx = {
 export type ReportTransfer = { id: string; date: string; from_person: Person; to_person: Person; amount: number; note: string };
 export type ReportPayout = { id: string; date: string; platform: Platform; amount_received: number; received_by: Person; note: string };
 
-export type ReportInput = { transactions: ReportTx[]; transfers: ReportTransfer[]; payouts: ReportPayout[] };
+export type ReportInput = { transactions: ReportTx[]; transfers: ReportTransfer[]; payouts: ReportPayout[]; categories: ExpenseCategory[] };
 
 export type PLReport = {
   orders: number;
@@ -41,7 +42,7 @@ export type PLReport = {
 
 export type ProductRow = { product: ProductLine; orders: number; units: number; gross: number; net: number; expenses: number; profit: number; netPerUnit: number };
 export type PlatformRow = { platform: Platform; orders: number; gross: number; net: number; fees: number; feePct: number };
-export type CategoryRow = { category: ExpenseCategory; count: number; amount: number; share: number };
+export type CategoryRow = { category: ExpenseCategory; count: number; amount: number; share: number; previous: number; changePct: number | null };
 export type StatusRow = { platform: Platform; pendingOrders: number; pending: number; walletOrders: number; wallet: number; bankOrders: number; bank: number; total: number };
 export type OwesRow = { asOf: string; mikeHolds: number; saiHolds: number; netProfit: number; owes: Balance["owes"] };
 export type CustomerRow = { name: string; platform: Platform; orders: number; gross: number; net: number; lastOrder: string };
@@ -61,15 +62,33 @@ export type ReportBundle = {
 
 const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
 
-export function buildProfitLoss(tx: ReportTx[]): PLReport {
+const UNKNOWN_CATEGORY: ExpenseCategory = { id: "unknown", name_en: "Uncategorised", name_th: "ไม่ระบุหมวด", sort: 9999, active: false };
+
+/** Categories in display order, plus a placeholder for rows whose category no longer exists. */
+function categoriesFor(tx: ReportTx[], categories: ExpenseCategory[]): ExpenseCategory[] {
+  const known = new Set(categories.map((c) => c.id));
+  const list = [...categories].sort((a, b) => a.sort - b.sort);
+  if (tx.some((t) => t.type === "expense" && (!t.category_id || !known.has(t.category_id)))) list.push(UNKNOWN_CATEGORY);
+  return list;
+}
+
+function inCategory(t: ReportTx, c: ExpenseCategory, known: Set<string>): boolean {
+  if (c.id === "unknown") return !t.category_id || !known.has(t.category_id);
+  return t.category_id === c.id;
+}
+
+export function buildProfitLoss(tx: ReportTx[], categories: ExpenseCategory[]): PLReport {
   const income = tx.filter((t) => t.type === "income");
   const expense = tx.filter((t) => t.type === "expense");
   const gross = sum(income.map((t) => t.gross_amount));
   const net = sum(income.map((t) => t.net_amount));
-  const expenses = EXPENSE_CATEGORIES.map((category) => {
-    const rows = expense.filter((t) => t.category === category);
-    return { category, count: rows.length, amount: sum(rows.map((t) => t.net_amount)) };
-  }).filter((r) => r.count > 0);
+  const known = new Set(categories.map((c) => c.id));
+  const expenses = categoriesFor(tx, categories)
+    .map((category) => {
+      const rows = expense.filter((t) => inCategory(t, category, known));
+      return { category, count: rows.length, amount: sum(rows.map((t) => t.net_amount)) };
+    })
+    .filter((r) => r.count > 0);
   const totalExpenses = sum(expenses.map((r) => r.amount));
   const byStatus: Record<SettlementStatus, number> = { pending: 0, settled_not_withdrawn: 0, received_in_bank: 0 };
   for (const t of income) byStatus[t.settlement?.status ?? "pending"] = round2(byStatus[t.settlement?.status ?? "pending"] + t.net_amount);
@@ -119,16 +138,32 @@ export function buildByPlatform(tx: ReportTx[]): PlatformRow[] {
     .sort((a, b) => b.net - a.net);
 }
 
-export function buildByCategory(tx: ReportTx[]): CategoryRow[] {
+/**
+ * Expenses by category for the period, with the same-length period just
+ * before it for month-over-month comparison.
+ */
+export function buildByCategory(tx: ReportTx[], previousTx: ReportTx[], categories: ExpenseCategory[]): CategoryRow[] {
   const expense = tx.filter((t) => t.type === "expense");
+  const prev = previousTx.filter((t) => t.type === "expense");
   const total = sum(expense.map((t) => t.net_amount));
-  return EXPENSE_CATEGORIES.map((category) => {
-    const rows = expense.filter((t) => t.category === category);
-    const amount = sum(rows.map((t) => t.net_amount));
-    return { category, count: rows.length, amount, share: total > 0 ? round2((amount / total) * 100) : 0 };
-  })
-    .filter((r) => r.count > 0)
+  const known = new Set(categories.map((c) => c.id));
+  return categoriesFor([...tx, ...previousTx], categories)
+    .map((category) => {
+      const rows = expense.filter((t) => inCategory(t, category, known));
+      const amount = sum(rows.map((t) => t.net_amount));
+      const previous = sum(prev.filter((t) => inCategory(t, category, known)).map((t) => t.net_amount));
+      const changePct = previous > 0 ? round2(((amount - previous) / previous) * 100) : null;
+      return { category, count: rows.length, amount, share: total > 0 ? round2((amount / total) * 100) : 0, previous, changePct };
+    })
+    .filter((r) => r.count > 0 || r.previous > 0)
     .sort((a, b) => b.amount - a.amount);
+}
+
+/** The period of equal length ending the day before this one. */
+export function previousPeriod(period: Period): Period {
+  const length = daysBetween(period.from, period.to) + 1;
+  const to = addDays(period.from, -1);
+  return { key: "custom", from: addDays(to, -(length - 1)), to };
 }
 
 export function buildSettlement(tx: ReportTx[]): StatusRow[] {
@@ -192,13 +227,15 @@ export function buildCustomers(tx: ReportTx[]): CustomerRow[] {
 
 export function buildReports(input: ReportInput, period: Period, generatedAt = new Date().toISOString()): ReportBundle {
   const tx = input.transactions.filter((t) => inPeriod(t.date, period));
+  const prev = previousPeriod(period);
+  const prevTx = input.transactions.filter((t) => inPeriod(t.date, prev));
   return {
     period,
     generatedAt,
-    pl: buildProfitLoss(tx),
+    pl: buildProfitLoss(tx, input.categories),
     byProduct: buildByProduct(tx),
     byPlatform: buildByPlatform(tx),
-    byCategory: buildByCategory(tx),
+    byCategory: buildByCategory(tx, prevTx, input.categories),
     settlement: buildSettlement(tx),
     owesHistory: buildOwesHistory(input, period),
     transfers: input.transfers.filter((t) => inPeriod(t.date, period)),

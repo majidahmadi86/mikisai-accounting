@@ -100,7 +100,7 @@ async function roleChecks() {
   check("Mike is admin, Sai is contributor", profiles?.find((p) => p.id === mikeId)?.role === "admin" && profiles?.find((p) => p.id === saiId)?.role === "contributor");
   if (!mikeId || !saiId) return;
 
-  const probe = { business_id: SEED_BUSINESS_ID, type: "expense", date: "2020-01-01", platform: "other", product_line: "other", gross_amount: 1, net_amount: 1, payer: "mike", category: "other", note: "rls-probe" };
+  const probe = { business_id: SEED_BUSINESS_ID, type: "expense", date: "2020-01-01", platform: "other", product_line: "other", gross_amount: 1, net_amount: 1, payer: "mike", category_id: "00000000-0000-4000-8000-0000000000ca", note: "rls-probe" };
   const { data: rows, error: insErr } = await admin
     .from("transactions")
     .insert([

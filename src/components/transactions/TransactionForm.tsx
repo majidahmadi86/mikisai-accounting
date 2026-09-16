@@ -1,10 +1,11 @@
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import type { Translator } from "@/lib/i18n/dictionary";
-import { categoryName, platformName, productName, statusName } from "@/lib/labels";
+import { platformName, productName, statusName } from "@/lib/labels";
+import type { ExpenseCategory } from "@/lib/categories";
+import { CategoryChips } from "./CategoryChips";
 import { todayIso } from "@/lib/money";
 import {
-  EXPENSE_CATEGORIES,
   PEOPLE,
   PLATFORMS,
   PRODUCT_LINES,
@@ -24,6 +25,7 @@ export function TransactionForm({
   settlementStatus,
   error,
   defaultPerson = "mike",
+  categories = [],
 }: {
   tr: Translator;
   type: TransactionType;
@@ -32,6 +34,7 @@ export function TransactionForm({
   settlementStatus?: SettlementStatus | null;
   error?: string | null;
   defaultPerson?: Person;
+  categories?: ExpenseCategory[];
 }) {
   const isIncome = type === "income";
   return (
@@ -55,15 +58,11 @@ export function TransactionForm({
             <Field label={tr("common.amount")} htmlFor="amount" hint={tr("transactions.amountHint")}>
               <Input id="amount" name="amount" type="number" inputMode="decimal" step="0.01" min="0" required defaultValue={initial?.net_amount ?? ""} className="tabular text-lg" />
             </Field>
-            <Field label={tr("common.category")} htmlFor="category" hint={tr("transactions.categoryHint")}>
-              <Select id="category" name="category" defaultValue={initial?.category ?? "product_cost"}>
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {categoryName(tr, c)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <div className="sm:col-span-2">
+              <Field label={tr("common.category")} hint={tr("transactions.categoryHint")}>
+                <CategoryChips categories={categories} defaultValue={initial?.category_id ?? null} />
+              </Field>
+            </div>
           </>
         )}
         <Field label={isIncome ? tr("transactions.receivedBy") : tr("transactions.paidBy")} htmlFor="person" hint={isIncome ? tr("transactions.personIncomeHint") : tr("transactions.personExpenseHint")}>

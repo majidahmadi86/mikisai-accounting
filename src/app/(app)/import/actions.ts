@@ -51,7 +51,7 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
     net_amount: r.net_amount,
     received_by: r.received_by,
     payer: null,
-    category: null,
+    category_id: null,
     customer_name: r.customer_name || null,
     note: [r.order_id ? `#${r.order_id}` : "", r.note ?? ""].filter(Boolean).join(" · "),
   }));
