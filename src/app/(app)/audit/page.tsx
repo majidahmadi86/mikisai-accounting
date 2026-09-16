@@ -5,13 +5,13 @@ import { Input, Select } from "@/components/ui/Field";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill, type PillTone } from "@/components/ui/Pill";
-import { requireSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { auditChanges, auditQueryString, parseAuditFilters, queryAudit } from "@/lib/audit-query";
 import { getLocale, t } from "@/lib/i18n/server";
 import { formatDateTime } from "@/lib/money";
 import { AUDIT_ACTIONS, AUDIT_ENTITIES, type AuditAction } from "@/lib/types";
 
-const actionTone: Record<AuditAction, PillTone> = { create: "success", update: "lavender", delete: "berry-soft", confirm_import: "plum", confirm_payout: "success", export: "neutral" };
+const actionTone: Record<AuditAction, PillTone> = { create: "success", update: "lavender", delete: "berry-soft", soft_delete: "berry-soft", restore: "success", denied: "warning", confirm_import: "plum", confirm_payout: "success", export: "neutral" };
 
 function entityHref(row: { entity_type: string; entity_id: string | null }): string | null {
   if (!row.entity_id) return null;
@@ -21,7 +21,7 @@ function entityHref(row: { entity_type: string; entity_id: string | null }): str
 }
 
 export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
-  const [sp, { supabase }, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
+  const [sp, { supabase }, locale] = await Promise.all([searchParams, requireAdmin("report", "audit"), getLocale()]);
   const tr = t(locale);
   const filters = parseAuditFilters(sp);
   const { rows, names } = await queryAudit(supabase, filters);
@@ -103,7 +103,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
                 <li key={row.id} className="rounded-card border border-line bg-card px-4 py-3 sm:px-5">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <Pill tone={actionTone[row.action]}>{tr(`audit.action.${row.action}`)}</Pill>
-                    <span className="font-medium text-plum">{names.get(row.actor_user_id) ?? "?"}</span>
+                    <span className="font-medium text-plum">{row.actor_user_id ? (names.get(row.actor_user_id) ?? "?") : "·"}</span>
                     <span className="text-plum-soft">
                       {tr(`audit.entity.${row.entity_type}` as "audit.entity.transaction")}
                       {href ? (

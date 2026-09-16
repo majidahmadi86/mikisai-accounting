@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordAudit } from "@/lib/audit";
 import { auditChanges, parseAuditFilters, queryAudit } from "@/lib/audit-query";
-import { requireSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import type { ExportTable } from "@/lib/exports/tables";
 import { buildWorkbook } from "@/lib/exports/xlsx";
 import { getLocale, t } from "@/lib/i18n/server";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 /** GET /audit/export?user=&action=&entity=&from=&to= → one XLSX row per changed field. */
 export async function GET(request: Request) {
-  const [session, locale] = await Promise.all([requireSession(), getLocale()]);
+  const [session, locale] = await Promise.all([requireAdmin("report", "audit"), getLocale()]);
   const tr = t(locale);
   const url = new URL(request.url);
   const filters = parseAuditFilters(Object.fromEntries(url.searchParams.entries()));
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       { key: "after", label: tr("audit.after"), kind: "text" },
     ],
     rows: rows.flatMap((row) => {
-      const base = [formatDateTime(row.created_at, locale), names.get(row.actor_user_id) ?? row.actor_user_id, tr(`audit.action.${row.action}`), tr(`audit.entity.${row.entity_type}` as "audit.entity.transaction"), row.entity_id ?? ""];
+      const base = [formatDateTime(row.created_at, locale), row.actor_user_id ? (names.get(row.actor_user_id) ?? row.actor_user_id) : "", tr(`audit.action.${row.action}`), tr(`audit.entity.${row.entity_type}` as "audit.entity.transaction"), row.entity_id ?? ""];
       const changes = auditChanges(row);
       if (!changes.length) return [[...base, "", "", ""]];
       return changes.map((c) => [...base, c.field, c.before, c.after]);
