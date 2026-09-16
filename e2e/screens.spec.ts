@@ -1,6 +1,6 @@
 /**
  * Captures the 375px screenshots the v2.2 report asks for, signed in as the
- * admin: quick entry (income with product), Reports → Expenses by category,
+ * admin: quick entry (income with product), Reports → Payments by category,
  * Reports → Stock on hand. Written to test-results/screens/. No data is changed.
  */
 import { config } from "dotenv";
@@ -29,7 +29,7 @@ test("v2.2 screens at 375px", async ({ page }) => {
   await page.keyboard.press("Escape");
 
   await page.goto("/reports");
-  const category = page.getByRole("heading", { name: /Expenses by category/ });
+  const category = page.getByRole("heading", { name: /Payments by category/ });
   await category.scrollIntoViewIfNeeded();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/reports-expenses-by-category-375.png` });

@@ -39,6 +39,8 @@ test.afterAll(async () => {
 });
 
 test("Home never scrolls sideways with a 300 character note", async ({ page }) => {
+  // The probe bypasses the app, so the ledger snapshot cache (60 s safety net) may hide it briefly.
+  test.setTimeout(180_000);
   // The first-run tour would cover the screenshot; mark it seen like a returning user.
   await page.addInitScript(() => window.localStorage.setItem("mikisai.tour.v1", "done"));
   await page.goto("/login");
@@ -46,6 +48,11 @@ test("Home never scrolls sideways with a 300 character note", async ({ page }) =
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /sign in|เข้าสู่ระบบ/i }).click();
   await page.waitForURL("**/");
+  const deadline = Date.now() + 75_000;
+  while ((await page.getByText(LONG_NOTE.slice(0, 40), { exact: false }).count()) === 0 && Date.now() < deadline) {
+    await page.waitForTimeout(5_000);
+    await page.goto("/");
+  }
 
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
