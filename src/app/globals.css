@@ -12,8 +12,8 @@
   --lavender: #c9b8e8;
   --ivory: #faf7f2;
   --ivory-deep: #f2ece4;
-  --plum-soft: rgba(48, 35, 51, 0.76);
-  --plum-faint: rgba(48, 35, 51, 0.66);
+  --plum-soft: rgba(48, 35, 51, 0.84);
+  --plum-faint: rgba(48, 35, 51, 0.72);
   --lavender-tint: rgba(201, 184, 232, 0.15);
   --lavender-soft: rgba(201, 184, 232, 0.4);
   --berry-tint: rgba(143, 49, 95, 0.1);
@@ -60,16 +60,47 @@ body {
   background: var(--ivory);
   color: var(--plum);
   font-family: var(--font-sans);
+  /* Jost is a light geometric; a touch above regular keeps small text crisp on phones. */
+  font-weight: 450;
   font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
 }
 
+/*
+  Bodoni Moda is a high-contrast face. Its optical-size axis thickens the
+  hairlines at small sizes, so headings below the page title use a low opsz
+  and a heavier weight; only the largest titles use the full display cut.
+*/
 h1,
 h2,
 h3,
 .font-display {
   font-family: var(--font-display);
-  font-variation-settings: "opsz" 72;
-  letter-spacing: -0.01em;
+  font-optical-sizing: none;
+  font-variation-settings: "opsz" 28;
+  font-weight: 560;
+  letter-spacing: -0.005em;
+}
+
+h1 {
+  font-variation-settings: "opsz" 48;
+  font-weight: 520;
+}
+
+@media (min-width: 640px) {
+  h1 {
+    font-variation-settings: "opsz" 64;
+  }
+}
+
+strong,
+b,
+.font-medium {
+  font-weight: 560;
+}
+
+.font-semibold {
+  font-weight: 640;
 }
 
 input,
@@ -94,9 +125,9 @@ textarea {
 
 /* Section eyebrow: uppercase, letterspaced, matching the brand board. */
 .eyebrow {
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: var(--tracking-eyebrow);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--plum-soft);
 }
