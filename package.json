@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "seed": "tsx scripts/seed.ts",
+    "reset:ledger": "tsx scripts/reset-ledger.ts",
     "verify:rls": "tsx scripts/verify-rls.ts"
   },
   "dependencies": {
