@@ -19,7 +19,7 @@ Phones get a bottom tab bar: Home · Ledger · Add · My Balance · More. Deskto
 | `/payouts` | Record a bank payout, then match it to orders: FIFO proposal within ±2%, adjust with checkboxes, confirm |
 | `/customers` | Built from customer names on sales, with totals and an editable note |
 | `/audit` | Every change: who, what, when, before and after. Filter by person, action, record and date. Download as Excel |
-| `/settings` | Per platform: commission %, fixed fee, days until payout and early-payout %. Plus the exposure limit for My Balance. Admin only; contributors read |
+| `/settings` | Per platform: commission %, fixed fee, days until payout and early-payout %. Exposure limit for My Balance. Expense categories (add, rename in EN and TH, reorder, hide). Products and stock (usual cost and price, low stock threshold, admin stock corrections). Admin edits; contributors read and may add products |
 | `/more/help` | Plain-words answers and the five-step tour |
 | `/login` | Email and password. No public signup |
 
@@ -60,6 +60,16 @@ A positive delta means that person holds more than their share, so the banner re
 - Exposure = the two above, compared with `businesses.exposure_limit`: green under 80%, amber to 100%, red above with a "Settle before any new stock purchase" banner.
 - Today's action is the single transfer that returns both partners to even; "Mark as sent" opens the transfer form prefilled and records nothing until confirmed.
 - Transfers carry a `kind`: `settlement` (paying the partner their share) or `capital` (my own money in to buy stock).
+
+## Inventory
+
+`src/lib/inventory/valuation.ts`, tested on: buy 10 boxes at 260, sell 3 at 399, one sample out gives stock 6, value 1,560, COGS 780, gross margin 417, My Balance stock share 780.
+
+- `products` (name, product line, variant, unit, usual cost and price, low stock threshold), `stock_movements` (positive in, negative out; purchase, sale, sample, adjustment, return) and `transaction_items` (product, qty, unit price or cost per sale or purchase line).
+- Every sale names at least one product and quantity; saving it writes sale movements. An expense whose category "moves stock" (Stock purchase brings units in, Samples takes them out) requires product, quantity and unit cost and writes the matching movements. Items are replaced through the `replace_transaction_items` RPC under the same role rule as editing the transaction, so no DELETE policy exists anywhere.
+- Stock is valued at moving average cost. Reports: stock on hand, low stock (threshold per product, default 3), product profitability (revenue, COGS, gross margin, margin %), samples given. Insights rank products by true gross margin when stock is tracked. My Balance shows "My share of stock on hand (at cost)" apart from cash exposure.
+- Import extracts product name, variant and quantity per receipt, fuzzy-matches products and shows a picker for anything unmatched; nothing is saved without a product and quantity.
+- Transfers carry a mandatory reason (stock purchase, samples, profit settlement, expense reimbursement, other with a note); the kind is derived in the database.
 
 ## Audit log
 
