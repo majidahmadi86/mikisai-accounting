@@ -11,6 +11,7 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone } from "@/lib/labels";
 import { formatDate, thb, todayIso } from "@/lib/money";
 import { buildMyBalance } from "@/lib/my-balance";
+import { valueStock } from "@/lib/inventory/valuation";
 import { cn } from "@/lib/cn";
 
 const levelStyles = {
@@ -32,6 +33,7 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
       transfers: snapshot.transfers,
       settings: snapshot.settings.map((s) => ({ platform: s.platform, settlement_lag_days: s.settlement_lag_days, daily_payout_pct: s.daily_payout_pct })),
       exposureLimit: snapshot.business.exposure_limit,
+      stockValue: valueStock(snapshot.products, snapshot.movements).totalValue,
     },
     me,
     today,
@@ -111,6 +113,16 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
             <span>{tr("balance.ofLimit", { pct: Math.round(b.exposurePct) })}</span>
             <span>{tr("balance.limit", { amount: thb(b.exposureLimit) })}</span>
           </p>
+        </Card>
+
+        {/* stock share, kept apart from cash */}
+        <Card tone="ivory" className="px-5 py-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="eyebrow">{tr("balance.stockTitle")}</p>
+            <InfoTip text={tr("balance.stockHint")} />
+          </div>
+          <p className="mt-2 text-3xl font-medium tabular text-plum">{thb(b.stockShare)}</p>
+          <p className="mt-1 text-sm text-plum-soft">{tr("balance.stockOf", { total: thb(b.stockValue) })}</p>
         </Card>
 
         {/* d) Today's action */}

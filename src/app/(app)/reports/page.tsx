@@ -8,7 +8,7 @@ import { DownloadIcon } from "@/components/ui/Icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
-import { reportTables, transferTable, type ExportTable } from "@/lib/exports/tables";
+import { inventoryTables, reportTables, transferTable, type ExportTable } from "@/lib/exports/tables";
 import { getLocale, t } from "@/lib/i18n/server";
 import { thb } from "@/lib/money";
 import { buildReports } from "@/lib/reports/build";
@@ -43,11 +43,11 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   const period = resolvePeriod(sp);
   const qs = periodQuery(period);
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
-  const bundle = buildReports(snapshot, period);
-  const tables = reportTables(bundle, tr, locale);
+  const bundle = buildReports({ ...snapshot, items: snapshot.items }, period);
+  const tables = [...reportTables(bundle, tr, locale), ...inventoryTables(bundle, tr)];
   const transfers = transferTable(bundle, tr, locale);
   const byId = Object.fromEntries(tables.map((x) => [x.id, x])) as Record<ExportTable["id"], ExportTable>;
-  const empty = bundle.pl.orders === 0 && bundle.pl.totalExpenses === 0;
+  const empty = bundle.pl.orders === 0 && bundle.pl.totalExpenses === 0 && !(bundle.inventory && bundle.inventory.stock.length);
 
   const chart = {
     product: bundle.byProduct.map((r) => ({ label: tr(`product.${r.product}`), value: r.net, display: thb(r.net) })),
@@ -141,6 +141,36 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
               <ReportTableView table={byId.customers} />
             </div>
           </Card>
+
+          {bundle.inventory ? (
+            <>
+              <Card>
+                <CardHeader title={byId.stock.title} subtitle={byId.stock.description} action={<ExportLinks small report="stock" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
+                <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                  <p className="mb-3 font-medium text-2xl tabular text-plum">{thb(bundle.inventory.valuation.totalValue)}</p>
+                  <ReportTableView table={byId.stock} />
+                </div>
+              </Card>
+              <Card tone={bundle.inventory.lowStock.length ? "warning" : "success"}>
+                <CardHeader title={byId.lowstock.title} subtitle={byId.lowstock.description} />
+                <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                  {bundle.inventory.lowStock.length ? <ReportTableView table={byId.lowstock} /> : <p className="text-sm text-success">{tr("reports.lowStockNone")}</p>}
+                </div>
+              </Card>
+              <Card>
+                <CardHeader title={byId.profit.title} subtitle={byId.profit.description} action={<ExportLinks small report="profit" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
+                <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                  <ReportTableView table={byId.profit} />
+                </div>
+              </Card>
+              <Card>
+                <CardHeader title={byId.samples.title} subtitle={byId.samples.description} action={<ExportLinks small report="samples" qs={qs} xlsx={tr("reports.xlsx")} pdf={tr("reports.pdf")} />} />
+                <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                  {bundle.inventory.samples.length ? <ReportTableView table={byId.samples} /> : <p className="text-sm text-plum-soft">{tr("reports.samplesNone")}</p>}
+                </div>
+              </Card>
+            </>
+          ) : null}
         </div>
       )}
     </div>

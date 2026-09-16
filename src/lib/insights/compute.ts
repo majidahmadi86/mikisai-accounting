@@ -78,7 +78,7 @@ export function observedLagDays(tx: ReportTx[], today: string): Record<Platform,
   return out;
 }
 
-export function buildProductInsights(tx: ReportTx[], today: string): ProductInsight[] {
+export function buildProductInsights(tx: ReportTx[], today: string, cogsByTransaction?: Map<string, number>): ProductInsight[] {
   const from30 = addDays(today, -29);
   const from7 = addDays(today, -6);
   const from90 = addDays(today, -89);
@@ -86,7 +86,9 @@ export function buildProductInsights(tx: ReportTx[], today: string): ProductInsi
   const rows = PRODUCT_LINES.map((product): ProductInsight => {
     const income30 = tx.filter((t) => t.type === "income" && t.product_line === product && within(t, from30, today));
     const income7 = income30.filter((t) => t.date >= from7);
-    const expenses30 = sum(tx.filter((t) => t.type === "expense" && t.product_line === product && within(t, from30, today)).map((t) => t.net_amount));
+    // Prefer the true cost of units sold (moving average) when stock is tracked; fall back to the line's expenses.
+    const cogs30 = cogsByTransaction ? sum(income30.map((t) => cogsByTransaction.get(t.id) ?? 0)) : 0;
+    const expenses30 = cogsByTransaction && cogs30 > 0 ? cogs30 : sum(tx.filter((t) => t.type === "expense" && t.product_line === product && within(t, from30, today)).map((t) => t.net_amount));
     const units30 = income30.reduce((a, t) => a + t.quantity, 0);
     const units7 = income7.reduce((a, t) => a + t.quantity, 0);
     const net30 = sum(income30.map((t) => t.net_amount));
@@ -188,8 +190,8 @@ export function buildExceptions(input: ReportInput, today: string): Exception[] 
   return [...unmatched, ...stale].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function buildInsights(input: ReportInput, today: string): Insights {
-  const products = buildProductInsights(input.transactions, today);
+export function buildInsights(input: ReportInput, today: string, cogsByTransaction?: Map<string, number>): Insights {
+  const products = buildProductInsights(input.transactions, today, cogsByTransaction);
   const cash = buildCashForecast(input.transactions, today);
   return {
     asOf: today,

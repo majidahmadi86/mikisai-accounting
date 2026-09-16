@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { recordAudit } from "@/lib/audit";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
-import { isReportId, reportTables, transferTable, type ExportTable } from "@/lib/exports/tables";
+import { inventoryTables, isReportId, reportTables, transferTable, type ExportTable } from "@/lib/exports/tables";
 import { buildWorkbook } from "@/lib/exports/xlsx";
 import { renderReportPdf } from "@/lib/exports/pdf";
 import { getLocale, t } from "@/lib/i18n/server";
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const bundle = buildReports(snapshot, period);
-  const all = reportTables(bundle, tr, locale);
+  const all = [...reportTables(bundle, tr, locale), ...inventoryTables(bundle, tr)];
   let tables: ExportTable[] = report === "all" ? all : all.filter((x) => x.id === report);
   if (report === "all" || report === "owes") {
     const idx = tables.findIndex((x) => x.id === "owes");

@@ -10,6 +10,7 @@ import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { buildInsights, STALE_ORDER_DAYS, type ProductInsight } from "@/lib/insights/compute";
 import { getWeeklyNarrative } from "@/lib/insights/narrative";
+import { valueStock } from "@/lib/inventory/valuation";
 import { platformName, platformTone, productName } from "@/lib/labels";
 import { formatDate, thb, todayIso } from "@/lib/money";
 
@@ -39,7 +40,7 @@ export default async function InsightsPage() {
   const tr = t(locale);
   const today = todayIso();
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
-  const insights = buildInsights(snapshot, today);
+  const insights = buildInsights(snapshot, today, valueStock(snapshot.products, snapshot.movements).cogsByTransaction);
   const narrative = insights.products.length ? await getWeeklyNarrative(session.profile.business_id, insights, locale) : null;
 
   return (

@@ -2,6 +2,8 @@ import { computeBalance, type Balance } from "@/lib/balance";
 import { round2 } from "@/lib/money";
 import { addDays, checkpoints, daysBetween, inPeriod, type Period } from "./period";
 import type { ExpenseCategory } from "@/lib/categories";
+import { buildInventoryReports, type InventoryReports, type TransactionItemRow } from "@/lib/inventory/reports";
+import type { Product, StockMovement } from "@/lib/inventory/valuation";
 import { PLATFORMS, PRODUCT_LINES, type Person, type Platform, type ProductLine, type SettlementStatus } from "@/lib/types";
 
 /** Structural subset of LedgerTransaction so reports can be built and tested without the server module. */
@@ -26,7 +28,15 @@ export type ReportTx = {
 export type ReportTransfer = { id: string; date: string; from_person: Person; to_person: Person; amount: number; note: string };
 export type ReportPayout = { id: string; date: string; platform: Platform; amount_received: number; received_by: Person; note: string };
 
-export type ReportInput = { transactions: ReportTx[]; transfers: ReportTransfer[]; payouts: ReportPayout[]; categories: ExpenseCategory[] };
+export type ReportInput = {
+  transactions: ReportTx[];
+  transfers: ReportTransfer[];
+  payouts: ReportPayout[];
+  categories: ExpenseCategory[];
+  products?: Product[];
+  movements?: StockMovement[];
+  items?: TransactionItemRow[];
+};
 
 export type PLReport = {
   orders: number;
@@ -58,11 +68,12 @@ export type ReportBundle = {
   owesHistory: OwesRow[];
   transfers: ReportTransfer[];
   customers: CustomerRow[];
+  inventory: InventoryReports | null;
 };
 
 const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
 
-const UNKNOWN_CATEGORY: ExpenseCategory = { id: "unknown", name_en: "Uncategorised", name_th: "ไม่ระบุหมวด", sort: 9999, active: false };
+const UNKNOWN_CATEGORY: ExpenseCategory = { id: "unknown", name_en: "Uncategorised", name_th: "ไม่ระบุหมวด", sort: 9999, active: false, stock_effect: "none" };
 
 /** Categories in display order, plus a placeholder for rows whose category no longer exists. */
 function categoriesFor(tx: ReportTx[], categories: ExpenseCategory[]): ExpenseCategory[] {
@@ -240,5 +251,16 @@ export function buildReports(input: ReportInput, period: Period, generatedAt = n
     owesHistory: buildOwesHistory(input, period),
     transfers: input.transfers.filter((t) => inPeriod(t.date, period)),
     customers: buildCustomers(tx),
+    inventory: input.products
+      ? buildInventoryReports(
+          {
+            products: input.products,
+            movements: input.movements ?? [],
+            items: input.items ?? [],
+            sales: input.transactions.filter((t) => t.type === "income").map((t) => ({ id: t.id, date: t.date, net_amount: t.net_amount })),
+          },
+          period,
+        )
+      : null,
   };
 }

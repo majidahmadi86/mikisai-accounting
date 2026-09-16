@@ -2,6 +2,7 @@ import type { Translator } from "@/lib/i18n/dictionary";
 import type { Locale } from "@/lib/i18n/dictionary";
 import { categoryLabel } from "@/lib/categories";
 import { platformName, productName } from "@/lib/labels";
+import { productLabel } from "@/lib/inventory/reports";
 import { formatDate } from "@/lib/money";
 import type { ReportBundle } from "@/lib/reports/build";
 
@@ -24,7 +25,7 @@ export type ExportTable = {
   totalLabel: string;
 };
 
-export const REPORT_IDS = ["pl", "product", "platform", "category", "settlement", "owes", "customers"] as const;
+export const REPORT_IDS = ["pl", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "samples"] as const;
 export type ReportId = (typeof REPORT_IDS)[number];
 
 export function isReportId(v: unknown): v is ReportId {
@@ -158,6 +159,72 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
       ],
       rows: bundle.customers.map((c) => [c.name, platformName(tr, c.platform), c.orders, c.gross, c.net, formatDate(c.lastOrder, locale)]),
       totals: [2, 3, 4],
+      totalLabel: tr("common.total"),
+    },
+  ];
+}
+
+/** Stock on hand, low stock, profitability and samples. Empty when inventory is not part of the bundle. */
+export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTable[] {
+  const inv = bundle.inventory;
+  if (!inv) return [];
+  return [
+    {
+      id: "stock",
+      title: tr("reports.stock"),
+      description: tr("reports.stockDesc"),
+      columns: [
+        { key: "product", label: tr("common.product"), kind: "text" },
+        { key: "unit", label: tr("inventory.unit"), kind: "text" },
+        { key: "onHand", label: tr("reports.onHand"), kind: "int" },
+        { key: "avgCost", label: tr("reports.avgCost"), kind: "money" },
+        { key: "value", label: tr("reports.value"), kind: "money" },
+        { key: "threshold", label: tr("reports.threshold"), kind: "int" },
+      ],
+      rows: inv.stock.map((r) => [productLabel(r.product), r.product.unit_label, r.onHand, r.avgCost, r.value, r.product.low_stock_threshold]),
+      totals: [4],
+      totalLabel: tr("common.total"),
+    },
+    {
+      id: "lowstock",
+      title: tr("reports.lowStock"),
+      description: tr("reports.lowStockDesc"),
+      columns: [
+        { key: "product", label: tr("common.product"), kind: "text" },
+        { key: "onHand", label: tr("reports.onHand"), kind: "int" },
+        { key: "threshold", label: tr("reports.threshold"), kind: "int" },
+      ],
+      rows: inv.lowStock.map((r) => [productLabel(r.product), r.onHand, r.product.low_stock_threshold]),
+      totals: [],
+      totalLabel: tr("common.total"),
+    },
+    {
+      id: "profit",
+      title: tr("reports.profitability"),
+      description: tr("reports.profitabilityDesc"),
+      columns: [
+        { key: "product", label: tr("common.product"), kind: "text" },
+        { key: "qty", label: tr("reports.units"), kind: "int" },
+        { key: "revenue", label: tr("reports.revenue"), kind: "money" },
+        { key: "cogs", label: tr("reports.cogs"), kind: "money" },
+        { key: "margin", label: tr("reports.grossMargin"), kind: "money" },
+        { key: "marginPct", label: tr("reports.marginPct"), kind: "pct" },
+      ],
+      rows: inv.profitability.map((r) => [productLabel(r.product), r.qty, r.revenue, r.cogs, r.grossMargin, r.marginPct]),
+      totals: [1, 2, 3, 4],
+      totalLabel: tr("common.total"),
+    },
+    {
+      id: "samples",
+      title: tr("reports.samples"),
+      description: tr("reports.samplesDesc"),
+      columns: [
+        { key: "product", label: tr("common.product"), kind: "text" },
+        { key: "qty", label: tr("reports.units"), kind: "int" },
+        { key: "cost", label: tr("common.amount"), kind: "money" },
+      ],
+      rows: inv.samples.map((r) => [productLabel(r.product), r.qty, r.cost]),
+      totals: [1, 2],
       totalLabel: tr("common.total"),
     },
   ];
