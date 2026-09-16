@@ -59,7 +59,7 @@ suite("editing a row through the app's update path", () => {
   });
 
   it("changes a transaction's date and records before/after in audit_log", async () => {
-    const row = toRow({ type: "income", date: "2026-09-15", platform: "shopee", product_line: "sugar", gross_amount: 100, net_amount: 90, quantity: 1, received_by: "sai", customer_name: "edit-probe", note: "edit-probe" }, SEED_BUSINESS_ID);
+    const row = toRow({ type: "income", date: "2026-09-15", platform: "shopee", product_line: "sugar", gross_amount: 100, net_amount: 90, quantity: 1, received_by: "sai", customer_name: "edit-probe", note: "edit-probe", items: [{ product_id: "00000000-0000-4000-8000-0000000000a1", qty: 1, unit_price: 100 }] }, SEED_BUSINESS_ID);
     const outcome = await applyTransactionUpdate(mike, SEED_BUSINESS_ID, ids.tx, row);
     expect(outcome).toEqual({ ok: true });
 

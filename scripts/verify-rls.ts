@@ -13,7 +13,7 @@ import { requireEnv } from "./env";
 const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
 const anonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-const TABLES = ["businesses", "profiles", "transactions", "settlements", "payouts", "internal_transfers", "customers", "platform_settings", "report_uploads", "audit_log"];
+const TABLES = ["businesses", "profiles", "transactions", "settlements", "payouts", "internal_transfers", "customers", "platform_settings", "report_uploads", "audit_log", "expense_categories", "products", "stock_movements", "transaction_items"];
 
 let failures = 0;
 function check(label: string, ok: boolean, detail = "") {
@@ -147,6 +147,27 @@ async function roleChecks() {
   } finally {
     await admin.from("transactions").delete().in("id", ids);
     await admin.from("audit_log").delete().in("entity_id", ids);
+  }
+
+  // Inventory tables: both roles add products, nobody deletes, only the admin adjusts stock.
+  const probeProduct = { business_id: SEED_BUSINESS_ID, name: `rls-probe-${Date.now()}`, variant: "probe", product_line: "other", unit_label: "box" };
+  const { data: prod, error: prodErr } = await sai.from("products").insert(probeProduct).select("id").single();
+  check("contributor can add a product", !prodErr && !!prod, prodErr?.message);
+  if (prod) {
+    const { count: delCount } = await sai.from("products").delete({ count: "exact" }).eq("id", prod.id);
+    check("contributor cannot delete a product", (delCount ?? 0) === 0);
+    const { error: adjErr } = await sai.from("stock_movements").insert({ business_id: SEED_BUSINESS_ID, product_id: prod.id, qty: 5, kind: "adjustment", date: "2026-01-01", note: "rls-probe" });
+    check("contributor cannot adjust stock", !!adjErr, adjErr?.message ?? "insert succeeded");
+    const { error: purchaseErr } = await sai.from("stock_movements").insert({ business_id: SEED_BUSINESS_ID, product_id: prod.id, qty: 2, kind: "purchase", unit_cost: 10, date: "2026-01-01", note: "rls-probe" });
+    check("contributor can record a purchase movement", !purchaseErr, purchaseErr?.message);
+    const { data: adj, error: adminAdjErr } = await mike.from("stock_movements").insert({ business_id: SEED_BUSINESS_ID, product_id: prod.id, qty: -1, kind: "adjustment", date: "2026-01-01", note: "rls-probe" }).select("id").single();
+    check("admin can adjust stock", !adminAdjErr && !!adj, adminAdjErr?.message);
+    const { count: mvDel } = await mike.from("stock_movements").delete({ count: "exact" }).eq("product_id", prod.id);
+    check("admin cannot hard-delete stock movements", (mvDel ?? 0) === 0);
+    await admin.from("stock_movements").delete().eq("product_id", prod.id);
+    await admin.from("products").delete().eq("id", prod.id);
+    await admin.from("audit_log").delete().or(`entity_id.eq.${prod.id}${adj ? `,entity_id.eq.${adj.id}` : ""}`);
+    await admin.from("audit_log").delete().eq("entity_type", "stock_movement").eq("after->>product_id", prod.id);
   }
 }
 
