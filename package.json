@@ -45,5 +45,8 @@
     "unrs-resolver@1.12.2": true,
     "@google/genai@2.22.0": true,
     "protobufjs@7.6.6": true
+  },
+  "overrides": {
+    "uuid": "^11.1.0"
   }
 }
