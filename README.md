@@ -45,7 +45,7 @@ Every server-side mutation appends a row to `audit_log` (`recordAudit` in `src/l
 ## Speed
 
 - `vercel.json` pins functions to `sin1`, the same region as the Supabase project.
-- Every page is a Server Component. Reads that feed the dashboard, reports, insights and the quick-entry defaults go through one `unstable_cache` snapshot per business (`src/lib/data/ledger.ts`), tagged and expired by every mutation.
+- Every page is a Server Component. Reads that feed the dashboard, reports, insights and the quick-entry defaults go through one `unstable_cache` snapshot per business (`src/lib/data/ledger.ts`), tagged and expired by every mutation, with a 60 second revalidate as a safety net for changes made outside the app.
 - Indexes on `(business_id, type)`, `(business_id, type, date)`, `settlements(status)`, payouts and transfers by date.
 - The import module, the quick-entry sheet and the report charts load only when needed.
 - Quick entry is optimistic: the sheet closes immediately and the server action runs behind a toast with Undo.

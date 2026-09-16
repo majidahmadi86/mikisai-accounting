@@ -66,7 +66,10 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
       };
     },
     ["ledger-snapshot", businessId],
-    { tags: [ledgerTag(businessId)], revalidate: 3600 },
+    // Writes made through the app expire the tag immediately. The short
+    // revalidate is a safety net for changes made outside the app (SQL,
+    // scripts such as reset:ledger), so the site never lags by more than a minute.
+    { tags: [ledgerTag(businessId)], revalidate: 60 },
   )();
 }
 
