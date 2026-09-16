@@ -19,11 +19,11 @@ function tokens(s: string): string[] {
  * name plus variant, with the variant label weighted. Returns null below a
  * confidence floor so the review table shows the picker instead of guessing.
  */
-export function matchProduct(products: MatchableProduct[], name: string | null, variant: string | null, note: string | null, line: ProductLine): MatchableProduct | null {
+export function matchProduct<P extends MatchableProduct>(products: P[], name: string | null, variant: string | null, note: string | null, line: ProductLine): P | null {
   const text = `${name ?? ""} ${variant ?? ""} ${note ?? ""}`;
   const want = new Set(tokens(text));
   if (want.size === 0 && !name) return null;
-  let best: { p: MatchableProduct; score: number } | null = null;
+  let best: { p: P; score: number } | null = null;
   for (const p of products) {
     const nameTokens = tokens(p.name);
     const variantTokens = tokens(p.variant);

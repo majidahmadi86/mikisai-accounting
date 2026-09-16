@@ -20,12 +20,13 @@ export default async function RecentlyDeletedPage() {
   const { supabase } = session;
   const categories = categoryById((await getLedgerSnapshot(session.profile.business_id)).categories);
 
-  const [tx, po, tf, cu, profiles] = await Promise.all([
+  const [tx, po, tf, cu, profiles, pr] = await Promise.all([
     supabase.from("transactions").select("id, type, date, platform, net_amount, customer_name, category_id, note, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(200),
     supabase.from("payouts").select("id, date, platform, amount_received, note, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(100),
     supabase.from("internal_transfers").select("id, date, from_person, to_person, amount, kind, reason, note, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(100),
     supabase.from("customers").select("id, name, platform, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(100),
     supabase.from("profiles").select("id, display_name"),
+    supabase.from("products").select("id, name, variant, deleted_at, deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(100),
   ]);
   const names = new Map((profiles.data ?? []).map((p) => [p.id as string, p.display_name as string]));
 
@@ -43,6 +44,7 @@ export default async function RecentlyDeletedPage() {
     ...(po.data ?? []).map((r): Row => ({ entity: "payout", id: r.id, title: tr("deleted.payout"), detail: `${formatDate(r.date, locale)}${r.note ? ` · ${r.note}` : ""}`, amount: num(r.amount_received), deletedAt: r.deleted_at, deletedBy: r.deleted_by, platform: r.platform })),
     ...(tf.data ?? []).map((r): Row => ({ entity: "internal_transfer", id: r.id, title: `${tr(`common.${r.from_person as Person}`)} → ${tr(`common.${r.to_person as Person}`)}`, detail: `${tr(`transfer.reason.${r.reason as TransferReason}`)} · ${formatDate(r.date, locale)}${r.note ? ` · ${r.note}` : ""}`, amount: num(r.amount), deletedAt: r.deleted_at, deletedBy: r.deleted_by })),
     ...(cu.data ?? []).map((r): Row => ({ entity: "customer", id: r.id, title: r.name, detail: tr("deleted.customer"), amount: null, deletedAt: r.deleted_at, deletedBy: r.deleted_by, platform: r.platform })),
+    ...(pr.data ?? []).map((r): Row => ({ entity: "product", id: r.id, title: r.name, detail: `${tr("deleted.product")}${r.variant ? ` · ${r.variant}` : ""}`, amount: null, deletedAt: r.deleted_at, deletedBy: r.deleted_by })),
   ].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
 
   return (

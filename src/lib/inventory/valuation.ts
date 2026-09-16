@@ -6,13 +6,20 @@ export type StockMovementKind = (typeof STOCK_MOVEMENT_KINDS)[number];
 export type Product = {
   id: string;
   name: string;
+  name_th: string;
   product_line: "sugar" | "skincare" | "other";
   variant: string;
   unit_label: string;
+  /** Standard (planned) cost per unit. */
   default_cost: number;
+  /** Standard sale price per unit. */
   default_price: number;
+  /** Optional per-platform list prices: { tiktok, shopee, fb }. */
+  list_prices: Record<string, number>;
   low_stock_threshold: number;
   active: boolean;
+  photo_path: string | null;
+  notes: string;
   deleted_at?: string | null;
 };
 

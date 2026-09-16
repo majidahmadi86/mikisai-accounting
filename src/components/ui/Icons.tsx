@@ -57,6 +57,15 @@ export function BalanceIcon(p: IconProps) {
   );
 }
 
+export function BoxIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
+      <path d="M4 7.5 12 12l8-4.5M12 12v9" />
+    </Svg>
+  );
+}
+
 export function ReportsIcon(p: IconProps) {
   return (
     <Svg {...p}>

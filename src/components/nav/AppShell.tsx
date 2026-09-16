@@ -3,6 +3,8 @@ import { LangToggle } from "./LangToggle";
 import { NavLinks } from "./NavLinks";
 import { AddButton } from "./AddButton";
 import { TabBar } from "./TabBar";
+import Link from "next/link";
+import { BoxIcon } from "@/components/ui/Icons";
 import { signOut } from "@/app/login/actions";
 import type { Locale, Translator } from "@/lib/i18n/dictionary";
 
@@ -20,6 +22,7 @@ export function AppShell({
   const links = [
     { href: "/", label: tr("nav.home") },
     { href: "/transactions", label: tr("nav.ledger") },
+    { href: "/products", label: tr("nav.products") },
     { href: "/balance", label: tr("nav.balance") },
     { href: "/reports", label: tr("nav.reports") },
     { href: "/insights", label: tr("nav.insights") },
@@ -36,6 +39,9 @@ export function AppShell({
               <NavLinks links={links} className="hidden md:flex" />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
+              <Link href="/products" aria-label={tr("nav.products")} className="flex h-11 w-11 items-center justify-center rounded-full text-plum-soft hover:bg-lavender-tint hover:text-berry md:hidden">
+                <BoxIcon />
+              </Link>
               <span className="hidden md:block">
                 <AddButton label={tr("nav.add")} />
               </span>

@@ -3,7 +3,7 @@ import { productProfitability, valueStock, type Product, type StockMovement } fr
 import { buildMyBalance, type MyBalanceInput } from "@/lib/my-balance";
 import { REPORT_TODAY, seedLedger } from "@/lib/fixtures/report-data";
 
-const sugar: Product = { id: "p-sugar", name: "Coconut sugar", product_line: "sugar", variant: "10 kg", unit_label: "box", default_cost: 0, default_price: 399, low_stock_threshold: 3, active: true };
+const sugar: Product = { id: "p-sugar", name: "Coconut sugar", name_th: "", product_line: "sugar", variant: "10 kg", unit_label: "box", default_cost: 0, default_price: 399, list_prices: {}, low_stock_threshold: 3, active: true, photo_path: null, notes: "" };
 
 /** Buy 10 boxes at 260, sell 3 at 399 (one sale), one sample out. */
 function movements(): StockMovement[] {

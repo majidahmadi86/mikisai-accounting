@@ -1,12 +1,13 @@
 /** Tables that support soft delete and restore. Kept outside the server-action file, which may only export async functions. */
-export const SOFT_DELETE_ENTITIES = ["transaction", "payout", "internal_transfer", "customer"] as const;
+export const SOFT_DELETE_ENTITIES = ["transaction", "payout", "internal_transfer", "customer", "product"] as const;
 export type SoftDeleteEntity = (typeof SOFT_DELETE_ENTITIES)[number];
 
-export const SOFT_DELETE_TABLE: Record<SoftDeleteEntity, "transactions" | "payouts" | "internal_transfers" | "customers"> = {
+export const SOFT_DELETE_TABLE: Record<SoftDeleteEntity, "transactions" | "payouts" | "internal_transfers" | "customers" | "products"> = {
   transaction: "transactions",
   payout: "payouts",
   internal_transfer: "internal_transfers",
   customer: "customers",
+  product: "products",
 };
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
