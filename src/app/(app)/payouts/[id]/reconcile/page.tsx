@@ -14,7 +14,7 @@ export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]
   const tr = t(locale);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
 
-  const { data: payoutRow } = await supabase.from("payouts").select("*").eq("id", id).maybeSingle();
+  const { data: payoutRow } = await supabase.from("payouts").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!payoutRow) notFound();
   const payout: Payout = { ...(payoutRow as Payout), amount_received: num(payoutRow.amount_received) };
 
@@ -23,6 +23,7 @@ export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]
     .from("settlements")
     .select("id, transaction_id, status, payout_id, transactions!inner(date, created_at, net_amount, gross_amount, customer_name, platform, product_line)")
     .eq("transactions.platform", payout.platform)
+    .is("transactions.deleted_at", null)
     .or(`payout_id.eq.${id},and(payout_id.is.null,status.in.(pending,settled_not_withdrawn))`);
 
   const candidates: ReconcileCandidate[] = (rows ?? [])

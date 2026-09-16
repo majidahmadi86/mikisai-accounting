@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
-import { PEOPLE } from "@/lib/types";
+import { PEOPLE, TRANSFER_KINDS } from "@/lib/types";
 
 const TransferSchema = z
   .object({
@@ -12,7 +12,9 @@ const TransferSchema = z
     from_person: z.enum(PEOPLE),
     to_person: z.enum(PEOPLE),
     amount: z.coerce.number().positive().max(99_999_999),
+    kind: z.enum(TRANSFER_KINDS).default("settlement"),
     note: z.string().trim().max(2000).optional(),
+    redirect_to: z.enum(["/", "/balance"]).optional(),
   })
   .refine((v) => v.from_person !== v.to_person, { message: "same person" });
 
@@ -27,17 +29,12 @@ export async function createTransfer(formData: FormData) {
     from_person: parsed.data.from_person,
     to_person: parsed.data.to_person,
     amount: parsed.data.amount,
+    kind: parsed.data.kind,
     note: parsed.data.note ?? "",
   });
   if (error) redirect("/?transfer=save");
 
   ledgerChanged(profile.business_id);
-  redirect("/");
+  redirect(`${parsed.data.redirect_to ?? "/"}?transfer=saved`);
 }
 
-export async function deleteTransfer(id: string) {
-  const { supabase, profile } = await requireSession();
-  await supabase.from("internal_transfers").delete().eq("id", id).eq("business_id", profile.business_id);
-  ledgerChanged(profile.business_id);
-  redirect("/");
-}

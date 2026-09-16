@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth";
+import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
 import { insertTransaction, type SaveResult } from "@/lib/ledger/insert";
 import { formToObject, toRow, TransactionSchema } from "@/lib/ledger/transaction-input";
@@ -20,13 +20,19 @@ export async function quickAddTransaction(input: unknown): Promise<SaveResult> {
 }
 
 export async function updateTransaction(id: string, formData: FormData) {
-  const { supabase, profile } = await requireSession();
+  const session = await requireSession();
+  const { supabase, profile } = session;
   const parsed = TransactionSchema.safeParse(formToObject(formData));
   if (!parsed.success) redirect(`/transactions/${id}/edit?error=invalid`);
 
   const row = toRow(parsed.data, profile.business_id);
-  const { error } = await supabase.from("transactions").update(row).eq("id", id).eq("business_id", profile.business_id);
+  const { error, count } = await supabase.from("transactions").update(row, { count: "exact" }).eq("id", id).eq("business_id", profile.business_id).is("deleted_at", null);
   if (error) redirect(`/transactions/${id}/edit?error=save`);
+  if (!count) {
+    // RLS refused: not the admin, not the author, or older than 24 hours.
+    await recordDenied(session, "transaction", id, { attempted: "update" });
+    redirect(`/transactions/${id}/edit?error=denied`);
+  }
 
   if (parsed.data.type === "income" && parsed.data.settlement_status) {
     const status = parsed.data.settlement_status;
@@ -47,16 +53,24 @@ export async function updateTransaction(id: string, formData: FormData) {
   redirect("/transactions?saved=1");
 }
 
-/** Removes a transaction (its settlement cascades). Also used by the quick-entry undo toast. */
+/**
+ * Soft-deletes a transaction. Used by the quick-entry undo toast: RLS lets a
+ * contributor do this only for their own row within 24 hours, which is exactly
+ * the undo case; anything else is refused and recorded.
+ */
 export async function removeTransaction(id: string): Promise<{ ok: boolean }> {
-  const { supabase, profile } = await requireSession();
-  const { error, count } = await supabase.from("transactions").delete({ count: "exact" }).eq("id", id).eq("business_id", profile.business_id);
-  if (error || !count) return { ok: false };
+  const session = await requireSession();
+  const { supabase, profile, userId } = session;
+  const { error, count } = await supabase
+    .from("transactions")
+    .update({ deleted_at: new Date().toISOString(), deleted_by: userId }, { count: "exact" })
+    .eq("id", id)
+    .eq("business_id", profile.business_id)
+    .is("deleted_at", null);
+  if (error || !count) {
+    await recordDenied(session, "transaction", id, { attempted: "soft_delete" });
+    return { ok: false };
+  }
   ledgerChanged(profile.business_id);
   return { ok: true };
-}
-
-export async function deleteTransaction(id: string) {
-  await removeTransaction(id);
-  redirect("/transactions");
 }

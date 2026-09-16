@@ -19,8 +19,8 @@ export default async function CustomersPage() {
   const tr = t(locale);
 
   const [{ data: customers }, { data: incomes }] = await Promise.all([
-    supabase.from("customers").select("*").order("name"),
-    supabase.from("transactions").select("customer_name, gross_amount, net_amount, date").eq("type", "income").not("customer_name", "is", null),
+    supabase.from("customers").select("*").is("deleted_at", null).order("name"),
+    supabase.from("transactions").select("customer_name, gross_amount, net_amount, date").eq("type", "income").is("deleted_at", null).not("customer_name", "is", null),
   ]);
 
   const totals = new Map<string, Totals>();

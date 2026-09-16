@@ -19,12 +19,16 @@ export type QuickEntryContextData = {
   customers: Pick<Customer, "name" | "platform">[];
 };
 
+export type Notice = { message: string; actionLabel?: string; onAction?: () => void | Promise<void>; durationMs?: number };
+
 type Ctx = {
   open: (type?: TransactionType) => void;
   close: () => void;
   isOpen: boolean;
   data: QuickEntryContextData;
   submit: (input: TransactionInput, keepOpen: boolean) => void;
+  /** Shows a toast with an optional one-tap action (used for delete undo). */
+  notify: (notice: Notice) => void;
 };
 
 const QuickEntryContext = createContext<Ctx | null>(null);
@@ -41,6 +45,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
   const [toast, setToast] = useState<ToastState | null>(null);
   const [retryInput, setRetryInput] = useState<TransactionInput | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noticeAction = useRef<Notice["onAction"] | null>(null);
 
   const clearTimer = () => {
     if (timer.current) clearTimeout(timer.current);
@@ -65,6 +70,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
       const amount = input.type === "income" ? (input.net_amount ?? input.gross_amount) : input.amount;
       const sign = input.type === "income" ? "+" : "-";
       if (!keepOpen) setOpen(false);
+      noticeAction.current = null;
       setToast({ kind: "saving", message: t("quick.saved", { amount: `${sign}${thb(amount)}` }) });
 
       void (async () => {
@@ -82,9 +88,23 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
     [router, t],
   );
 
+  const notify = useCallback((notice: Notice) => {
+    clearTimer();
+    noticeAction.current = notice.onAction ?? null;
+    setToast({ kind: "saved", message: notice.message, actionLabel: notice.actionLabel });
+    timer.current = setTimeout(() => setToast(null), notice.durationMs ?? 4000);
+  }, []);
+
   const onToastAction = useCallback(() => {
     if (!toast) return;
     clearTimer();
+    if (noticeAction.current) {
+      const fn = noticeAction.current;
+      noticeAction.current = null;
+      setToast(null);
+      void fn();
+      return;
+    }
     if (toast.kind === "error") {
       setToast(null);
       setOpen(true);
@@ -104,7 +124,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
 
   useEffect(() => clearTimer, []);
 
-  const value = useMemo<Ctx>(() => ({ open, close, isOpen, data, submit }), [open, close, isOpen, data, submit]);
+  const value = useMemo<Ctx>(() => ({ open, close, isOpen, data, submit, notify }), [open, close, isOpen, data, submit, notify]);
 
   return (
     <QuickEntryContext.Provider value={value}>

@@ -32,7 +32,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
   const filtered = Boolean(filters.type || filters.platform || filters.product || filters.status);
 
   const select = filters.status ? "*, settlements!inner(status, payout_id)" : "*, settlements(status, payout_id)";
-  let query = supabase.from("transactions").select(select).order("date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
+  let query = supabase.from("transactions").select(select).is("deleted_at", null).order("date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
   if (filters.type) query = query.eq("type", filters.type);
   if (filters.platform) query = query.eq("platform", filters.platform);
   if (filters.product) query = query.eq("product_line", filters.product);

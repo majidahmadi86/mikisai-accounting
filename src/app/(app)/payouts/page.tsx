@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
-import { DeleteButton } from "@/components/ui/DeleteButton";
+import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -12,21 +12,23 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone } from "@/lib/labels";
 import { formatDate, round2, thb } from "@/lib/money";
 import { num, type Payout } from "@/lib/types";
-import { deletePayout } from "./actions";
 
 export default async function PayoutsPage() {
-  const [{ supabase }, locale] = await Promise.all([requireSession(), getLocale()]);
+  const [session, locale] = await Promise.all([requireSession(), getLocale()]);
+  const { supabase } = session;
+  const admin = session.profile.role === "admin";
   const tr = t(locale);
 
   const [{ data: payouts }, { data: matched }] = await Promise.all([
-    supabase.from("payouts").select("*").order("date", { ascending: false }).order("created_at", { ascending: false }),
-    supabase.from("settlements").select("payout_id, transactions(net_amount)").not("payout_id", "is", null),
+    supabase.from("payouts").select("*").is("deleted_at", null).order("date", { ascending: false }).order("created_at", { ascending: false }),
+    supabase.from("settlements").select("payout_id, transactions(net_amount, deleted_at)").not("payout_id", "is", null),
   ]);
 
   const byPayout = new Map<string, { count: number; total: number }>();
   for (const s of matched ?? []) {
     if (!s.payout_id) continue;
     const tx = Array.isArray(s.transactions) ? s.transactions[0] : s.transactions;
+    if (tx?.deleted_at) continue;
     const cur = byPayout.get(s.payout_id) ?? { count: 0, total: 0 };
     cur.count += 1;
     cur.total = round2(cur.total + num(tx?.net_amount));
@@ -61,7 +63,6 @@ export default async function PayoutsPage() {
         <>
           <StackedList>
             {rows.map((p) => {
-              const remove = deletePayout.bind(null, p.id);
               return (
                 <StackedItem key={p.id}>
                   <div className="flex items-start justify-between gap-3">
@@ -83,9 +84,7 @@ export default async function PayoutsPage() {
                     <Link href={`/payouts/${p.id}/reconcile`} className="inline-flex min-h-11 items-center text-sm font-medium text-berry">
                       {tr("payouts.reconcile")} →
                     </Link>
-                    <form action={remove}>
-                      <DeleteButton variant="ghost" className="px-3 text-xs" />
-                    </form>
+                    {admin ? <SoftDeleteButton entity="payout" id={p.id} variant="ghost" className="px-3 text-xs" /> : null}
                   </div>
                 </StackedItem>
               );
@@ -110,8 +109,7 @@ export default async function PayoutsPage() {
             </thead>
             <tbody>
               {rows.map((p) => {
-                const remove = deletePayout.bind(null, p.id);
-                return (
+                  return (
                   <tr key={p.id} className="hover:bg-lavender-tint">
                     <Td className="whitespace-nowrap">{formatDate(p.date, locale)}</Td>
                     <Td>
@@ -130,9 +128,7 @@ export default async function PayoutsPage() {
                         <Link href={`/payouts/${p.id}/reconcile`} className="text-xs text-berry hover:underline whitespace-nowrap">
                           {tr("payouts.reconcile")} →
                         </Link>
-                        <form action={remove}>
-                          <DeleteButton variant="ghost" className="px-2 text-xs" />
-                        </form>
+                        {admin ? <SoftDeleteButton entity="payout" id={p.id} variant="ghost" className="px-2 text-xs" /> : null}
                       </div>
                     </Td>
                   </tr>

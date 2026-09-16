@@ -82,12 +82,3 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
   redirect("/payouts?matched=1");
 }
 
-export async function deletePayout(id: string) {
-  const { supabase, profile } = await requireSession();
-  if (!UUID.test(id)) redirect("/payouts");
-  // Return matched orders to pending before removing the payout.
-  await supabase.from("settlements").update({ status: "pending", settled_at: null, payout_id: null }).eq("payout_id", id);
-  await supabase.from("payouts").delete().eq("id", id).eq("business_id", profile.business_id);
-  ledgerChanged(profile.business_id);
-  redirect("/payouts");
-}
