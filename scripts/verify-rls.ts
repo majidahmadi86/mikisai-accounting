@@ -104,8 +104,8 @@ async function roleChecks() {
   const { data: rows, error: insErr } = await admin
     .from("transactions")
     .insert([
-      { ...probe, created_by: mikeId },
-      { ...probe, created_by: saiId },
+      { ...probe, created_by: mikeId, created_at: new Date().toISOString() },
+      { ...probe, created_by: saiId, created_at: new Date().toISOString() },
       { ...probe, created_by: saiId, created_at: new Date(Date.now() - 2 * 86_400_000).toISOString() },
     ])
     .select("id, created_by, created_at");
