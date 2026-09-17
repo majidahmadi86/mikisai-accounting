@@ -191,10 +191,16 @@ function touchIn(map: Map<string, Map<string, Acc>>, key: string, productId: str
   return a;
 }
 
-/** Short product name for a ledger row: the variant when there is one, else the name. */
-export function shortProductName(p: Pick<Product, "name" | "variant" | "name_th">, locale: "en" | "th" = "en"): string {
+/** Short product name for ledger rows, chips, Home and Units: the admin-set short name, else the variant, else the name. */
+export function shortProductName(p: Pick<Product, "name" | "variant" | "name_th" | "short_name">, locale: "en" | "th" = "en"): string {
+  if (p.short_name) return p.short_name;
   if (p.variant) return p.variant;
   return locale === "th" && p.name_th ? p.name_th : p.name;
+}
+
+/** Picker row: variant first, then the product name. Never truncated. */
+export function pickerParts(p: Pick<Product, "name" | "variant" | "name_th">, locale: "en" | "th" = "en"): { variant: string; name: string } {
+  return { variant: p.variant, name: locale === "th" && p.name_th ? p.name_th : p.name };
 }
 
 export type ItemsSummary = { count: number; units: number; lines: string[]; label: string };

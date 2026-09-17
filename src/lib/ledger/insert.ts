@@ -5,8 +5,32 @@ import { toRow, TransactionSchema, type ItemInput } from "./transaction-input";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StockEffect } from "@/lib/categories";
 import { SETTLEMENT_STATUSES, type SettlementStatus } from "@/lib/types";
+import { reconcileLines } from "./reconcile";
+import type { TransactionInput } from "./transaction-input";
 
-export type SaveResult = { ok: true; id: string } | { ok: false; error: "invalid" | "save" | "items" };
+export type SaveResult = { ok: true; id: string } | { ok: false; error: "invalid" | "save" | "items" | "reconcile" | "unspecified"; difference?: number };
+
+/** Lines must add up to the row: qty x sale price to gross for a sale, qty x cost to the amount for a stock purchase. */
+export function reconcileInput(input: TransactionInput, effect: StockEffect): { ok: boolean; difference: number } {
+  const items = input.items ?? [];
+  if (!items.length) return { ok: true, difference: 0 };
+  if (input.type === "income") {
+    const r = reconcileLines(items.map((i) => ({ qty: i.qty, price: i.unit_price ?? 0 })), input.gross_amount);
+    return { ok: r.ok, difference: r.difference };
+  }
+  if (effect === "purchase") {
+    const r = reconcileLines(items.map((i) => ({ qty: i.qty, price: i.unit_cost ?? 0 })), input.amount);
+    return { ok: r.ok, difference: r.difference };
+  }
+  return { ok: true, difference: 0 };
+}
+
+/** Products named "Unspecified" are placeholders from the backfill; new rows must name a real product. */
+export async function hasUnspecifiedProduct(supabase: SupabaseClient, items: ItemInput[]): Promise<boolean> {
+  if (!items.length) return false;
+  const { data } = await supabase.from("products").select("id, variant").in("id", items.map((i) => i.product_id));
+  return (data ?? []).some((p) => p.variant === "Unspecified");
+}
 
 /** How an expense category moves stock; "none" for income or unknown categories. */
 export async function stockEffectFor(supabase: SupabaseClient, categoryId: string | null | undefined): Promise<StockEffect> {
@@ -38,6 +62,9 @@ export async function insertTransaction(input: unknown, initialStatus?: Settleme
   const items = parsed.data.items ?? [];
   if (parsed.data.type === "expense" && effect !== "none" && items.length === 0) return { ok: false, error: "items" };
   if (effect === "purchase" && items.some((i) => i.unit_cost == null)) return { ok: false, error: "items" };
+  const rec = reconcileInput(parsed.data, effect);
+  if (!rec.ok) return { ok: false, error: "reconcile", difference: rec.difference };
+  if (await hasUnspecifiedProduct(supabase, items)) return { ok: false, error: "unspecified" };
 
   const { data, error } = await supabase.from("transactions").insert(row).select("id").single();
   if (error || !data) return { ok: false, error: "save" };

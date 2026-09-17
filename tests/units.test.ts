@@ -46,7 +46,7 @@ describe("units report", () => {
 describe("ledger row item labels", () => {
   const products = new Map(input.products.map((p) => [p.id, p]));
   it("one product shows variant x qty; several show a count", () => {
-    expect(summariseItems([{ product_id: BOX_ID, qty: 2 }], products)!.label).toBe("10 kg box (1 kg x 10 packs) × 2");
+    expect(summariseItems([{ product_id: BOX_ID, qty: 2 }], products)!.label).toBe("1 kg packs × 2");
     const many = summariseItems(
       [
         { product_id: BOX_ID, qty: 1 },

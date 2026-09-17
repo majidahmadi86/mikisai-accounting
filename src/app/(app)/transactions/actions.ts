@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
-import { insertTransaction, stockEffectFor, type SaveResult } from "@/lib/ledger/insert";
+import { hasUnspecifiedProduct, insertTransaction, reconcileInput, stockEffectFor, type SaveResult } from "@/lib/ledger/insert";
 import { applyTransactionUpdate } from "@/lib/ledger/update";
 import { formToObject, toRow, TransactionSchema } from "@/lib/ledger/transaction-input";
 
@@ -11,7 +11,7 @@ export async function createTransaction(formData: FormData) {
   const parsed = TransactionSchema.safeParse(formToObject(formData));
   if (!parsed.success) redirect(`/transactions/new?type=${formData.get("type") ?? "income"}&error=invalid`);
   const result = await insertTransaction(parsed.data);
-  if (!result.ok) redirect(`/transactions/new?type=${parsed.data.type}&error=${result.error}`);
+  if (!result.ok) redirect(`/transactions/new?type=${parsed.data.type}&error=${result.error === "reconcile" ? `reconcile:${result.difference ?? 0}` : result.error}`);
   redirect("/transactions?saved=1");
 }
 
@@ -30,6 +30,9 @@ export async function updateTransaction(id: string, formData: FormData) {
   const effect = parsed.data.type === "expense" ? await stockEffectFor(supabase, parsed.data.category_id) : "none";
   const items = parsed.data.items ?? [];
   if (parsed.data.type === "expense" && effect !== "none" && items.length === 0) redirect(`/transactions/${id}/edit?error=items`);
+  const rec = reconcileInput(parsed.data, effect);
+  if (!rec.ok) redirect(`/transactions/${id}/edit?error=reconcile:${rec.difference}`);
+  if (await hasUnspecifiedProduct(supabase, items)) redirect(`/transactions/${id}/edit?error=unspecified`);
   const outcome = await applyTransactionUpdate(supabase, profile.business_id, id, row, parsed.data.type === "income" ? parsed.data.settlement_status : undefined, { list: items, effect });
   if (!outcome.ok) {
     if (outcome.reason === "denied") {

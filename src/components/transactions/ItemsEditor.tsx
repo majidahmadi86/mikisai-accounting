@@ -1,90 +1,92 @@
 "use client";
 
-import { useState } from "react";
-import { Input, Select } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Field";
+import { ProductPicker } from "@/components/products/ProductPicker";
 import { useT } from "@/lib/i18n/client";
-import { productLabel } from "@/lib/inventory/reports";
-import type { Product } from "@/lib/inventory/valuation";
-import { thb } from "@/lib/money";
 import { unitSanity } from "@/lib/inventory/quantity";
+import type { Product } from "@/lib/inventory/valuation";
+import { round2, thb } from "@/lib/money";
 
 export type ItemDraft = { product_id: string; qty: number; unit_price?: number; unit_cost?: number };
+export type ItemChange = { index: number; field: "product" | "qty" | "price" | "add" | "remove" };
 
 function intQty(raw: string, fallback: number): number {
   const n = Math.floor(Number(raw));
   return Number.isFinite(n) && n >= 1 ? Math.min(100000, n) : fallback;
 }
 
+export function lineTotal(row: ItemDraft, mode: "sale" | "purchase"): number {
+  return round2(row.qty * ((mode === "purchase" ? row.unit_cost : row.unit_price) ?? 0));
+}
+
 /**
- * Product lines on the full edit form, serialised as JSON in a hidden input
- * named "items". Quantities are whole units. A sale shows the sale price and
- * a read-only average cost; a purchase shows only the cost per unit.
+ * Controlled product lines. The parent owns the rows (so it can keep them in
+ * step with the amount on the form) and renders the hidden "items" input.
+ * Quantities are whole units; a sale line shows the sale price and average
+ * cost, a purchase line only the cost per unit; each line shows its total.
  */
-export function ItemsEditor({ products, initial, mode, avgCost = {} }: { products: Product[]; initial: ItemDraft[]; mode: "sale" | "purchase"; avgCost?: Record<string, number> }) {
+export function ItemsEditor({ products, rows, onChange, mode, avgCost = {} }: { products: Product[]; rows: ItemDraft[]; onChange: (rows: ItemDraft[], change: ItemChange) => void; mode: "sale" | "purchase"; avgCost?: Record<string, number> }) {
   const t = useT();
   const first = products[0];
   const fresh = (): ItemDraft => ({ product_id: first?.id ?? "", qty: 1, unit_price: first?.default_price ?? 0, unit_cost: first?.default_cost ?? 0 });
-  const [rows, setRows] = useState<ItemDraft[]>(initial.length ? initial.map((r) => ({ ...r, qty: Math.max(1, Math.round(r.qty)) })) : [fresh()]);
 
-  function patch(i: number, changes: Partial<ItemDraft>) {
-    setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...changes } : r)));
+  function patch(i: number, changes: Partial<ItemDraft>, field: ItemChange["field"]) {
+    onChange(
+      rows.map((r, idx) => (idx === i ? { ...r, ...changes } : r)),
+      { index: i, field },
+    );
   }
 
   return (
     <div className="space-y-3">
-      <input type="hidden" name="items" value={JSON.stringify(rows)} />
-      {rows.map((r, i) => (
-        <div key={i} className="rounded-xl border border-line bg-card p-3">
-          <div className="grid grid-cols-[1fr_5rem] items-end gap-2 sm:grid-cols-[1fr_5rem_8rem]">
-            <label className="block">
-              <span className="eyebrow mb-1 block">{t("common.product")}</span>
-              <Select
-                value={r.product_id}
-                onChange={(e) => {
-                  const p = products.find((x) => x.id === e.target.value);
-                  patch(i, { product_id: e.target.value, unit_price: p?.default_price ?? r.unit_price, unit_cost: p?.default_cost ?? r.unit_cost });
-                }}
-              >
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {productLabel(p)}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="block">
-              <span className="eyebrow mb-1 block">{t("inventory.qty")}</span>
-              <Input type="number" inputMode="numeric" min={1} step={1} value={r.qty} onChange={(e) => patch(i, { qty: intQty(e.target.value, r.qty) })} className="tabular" />
-            </label>
-            <label className="block col-span-2 sm:col-span-1">
-              <span className="eyebrow mb-1 block">{mode === "purchase" ? t("inventory.unitCost") : t("inventory.salePrice")}</span>
-              <Input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                step="0.01"
-                value={mode === "purchase" ? (r.unit_cost ?? 0) : (r.unit_price ?? 0)}
-                onChange={(e) => patch(i, mode === "purchase" ? { unit_cost: Number(e.target.value) || 0 } : { unit_price: Number(e.target.value) || 0 })}
-                className="tabular"
-              />
-            </label>
+      {rows.map((r, i) => {
+        const product = products.find((x) => x.id === r.product_id);
+        const warn = mode === "sale" && product ? unitSanity((r.unit_price ?? 0) * r.qty, r.qty, product.default_price) : null;
+        return (
+          <div key={i} className="rounded-xl border border-line bg-card p-3">
+            <ProductPicker
+              products={products}
+              value={r.product_id}
+              onChange={(id) => {
+                const p = products.find((x) => x.id === id);
+                patch(i, { product_id: id, unit_price: p?.default_price ?? r.unit_price, unit_cost: p?.default_cost ?? r.unit_cost }, "product");
+              }}
+              label={t("common.product")}
+            />
+            <div className="mt-2 grid grid-cols-[5rem_1fr_auto] items-end gap-2">
+              <label className="block">
+                <span className="eyebrow mb-1 block">{t("inventory.qty")}</span>
+                <Input type="number" inputMode="numeric" min={1} step={1} value={r.qty} onChange={(e) => patch(i, { qty: intQty(e.target.value, r.qty) }, "qty")} className="tabular" aria-label={t("inventory.qty")} />
+              </label>
+              <label className="block">
+                <span className="eyebrow mb-1 block">{mode === "purchase" ? t("inventory.unitCost") : t("inventory.salePrice")}</span>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.01"
+                  value={mode === "purchase" ? (r.unit_cost ?? 0) : (r.unit_price ?? 0)}
+                  onChange={(e) => patch(i, mode === "purchase" ? { unit_cost: Number(e.target.value) || 0 } : { unit_price: Number(e.target.value) || 0 }, "price")}
+                  className="tabular"
+                />
+              </label>
+              <div className="pb-2.5 text-right">
+                <span className="eyebrow block">{t("inventory.lineTotal")}</span>
+                <span className="tabular text-sm font-medium text-plum">{thb(lineTotal(r, mode))}</span>
+              </div>
+            </div>
+            <p className="mt-1.5 text-xs text-plum-soft">{mode === "purchase" ? t("inventory.unitCostHintFactory") : t("inventory.salePriceHint")}</p>
+            {mode === "sale" ? <p className="mt-1 text-xs text-plum-faint">{t("inventory.avgCostLine", { amount: thb(avgCost[r.product_id] ?? 0) })}</p> : null}
+            {warn ? <p className="mt-1 rounded-lg bg-warning-tint px-2 py-1 text-xs text-warning-ink">{t("quick.qtyWarning", { n: warn.looksLike, m: warn.entered })}</p> : null}
           </div>
-          <p className="mt-1.5 text-xs text-plum-soft">{mode === "purchase" ? t("inventory.unitCostHintFactory") : t("inventory.salePriceHint")}</p>
-          {mode === "sale" ? <p className="mt-1 text-xs text-plum-faint">{t("inventory.avgCostLine", { amount: thb(avgCost[r.product_id] ?? 0) })}</p> : null}
-          {(() => {
-            if (mode !== "sale") return null;
-            const p = products.find((x) => x.id === r.product_id);
-            const w = p ? unitSanity((r.unit_price ?? 0) * r.qty, r.qty, p.default_price) : null;
-            return w ? <p className="mt-1 rounded-lg bg-warning-tint px-2 py-1 text-xs text-warning-ink">{t("quick.qtyWarning", { n: w.looksLike, m: w.entered })}</p> : null;
-          })()}
-        </div>
-      ))}
+        );
+      })}
       <div className="flex gap-3 text-xs">
-        <button type="button" onClick={() => setRows((rs) => [...rs, fresh()])} className="min-h-9 font-medium text-berry">
+        <button type="button" onClick={() => onChange([...rows, fresh()], { index: rows.length, field: "add" })} className="min-h-9 font-medium text-berry">
           + {t("inventory.addLine")}
         </button>
         {rows.length > 1 ? (
-          <button type="button" onClick={() => setRows((rs) => rs.slice(0, -1))} className="min-h-9 text-plum-soft">
+          <button type="button" onClick={() => onChange(rows.slice(0, -1), { index: rows.length - 1, field: "remove" })} className="min-h-9 text-plum-soft">
             {t("inventory.removeLine")}
           </button>
         ) : null}

@@ -84,7 +84,8 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
         const result = await quickAddTransaction(input);
         if (!result.ok) {
           setRetryInput(input);
-          setToast({ kind: "error", message: t("quick.failed"), actionLabel: t("quick.retry") });
+          const message = result.error === "reconcile" ? t("inventory.reconcileBlocked", { diff: thb(Math.abs(result.difference ?? 0)) }) : result.error === "unspecified" ? t("inventory.unspecifiedBlocked") : t("quick.failed");
+          setToast({ kind: "error", message, actionLabel: t("quick.retry") });
           return;
         }
         router.refresh();

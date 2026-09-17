@@ -20,6 +20,8 @@ export type Product = {
   active: boolean;
   photo_path: string | null;
   notes: string;
+  /** Admin-set short label for ledger rows and chips, for example "1 kg packs". */
+  short_name: string;
   /** buy_to_order: sold before bought, negative stock is a backlog. stocked: must never go negative. */
   stock_mode: StockMode;
   deleted_at?: string | null;

@@ -17,6 +17,7 @@ const box: Product = {
   active: true,
   photo_path: null,
   notes: "",
+  short_name: "",
   stock_mode: "buy_to_order",
 };
 

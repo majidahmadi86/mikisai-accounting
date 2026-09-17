@@ -13,7 +13,8 @@
     "reset:ledger": "tsx scripts/reset-ledger.ts",
     "verify:rls": "tsx scripts/verify-rls.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "reconcile:items": "tsx scripts/reconcile-items.ts"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",
