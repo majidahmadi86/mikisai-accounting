@@ -34,7 +34,7 @@ export async function applyTransactionUpdate(
       if (existing.status !== settlementStatus) {
         await supabase
           .from("settlements")
-          .update({ status: settlementStatus, settled_at: settlementStatus === "received_in_bank" ? new Date().toISOString() : null, payout_id: settlementStatus === "received_in_bank" ? undefined : null })
+          .update({ status: settlementStatus, settled_at: settlementStatus === "received_in_bank" ? new Date().toISOString() : null, payout_id: settlementStatus === "received_in_bank" ? undefined : null, paid_amount: settlementStatus === "received_in_bank" ? row.net_amount : 0 })
           .eq("id", existing.id);
       }
     } else {

@@ -70,7 +70,7 @@ function toBalanceTx(t: ReportTx, asOf?: string): BalanceTransaction {
     const settledAt = t.settlement?.settled_at?.slice(0, 10) ?? null;
     status = status === "received_in_bank" && settledAt && settledAt <= asOf ? "received_in_bank" : "pending";
   }
-  return { type: t.type, platform: t.platform, net_amount: t.net_amount, payer: t.payer, received_by: t.received_by, settlement_status: t.type === "income" ? status : null };
+  return { type: t.type, platform: t.platform, net_amount: t.net_amount, payer: t.payer, received_by: t.received_by, settlement_status: t.type === "income" ? status : null, paid_amount: t.settlement?.paid_amount ?? 0 };
 }
 
 /** Whether an income row is still with the platform on a given day. */

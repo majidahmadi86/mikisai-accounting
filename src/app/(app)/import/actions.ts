@@ -68,6 +68,7 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
     transaction_id: tx.id,
     status: parsed.data.rows[i].status,
     settled_at: parsed.data.rows[i].status === "received_in_bank" ? new Date().toISOString() : null,
+    paid_amount: parsed.data.rows[i].status === "received_in_bank" ? parsed.data.rows[i].net_amount : 0,
   }));
   const { error: sErr } = await supabase.from("settlements").insert(settlements);
   if (sErr) {

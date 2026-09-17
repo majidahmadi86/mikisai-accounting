@@ -25,6 +25,10 @@ import { buildYesterday } from "@/lib/dashboard/yesterday";
 import { summariseItems } from "@/lib/inventory/units";
 import { todayIso } from "@/lib/money";
 import { lastHealthRun } from "@/lib/health/run";
+import { payoutReminderDue } from "@/lib/payouts/partial";
+import { valueStock } from "@/lib/inventory/valuation";
+import { shortProductName } from "@/lib/inventory/units";
+import { StockPill } from "@/components/products/StockPill";
 import { formatDateTime } from "@/lib/money";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/">) {
@@ -35,7 +39,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const categories = categoryById(snapshot.categories);
 
   const balance = computeBalance(
-    snapshot.transactions.map((tx) => ({ type: tx.type, platform: tx.platform, net_amount: tx.net_amount, payer: tx.payer, received_by: tx.received_by, settlement_status: tx.settlement?.status ?? null })),
+    snapshot.transactions.map((tx) => ({ type: tx.type, platform: tx.platform, net_amount: tx.net_amount, payer: tx.payer, received_by: tx.received_by, settlement_status: tx.settlement?.status ?? null, paid_amount: tx.settlement?.paid_amount ?? 0 })),
     snapshot.transfers,
   );
   const recent = snapshot.transactions.slice(0, 8);
@@ -43,6 +47,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const itemsOf = (id: string) => summariseItems(snapshot.items.filter((i) => i.transaction_id === id), productsById, locale, (n) => tr("transactions.items", { n }));
   const yesterday = buildYesterday(snapshot, todayIso());
   const health = await lastHealthRun(session.supabase, session.profile.business_id);
+  const reminder = payoutReminderDue(new Date(), balance.pendingTotal, snapshot.payouts.map((p) => p.date));
+  const stockRows = valueStock(snapshot.products, snapshot.movements).products.filter((r) => r.product.active);
   const transfers = snapshot.transfers.slice(0, 20);
   const pendingPlatforms = PLATFORMS.filter((p) => balance.pendingByPlatform[p].orders > 0);
   const transferError = typeof sp.transfer === "string" ? sp.transfer : null;
@@ -52,6 +58,25 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
     <div>
       <Tour autoOpen />
       <BalanceBanner balance={balance} tr={tr} />
+
+      {reminder ? (
+        <Link href="/payouts/new" className="mb-6 block rounded-card border border-lavender bg-lavender-tint px-5 py-4 transition-colors hover:bg-lavender-soft">
+          <p className="eyebrow">{tr("dashboard.payoutReminderTitle")}</p>
+          <p className="mt-1 text-sm text-plum">{tr("dashboard.payoutReminder")} →</p>
+        </Link>
+      ) : null}
+
+      {stockRows.length ? (
+        <Link href="/stock" className="mb-6 flex flex-wrap items-center gap-2 rounded-card border border-line bg-card px-4 py-3 transition-colors hover:bg-lavender-tint">
+          <span className="eyebrow mr-1">{tr("stock.title")} →</span>
+          {stockRows.map((r) => (
+            <span key={r.product.id} className="inline-flex items-center gap-1.5 text-xs text-plum">
+              <span className="max-w-32 truncate">{shortProductName(r.product, locale)}</span>
+              <StockPill row={r} tr={tr} />
+            </span>
+          ))}
+        </Link>
+      ) : null}
 
       <YesterdayCard data={yesterday} tr={tr} locale={locale} />
 

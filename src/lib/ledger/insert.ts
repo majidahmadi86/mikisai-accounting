@@ -82,7 +82,7 @@ export async function insertTransaction(input: unknown, initialStatus?: Settleme
     const status = initialStatus ?? "pending";
     const { error: sErr } = await supabase
       .from("settlements")
-      .insert({ business_id: profile.business_id, transaction_id: data.id, status, settled_at: status === "received_in_bank" ? new Date().toISOString() : null });
+      .insert({ business_id: profile.business_id, transaction_id: data.id, status, settled_at: status === "received_in_bank" ? new Date().toISOString() : null, paid_amount: status === "received_in_bank" ? row.net_amount : 0 });
     if (sErr) {
       await supabase.from("transactions").delete().eq("id", data.id);
       return { ok: false, error: "save" };

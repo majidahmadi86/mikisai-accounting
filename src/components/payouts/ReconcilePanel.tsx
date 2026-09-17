@@ -74,6 +74,7 @@ export function ReconcilePanel({
     <div className="space-y-4">
       <Card tone={within ? "success" : "warning"} className="sticky top-[4.25rem] z-10 px-5 py-4 md:static">
         <p className={cn("text-sm font-medium", within ? "text-success" : "text-warning-ink")}>{within ? t("payouts.proposedMatch") : t("payouts.noMatch")}</p>
+        {!within && total > amountReceived && selected.size > 0 ? <p className="mt-1 text-xs text-plum-soft">{t("payouts.partialHint", { paid: thb(amountReceived), rest: thb(Math.round((total - amountReceived) * 100) / 100) })}</p> : null}
         <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
           <div>
             <dt className="eyebrow">{t("payouts.amountReceived")}</dt>
