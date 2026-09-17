@@ -1,9 +1,9 @@
-import type { Balance } from "@/lib/balance";
+import type { WhoOwesWhom } from "@/lib/truth";
 import type { Translator } from "@/lib/i18n/dictionary";
 import { thb } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
-export function BalanceBanner({ balance, tr }: { balance: Balance; tr: Translator }) {
+export function BalanceBanner({ balance, tr }: { balance: WhoOwesWhom; tr: Translator }) {
   const owes = balance.owes;
   const headline = owes
     ? tr("dashboard.owes", { from: tr(`common.${owes.from}`), to: tr(`common.${owes.to}`), amount: thb(owes.amount) })
@@ -18,14 +18,16 @@ export function BalanceBanner({ balance, tr }: { balance: Balance; tr: Translato
         {(["mike", "sai"] as const).map((p) => (
           <div key={p} className="rounded-xl bg-card/80 px-4 py-3">
             <dt className="eyebrow">{tr(`common.${p}`)}</dt>
-            <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.received")}</dd>
-            <dd className="font-medium text-lg tabular text-plum sm:text-xl">{thb(balance.received[p])}</dd>
+            <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.fromPlatforms")}</dd>
+            <dd className="font-medium text-base tabular text-plum sm:text-lg">{thb(balance.fromPlatforms[p])}</dd>
+            <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.fromPartner")}</dd>
+            <dd className="font-medium text-base tabular text-plum sm:text-lg">{thb(balance.fromPartner[p])}</dd>
             <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.putIn")}</dd>
-            <dd className="font-medium text-lg tabular text-plum sm:text-xl">{thb(balance.putIn[p])}</dd>
-            <dd className="mt-1 text-xs text-plum-faint">{tr("dashboard.target", { amount: thb(balance.target) })}</dd>
+            <dd className="font-medium text-base tabular text-plum sm:text-lg">{thb(balance.putIn[p])}</dd>
           </div>
         ))}
       </dl>
+      <p className="mt-3 text-xs text-plum-faint">{tr("dashboard.fairShareCosts", { amount: thb(balance.fairShareOfCosts) })}</p>
     </section>
   );
 }
