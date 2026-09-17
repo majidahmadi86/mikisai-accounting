@@ -16,7 +16,7 @@ const TransferSchema = z
     amount: z.coerce.number().positive().max(99_999_999),
     reason: z.enum(TRANSFER_REASONS),
     note: z.string().trim().max(2000).optional(),
-    redirect_to: z.enum(["/", "/balance"]).optional(),
+    redirect_to: z.enum(["/", "/balance", "/investment"]).optional(),
   })
   .refine((v) => v.from_person !== v.to_person, { message: "same person" })
   .refine((v) => v.reason !== "other" || (v.note ?? "").length > 0, { message: "note required for other" });

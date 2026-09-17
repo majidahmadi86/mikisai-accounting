@@ -21,7 +21,7 @@ export function TransferForm({
   initial?: Partial<InternalTransfer>;
   error?: string | null;
   submitLabel: string;
-  redirectTo?: "/" | "/balance";
+  redirectTo?: "/" | "/balance" | "/investment";
   cancelHref?: string;
   compact?: boolean;
 }) {

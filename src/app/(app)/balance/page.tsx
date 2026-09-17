@@ -13,6 +13,8 @@ import { formatDate, thb, todayIso } from "@/lib/money";
 import { buildMyBalance } from "@/lib/my-balance";
 import { valueStock } from "@/lib/inventory/valuation";
 import { reconcileProfit } from "@/lib/accounting/statements";
+import { buildInvestment } from "@/lib/investment";
+import Link from "next/link";
 import { thisMonth } from "@/lib/reports/period";
 import { cn } from "@/lib/cn";
 
@@ -41,6 +43,7 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
     today,
   );
   const rec = reconcileProfit(snapshot, thisMonth(today));
+  const inv = buildInvestment(snapshot, today, locale);
   const meName = tr(`common.${me}`);
   const partnerName = tr(`common.${partner}`);
   const level = levelStyles[b.level];
@@ -131,6 +134,18 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
             {rec.balanced ? "" : ` ${tr("reports.reconcileOff", { amount: thb(rec.difference) })}`}
           </p>
         </Card>
+
+        {/* investment */}
+        <Link href="/investment" className="block">
+          <Card className="px-5 py-5 transition-colors hover:bg-lavender-tint">
+            <p className="eyebrow">{tr("investment.title")} →</p>
+            <p className="mt-2 text-2xl font-medium tabular text-plum">{thb(inv.byPerson[me])}</p>
+            <p className="mt-1 text-sm text-plum-soft">
+              {tr("investment.cardLine", { total: thb(inv.total), partner: partnerName, partnerAmount: thb(inv.byPerson[partner]) })}
+              {inv.settle ? ` · ${tr("investment.owes", { from: tr(`common.${inv.settle.from}`), to: tr(`common.${inv.settle.to}`), amount: thb(inv.settle.amount) })}` : ""}
+            </p>
+          </Card>
+        </Link>
 
         {/* d) Today's action */}
         <Card tone="lavender">
