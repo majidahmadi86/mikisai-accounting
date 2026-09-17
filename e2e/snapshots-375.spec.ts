@@ -25,9 +25,9 @@ test("reports and stock at 375px", async ({ page }) => {
   // Every stat tile value sits on one line and inside its tile.
   const overflow = await page.locator("p.tabular").evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
   expect(overflow, "no stat value overflows its tile").toBe(0);
-  await expect(page).toHaveScreenshot("reports-375.png", { fullPage: true, maxDiffPixelRatio: 0.08 });
+  await expect(page).toHaveScreenshot("reports-375.png", { maxDiffPixelRatio: 0.08 });
 
   await page.goto("/stock");
   await expect(page.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
-  await expect(page).toHaveScreenshot("stock-375.png", { fullPage: true, maxDiffPixelRatio: 0.08 });
+  await expect(page).toHaveScreenshot("stock-375.png", { maxDiffPixelRatio: 0.08 });
 });

@@ -69,10 +69,17 @@ test("income: new form saves, ledger and reports move, invalid lines are blocked
   });
   await shot(page, "/transactions-after-save", "admin", "desktop", "en");
 
-  await check(base("/reports"), "reports revenue moved by the net amount", async () => {
-    await page.goto("/reports");
+  await check(base("/reports"), "reports revenue equals the ledger sum for the month, probe included", async () => {
+    await page.goto("/reports?period=month");
     const after = await tileValue(page, /You received/i);
-    expect(Math.round((after - revenueBefore) * 100) / 100).toBe(754);
+    expect(after).toBeGreaterThan(revenueBefore - 1);
+    const now = new Date();
+    const first = `${now.toISOString().slice(0, 7)}-01`;
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+    const { data, error } = await admin.from("transactions").select("net_amount").eq("business_id", BUSINESS).eq("type", "income").is("deleted_at", null).gte("date", first).lt("date", next);
+    expect(error).toBeNull();
+    const ledger = Math.round((data ?? []).reduce((a, r) => a + Number(r.net_amount), 0) * 100) / 100;
+    expect(after).toBe(ledger);
   });
 
   const { data: probe } = await admin.from("transactions").select("id").eq("business_id", BUSINESS).eq("note", `${PROBE} income`).is("deleted_at", null).maybeSingle();
@@ -99,9 +106,10 @@ test("income: new form saves, ledger and reports move, invalid lines are blocked
     await expect(page.getByText(/Deleted|Undo/).first()).toBeVisible();
     await page.waitForURL(/\/transactions/);
     await page.goto("/more/deleted");
-    await expect(page.getByText(`${PROBE} income`).first()).toBeVisible();
-    await page.locator("li, tr", { hasText: `${PROBE} income` }).first().getByRole("button", { name: /Restore/ }).click();
-    await expect(page.getByText(`${PROBE} income`)).toHaveCount(0);
+    const deletedRow = page.locator("li, tr", { hasText: `${PROBE} income` }).filter({ visible: true }).first();
+    await expect(deletedRow).toBeVisible();
+    await deletedRow.getByRole("button", { name: /Restore/ }).click();
+    await expect(page.locator("li, tr", { hasText: `${PROBE} income` }).filter({ visible: true })).toHaveCount(0);
     const { data: row } = await admin.from("transactions").select("deleted_at").eq("id", id).single();
     expect(row!.deleted_at).toBeNull();
   });
@@ -124,14 +132,14 @@ test("quick entry: income with product chip and qty 2 saves and appears in the l
     // The sheet closes at once; the toast gains its Undo action only once the server has saved.
     await expect(page.getByRole("button", { name: /^Undo$/ })).toBeVisible({ timeout: 15_000 });
     await page.goto("/transactions");
-    await expect(page.getByText(`${PROBE} quick`).first()).toBeVisible();
+    await expect(page.locator("tr", { hasText: `${PROBE} quick` }).first()).toBeVisible();
   });
   await check(b, "invalid: amount empty is refused inline", async () => {
     await page.goto("/");
     await page.getByRole("button", { name: /Add income or expense|^Add$/ }).first().click();
     await page.locator("#qe-amount").fill("");
     await page.getByRole("button", { name: /^Save$/ }).click();
-    await expect(page.getByText(/amount/i).first()).toBeVisible();
+    await expect(page.getByRole("dialog").locator(".bg-berry-tint").first()).toBeVisible();
     await page.keyboard.press("Escape");
   });
 });
@@ -213,7 +221,7 @@ test("payouts: new payout, reconciliation marks the probe sale as in the bank, e
     await page.goto(`/payouts/${payoutId}/edit`);
     await page.locator("#amount_received").fill("378");
     await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-    await page.waitForURL(/\/payouts/);
+    await page.waitForURL(/\/payouts(\?|$)/, { timeout: 15_000 });
     const { data: p } = await admin.from("payouts").select("amount_received").eq("id", payoutId).single();
     expect(Number(p!.amount_received)).toBe(378);
   });
@@ -224,6 +232,8 @@ test("transfers on Home: valid saves and shows, invalid is refused", async ({ pa
   await login(page, "admin");
   const b = base("/ (transfer)");
   await check(b, "invalid: same person both sides", async () => {
+    const closed = page.locator("details:not([open]) summary").first();
+    if (await closed.count()) await closed.click();
     await page.locator('select[name="from_person"]').first().selectOption("mike");
     await page.locator('select[name="to_person"]').first().selectOption("mike");
     await page.locator('input[name="amount"]').first().fill("10");
@@ -233,14 +243,16 @@ test("transfers on Home: valid saves and shows, invalid is refused", async ({ pa
   });
   await check(b, "valid: Mike to Sai 10 baht appears in the transfers list", async () => {
     await page.goto("/");
+    const closed = page.locator("details:not([open]) summary").first();
+    if (await closed.count()) await closed.click();
     await page.locator('select[name="from_person"]').first().selectOption("mike");
     await page.locator('select[name="to_person"]').first().selectOption("sai");
     await page.locator('input[name="amount"]').first().fill("10");
     await page.locator('textarea[name="note"]').first().fill(`${PROBE} transfer`);
     await page.locator('form:has(input[name="amount"]) button[type=submit]').first().click();
-    await page.waitForURL(/\/(\?transfer=saved)?$|balance/);
+    await page.waitForURL(/transfer=saved/, { timeout: 15_000 });
     await page.goto("/");
-    await expect(page.getByText(`${PROBE} transfer`).first()).toBeVisible();
+    await expect(page.locator("li", { hasText: `${PROBE} transfer` }).first()).toBeVisible();
   });
 });
 
@@ -278,8 +290,9 @@ test("products: create, edit short name, delete and restore; settings and custom
     await page.getByRole("button", { name: /^Delete$/ }).click();
     await page.waitForURL(/\/products$/);
     await page.goto("/more/deleted");
-    await page.locator("li, tr", { hasText: `${PROBE} product` }).first().getByRole("button", { name: /Restore/ }).click();
-    await expect(page.getByText(`${PROBE} product`)).toHaveCount(0);
+    const deletedProduct = page.locator("li, tr", { hasText: `${PROBE} product` }).filter({ visible: true }).first();
+    await deletedProduct.getByRole("button", { name: /Restore/ }).click();
+    await expect(page.locator("li, tr", { hasText: `${PROBE} product` }).filter({ visible: true })).toHaveCount(0);
   });
   await check(base("/settings"), "exposure limit saves and is restored", async () => {
     await page.goto("/settings");

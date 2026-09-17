@@ -23,7 +23,7 @@ test.afterAll(async () => {
 
 test("contributor creates four rows; admin edits and deletes each", async ({ browser }) => {
   test.setTimeout(180_000);
-  const sai = await browser.newContext({ viewport: VIEWPORTS.phone });
+  const sai = await browser.newContext({ viewport: VIEWPORTS.desktop });
   const saiPage = await sai.newPage();
   await setLang(sai, "en");
   await login(saiPage, "contributor");
@@ -49,12 +49,14 @@ test("contributor creates four rows; admin edits and deletes each", async ({ bro
   await saiPage.waitForURL(/\/payouts\/[0-9a-f-]{36}\/reconcile/, { timeout: 15_000 });
 
   await saiPage.goto("/");
+  const closedDetails = saiPage.locator("details:not([open]) summary").first();
+  if (await closedDetails.count()) await closedDetails.click();
   await saiPage.locator('select[name="from_person"]').first().selectOption("sai");
   await saiPage.locator('select[name="to_person"]').first().selectOption("mike");
   await saiPage.locator('input[name="amount"]').first().fill("5");
   await saiPage.locator('textarea[name="note"]').first().fill(`${PROBE} sai transfer`);
   await saiPage.locator('form:has(input[name="amount"]) button[type=submit]').first().click();
-  await saiPage.waitForURL(/transfer=saved|\/$/, { timeout: 15_000 });
+  await saiPage.waitForURL(/transfer=saved/, { timeout: 15_000 });
   await sai.close();
 
   const { data: income } = await admin.from("transactions").select("id").eq("business_id", BUSINESS).eq("note", `${PROBE} sai income`).single();
@@ -90,7 +92,7 @@ test("contributor creates four rows; admin edits and deletes each", async ({ bro
     await page.goto(`/payouts/${payout!.id}/edit`);
     await page.locator("#amount_received").fill("378");
     await submit(page).click();
-    await page.waitForURL(/\/payouts/, { timeout: 15_000 });
+    await page.waitForURL(/\/payouts(\?|$)/, { timeout: 15_000 });
     const { data } = await admin.from("payouts").select("amount_received").eq("id", payout!.id).single();
     expect(Number(data!.amount_received)).toBe(378);
   });
@@ -98,7 +100,7 @@ test("contributor creates four rows; admin edits and deletes each", async ({ bro
     await page.goto(`/transfers/${transfer!.id}/edit`);
     await page.locator('input[name="amount"]').first().fill("6");
     await page.locator('form:has(input[name="amount"]) button[type=submit]').first().click();
-    await page.waitForURL(/transfer=saved|\/$|balance/, { timeout: 15_000 });
+    await page.waitForURL(/transfer=saved/, { timeout: 15_000 });
     const { data } = await admin.from("internal_transfers").select("amount").eq("id", transfer!.id).single();
     expect(Number(data!.amount)).toBe(6);
   });

@@ -26,7 +26,7 @@ const REPORTS: { id: string; title: string }[] = [
   { id: "stock", title: "Stock on hand" },
   { id: "lowstock", title: "Low stock" },
   { id: "profit", title: "Product profitability" },
-  { id: "plan", title: "Expected vs actual margin" },
+  { id: "plan", title: "Planned vs actual margin" },
   { id: "samples", title: "Samples given" },
 ];
 

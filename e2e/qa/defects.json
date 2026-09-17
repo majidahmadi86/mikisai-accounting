@@ -61,5 +61,14 @@
     "fix": "The upgrade directive is emitted only when the request is https (URL protocol or x-forwarded-proto).",
     "commit": "63cd972",
     "status": "fixed"
+  },
+  {
+    "id": "D8",
+    "route": "/transactions/new?type=expense",
+    "found": "flows-admin: stock purchase with lines",
+    "description": "With the amount still empty, choosing a product or quantity on a stock purchase (and on a sale) set the unit cost to zero instead of prefilling the amount from the standard cost times units, as v2.3 promised.",
+    "fix": "With no amount yet the line's standard price or cost prefills the amount; once an amount exists the line follows it.",
+    "commit": "ea62c11",
+    "status": "fixed"
   }
 ]
