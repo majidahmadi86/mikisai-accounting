@@ -4,7 +4,7 @@ import { runHealthChecks, type HealthInput } from "@/lib/health/checks";
 
 function base(): HealthInput {
   const input = realLedger();
-  return { ...input, items: input.items ?? [], audit: { rows: [], roles: new Map([["u-mike", "admin"], ["u-sai", "contributor"]]) } };
+  return { ...input, items: input.items ?? [], transfers: input.transfers as import("@/lib/truth").TruthTransfer[], audit: { rows: [], roles: new Map([["u-mike", "admin"], ["u-sai", "contributor"]]) } };
 }
 
 describe("data health", () => {

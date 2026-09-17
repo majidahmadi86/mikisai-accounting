@@ -1,11 +1,13 @@
 import { buildAccrualPL, buildBalanceSheet, buildCashFlow, reconcileProfit, type AccrualPL, type BalanceSheet, type CashFlow, type Reconciliation } from "@/lib/accounting/statements";
-import { computeBalance, type Balance } from "@/lib/balance";
+import type { Balance } from "@/lib/balance";
+import { whoOwesWhom } from "@/lib/truth";
 import { round2 } from "@/lib/money";
 import { addDays, checkpoints, daysBetween, inPeriod, type Period } from "./period";
 import type { ExpenseCategory } from "@/lib/categories";
 import { buildInventoryReports, type InventoryReports, type TransactionItemRow } from "@/lib/inventory/reports";
 import { valueStock, type Product, type StockMovement } from "@/lib/inventory/valuation";
 import { PLATFORMS, PRODUCT_LINES, type Person, type Platform, type ProductLine, type SettlementStatus } from "@/lib/types";
+import type { TruthTransfer } from "@/lib/truth";
 
 /** Structural subset of LedgerTransaction so reports can be built and tested without the server module. */
 export type ReportTx = {
@@ -216,20 +218,7 @@ export function buildSettlement(tx: ReportTx[]): StatusRow[] {
  */
 export function buildOwesHistory(input: ReportInput, period: Period): OwesRow[] {
   return checkpoints(period).map((asOf) => {
-    const cutoff = `${asOf}T23:59:59.999Z`;
-    const txs = input.transactions
-      .filter((t) => t.date <= asOf)
-      .map((t) => ({
-        type: t.type,
-        platform: t.platform,
-        net_amount: t.net_amount,
-        payer: t.payer,
-        received_by: t.received_by,
-        settlement_status: (t.type === "income" ? (t.settlement?.status === "received_in_bank" && t.settlement.settled_at && t.settlement.settled_at <= cutoff ? "received_in_bank" : "pending") : null) as SettlementStatus | null,
-        paid_amount: t.type === "income" && t.settlement?.status !== "received_in_bank" && t.settlement?.settled_at && t.settlement.settled_at <= cutoff ? (t.settlement.paid_amount ?? 0) : 0,
-      }));
-    const transfers = input.transfers.filter((tr) => tr.date <= asOf);
-    const b = computeBalance(txs, transfers);
+    const b = whoOwesWhom({ transactions: input.transactions, transfers: input.transfers as TruthTransfer[] }, asOf);
     return { asOf, mikeHolds: b.holdings.mike, saiHolds: b.holdings.sai, received: b.received, putIn: b.putIn, netProfit: b.netProfit, owes: b.owes };
   });
 }

@@ -62,7 +62,7 @@ describe("My Balance stock share", () => {
     const base = seedLedger();
     const input: MyBalanceInput = {
       transactions: base.transactions,
-      transfers: base.transfers.map((t) => ({ ...t, kind: "settlement" as const, reason: "profit_settlement" as const })),
+      transfers: base.transfers.map((t) => ({ ...t, kind: "settlement" as const, reason: "profit_share" as const })),
       settings: [],
       exposureLimit: 3000,
       stockValue: 1560,

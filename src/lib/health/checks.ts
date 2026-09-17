@@ -7,8 +7,13 @@ import { round2 } from "@/lib/money";
 import { buildReports } from "@/lib/reports/build";
 import { daysBetween, thisMonth } from "@/lib/reports/period";
 import type { Role } from "@/lib/types";
+import { buildInvestment } from "@/lib/investment";
+import { buildStockPage } from "@/lib/inventory/stock-page";
+import { buildMyBalance } from "@/lib/my-balance";
+import { inventoryValue, stockPositions, whoOwesWhom, type TruthInput, type TruthTransfer } from "@/lib/truth";
+import { buildBalanceSheet } from "@/lib/accounting/statements";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "unnamed_products", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
@@ -17,8 +22,9 @@ export type HealthResult = { ranAt: string; checks: HealthCheck[]; issues: numbe
 
 export type AuditRowLite = { action: string; entity_type: string; entity_id: string | null; actor_user_id: string | null; created_at: string; before: Record<string, unknown> | null };
 
-export type HealthInput = StatementsInput & {
+export type HealthInput = Omit<StatementsInput, "transfers"> & {
   items: TransactionItemRow[];
+  transfers: TruthTransfer[];
   /** Audit rows (updates) plus each actor's role; null when the caller cannot read the audit log. */
   audit: { rows: AuditRowLite[]; roles: Map<string, Role> } | null;
 };
@@ -109,7 +115,15 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     .filter((p) => !p.deleted_at && (p.expected_net_per_unit == null || p.expected_net_per_unit <= 0) && (salesPerProduct.get(p.id) ?? 0) >= 5)
     .map((p): HealthIssue => ({ id: p.id, label: `${p.name}${p.variant ? ` · ${p.variant}` : ""}`, href: `/products/${p.id}/edit`, detail: `${salesPerProduct.get(p.id)} sales` }));
 
-  // 11. Every report total equals the ledger sum for this month, and the books balance.
+  // 11. Products that still show as a bare size because nobody named them.
+  const unnamed = input.products
+    .filter((p) => !p.deleted_at && p.active && !p.short_name && (/^\d/.test(p.variant) || /^Sample/i.test(p.name)))
+    .map((p): HealthIssue => ({ id: p.id, label: `${p.name}${p.variant ? ` · ${p.variant}` : ""}`, href: `/stock`, detail: "needs a name" }));
+
+  // 12. Consistency: every page must show the same who-owes-whom and the same stock.
+  const consistency = consistencyMismatches(input, today);
+
+  // 13. Every report total equals the ledger sum for this month, and the books balance.
   const totals = reportTotalMismatches(input, today);
 
   const checks: HealthCheck[] = [
@@ -123,10 +137,40 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("duplicate_order_ids", duplicates),
     check("late_contributor_edit", lateEdits, { adminOnly: true, skipped: !input.audit }),
     check("no_expected_net", noExpectedNet),
+    check("unnamed_products", unnamed),
+    check("consistency", consistency),
     check("report_totals", totals),
   ];
   const issues = checks.reduce((a, c) => a + c.count, 0);
   return { ranAt, checks, issues, ok: issues === 0 };
+}
+
+/** The equalities that must hold between pages: one number, everywhere. */
+export function consistencyMismatches(input: TruthInput, today: string): HealthIssue[] {
+  const issues: HealthIssue[] = [];
+  const truth = whoOwesWhom(input, today);
+  const owesAmount = (o: { from: string; to: string; amount: number } | null) => (o ? `${o.from}->${o.to} ${o.amount.toFixed(2)}` : "even");
+  const home = owesAmount(truth.owes);
+  const mine = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0 }, "mike", today);
+  const myBalance = owesAmount(mine.owedToMe > 0 ? { from: "sai", to: "mike", amount: mine.owedToMe } : mine.iOwe > 0 ? { from: "mike", to: "sai", amount: mine.iOwe } : null);
+  const investment = owesAmount(buildInvestment(input, today).settle);
+  const period = thisMonth(today);
+  const report = owesAmount(buildReports(input, period).owesHistory.at(-1)?.owes ?? null);
+  const sheet = buildBalanceSheet(input, today).partnerBalance;
+  const sheetOwes = owesAmount(Math.abs(sheet.mike) >= 1 ? (sheet.mike > 0 ? { from: "mike", to: "sai", amount: sheet.mike } : { from: "sai", to: "mike", amount: sheet.sai }) : null);
+  for (const [name, value, href] of [["My Balance", myBalance, "/balance"], ["Investment", investment, "/investment"], ["Who owes whom report", report, "/reports"], ["Balance sheet", sheetOwes, "/reports"]] as const) {
+    if (value !== home) issues.push({ id: `owes:${name}`, label: `${name} disagrees with Home`, href, detail: `Home ${home} · ${name} ${value}` });
+  }
+  const positions = stockPositions(input);
+  const page = buildStockPage({ products: input.products, movements: input.movements, items: input.items, names: new Map() });
+  for (const card of page.cards) {
+    const p = positions.find((x) => x.product.id === card.stock.product.id);
+    if (!p || card.stock.onHand !== p.onHand || card.stock.backlog !== p.backlog || card.stock.value !== p.value) issues.push({ id: `stock:${card.stock.product.id}`, label: `Stock page disagrees for ${card.stock.product.name}`, href: "/stock" });
+  }
+  const sheetInventory = buildBalanceSheet(input, today).inventory;
+  const inventory = inventoryValue(input, today);
+  if (Math.abs(sheetInventory - inventory) >= CENT) issues.push({ id: "stock:balance-sheet", label: "Balance sheet inventory disagrees with Stock", href: "/reports", detail: `Stock ${inventory.toFixed(2)} · Balance sheet ${sheetInventory.toFixed(2)}` });
+  return issues;
 }
 
 /** Each report card's total against the raw ledger sum for the same period. */

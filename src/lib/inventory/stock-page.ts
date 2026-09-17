@@ -1,9 +1,9 @@
-import { fifoBacklog } from "./backlog";
+import { stockPositions, type StockPosition } from "@/lib/truth";
 import type { TransactionItemRow } from "./reports";
-import { valueStock, type Product, type ProductStock, type StockMovement, type StockMovementKind } from "./valuation";
+import type { Product, StockMovement, StockMovementKind } from "./valuation";
 
 export type StockCard = {
-  stock: ProductStock;
+  stock: StockPosition;
   bought: number;
   sold: number;
   samples: number;
@@ -36,23 +36,11 @@ export type StockFilter = { product?: string | null; from?: string | null; to?: 
 
 /** One card per active product with the four big numbers, and the movement history newest first. */
 export function buildStockPage(input: StockInput, filter: StockFilter = {}): { cards: StockCard[]; history: MovementRow[] } {
-  const valuation = valueStock(input.products, input.movements);
-  const backlog = fifoBacklog(input.movements);
   const byId = new Map(input.products.map((p) => [p.id, p]));
-  const cards = valuation.products
-    .filter((r) => r.product.active || r.onHand !== 0)
-    .map((r): StockCard => {
-      const mine = input.movements.filter((m) => m.product_id === r.product.id);
-      const purchases = mine.filter((m) => m.kind === "purchase");
-      return {
-        stock: r,
-        bought: purchases.reduce((a, m) => a + m.qty, 0),
-        sold: mine.filter((m) => m.kind === "sale").reduce((a, m) => a - m.qty, 0),
-        samples: mine.filter((m) => m.kind === "sample").reduce((a, m) => a - m.qty, 0),
-        lastPurchase: purchases.map((m) => m.date).sort().pop() ?? null,
-        toBuy: backlog.get(r.product.id)?.backlog ?? 0,
-      };
-    })
+  // One source for every stock number: lib/truth.ts.
+  const cards = stockPositions(input)
+    .filter((r) => r.product.active || r.onHand !== 0 || r.backlog !== 0)
+    .map((r): StockCard => ({ stock: r, bought: r.bought, sold: r.sold, samples: r.samples, lastPurchase: r.lastPurchase, toBuy: r.backlog }))
     .sort((a, b) => Number(b.stock.product.active) - Number(a.stock.product.active) || a.stock.product.name.localeCompare(b.stock.product.name) || a.stock.product.variant.localeCompare(b.stock.product.variant));
 
   const priceOf = new Map<string, number>();

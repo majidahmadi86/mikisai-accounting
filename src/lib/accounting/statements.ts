@@ -1,4 +1,4 @@
-import { computeBalance, type BalanceTransaction } from "@/lib/balance";
+import { whoOwesWhom, type TruthTransfer } from "@/lib/truth";
 import type { ExpenseCategory } from "@/lib/categories";
 import { valueStock, type Product, type StockMovement, type Valuation } from "@/lib/inventory/valuation";
 import { round2 } from "@/lib/money";
@@ -179,26 +179,9 @@ export function buildCashFlow(input: StatementsInput, period: Period): CashFlow 
   return { period, cashIn, cashInOrders: landed.length, cashOut, stockOut, operatingOut: round2(cashOut - stockOut), net: round2(cashIn - cashOut), byPerson };
 }
 
-function balanceTxAsOf(t: ReportTx, asOf: string): BalanceTransaction {
-  const settled = settledOn(t);
-  return {
-    type: t.type,
-    platform: t.platform,
-    net_amount: t.net_amount,
-    payer: t.payer,
-    received_by: t.received_by,
-    settlement_status: t.type === "income" ? (settled && settled <= asOf ? "received_in_bank" : "pending") : null,
-    paid_amount: (() => {
-      const p = partialOn(t);
-      return p && p.date <= asOf ? p.amount : 0;
-    })(),
-  };
-}
-
 /** Everything the business owns and owes at the end of a day, from the first entry onwards. */
 export function buildBalanceSheet(input: StatementsInput, asOf: string): BalanceSheet {
-  const txs = input.transactions.filter((t) => t.date <= asOf);
-  const balance = computeBalance(txs.map((t) => balanceTxAsOf(t, asOf)), input.transfers.filter((t) => t.date <= asOf));
+  const balance = whoOwesWhom({ transactions: input.transactions, transfers: input.transfers as TruthTransfer[] }, asOf);
   const receivables = balance.pendingTotal;
   const valuation = valueStock(input.products, movementsUpTo(input.movements, asOf));
   const inventory = valuation.totalValue;

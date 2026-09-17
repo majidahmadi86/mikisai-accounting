@@ -59,7 +59,7 @@ export function liveLedger(): InvestmentInput {
 
   return {
     transactions,
-    transfers: [{ id: "cap1", date: "2026-09-16", from_person: "mike", to_person: "sai", amount: 2005, note: "Mike sent Sai money for stock", kind: "capital", reason: "stock_purchase" }],
+    transfers: [{ id: "cap1", date: "2026-09-16", from_person: "mike", to_person: "sai", amount: 2005, note: "Mike sent Sai money for stock", kind: "capital", reason: "for_stock" }],
     payouts: [],
     categories: SEED_CATEGORIES,
     products: LIVE_PRODUCTS,

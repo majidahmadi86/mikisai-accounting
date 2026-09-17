@@ -34,10 +34,10 @@ describe("live-shaped ledger: bought 32, sold 20, samples 3", () => {
     expect(bundle.inventory!.samples.every((r) => r.product.name.startsWith("Sample sugar"))).toBe(true);
   });
 
-  it("invested 9,210: Mike 2,005, Sai 7,205, Mike owes Sai 2,600", () => {
+  it("put in (display only): Mike 2,005, Sai 9,210; fair share of costs 4,605; to be equal Mike owes Sai 2,600 (the one cash figure)", () => {
     const inv = buildInvestment(input, LIVE_TODAY);
-    expect(inv.total).toBe(9210);
-    expect(inv.byPerson).toEqual({ mike: 2005, sai: 7205 });
+    expect(inv.total).toBe(11215);
+    expect(inv.byPerson).toEqual({ mike: 2005, sai: 9210 });
     expect(inv.fairShare).toBe(4605);
     expect(inv.settle).toEqual({ from: "mike", to: "sai", amount: 2600 });
     expect(inv.contributions[0].date).toBe("2026-09-17");

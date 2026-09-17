@@ -1,4 +1,4 @@
-import { computeBalance, type BalanceTransaction } from "./balance";
+import { whoOwesWhom } from "./truth";
 import { round2 } from "./money";
 import { addDays } from "./reports/period";
 import type { ReportTransfer, ReportTx } from "./reports/build";
@@ -64,15 +64,6 @@ export type MyBalance = {
 
 const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
 
-function toBalanceTx(t: ReportTx, asOf?: string): BalanceTransaction {
-  let status = t.settlement?.status ?? null;
-  if (asOf && t.type === "income") {
-    const settledAt = t.settlement?.settled_at?.slice(0, 10) ?? null;
-    status = status === "received_in_bank" && settledAt && settledAt <= asOf ? "received_in_bank" : "pending";
-  }
-  return { type: t.type, platform: t.platform, net_amount: t.net_amount, payer: t.payer, received_by: t.received_by, settlement_status: t.type === "income" ? status : null, paid_amount: t.settlement?.paid_amount ?? 0 };
-}
-
 /** Whether an income row is still with the platform on a given day. */
 function waitingOn(t: ReportTx, asOf: string): boolean {
   if (t.type !== "income" || t.date > asOf) return false;
@@ -137,9 +128,7 @@ export function exposureLevel(exposure: number, limit: number): ExposureLevel {
 
 /** (a) + (b) as they stood at the end of a given day. */
 export function exposureOn(input: MyBalanceInput, me: Person, asOf: string): number {
-  const txs = input.transactions.filter((t) => t.date <= asOf).map((t) => toBalanceTx(t, asOf));
-  const transfers = input.transfers.filter((t) => t.date <= asOf);
-  const b = computeBalance(txs, transfers);
+  const b = whoOwesWhom(input, asOf);
   const owed = Math.max(0, -b.delta[me]);
   const waiting = sum(input.transactions.filter((t) => waitingOn(t, asOf)).map((t) => t.net_amount));
   return round2(owed + waiting / 2);
@@ -147,7 +136,7 @@ export function exposureOn(input: MyBalanceInput, me: Person, asOf: string): num
 
 export function buildMyBalance(input: MyBalanceInput, me: Person, today: string): MyBalance {
   const partner: Person = me === "mike" ? "sai" : "mike";
-  const balance = computeBalance(input.transactions.map((t) => toBalanceTx(t)), input.transfers);
+  const balance = whoOwesWhom(input, today);
   const delta = balance.delta[me];
   const owedToMe = round2(Math.max(0, -delta));
   const iOwe = round2(Math.max(0, delta));

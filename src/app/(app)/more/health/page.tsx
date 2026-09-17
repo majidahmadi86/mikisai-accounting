@@ -37,13 +37,13 @@ export default async function DataHealthPage() {
 
       <div className="space-y-3">
         {result.checks.map((c) => (
-          <Card key={c.key} tone={c.skipped ? "ivory" : c.count ? "warning" : "card"} className="px-5 py-4">
+          <Card key={c.key} tone={c.skipped ? "ivory" : c.count ? (c.key === "consistency" ? "berry" : "warning") : "card"} className="px-5 py-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-base font-medium text-plum">{tr(`health.${c.key}` as `health.${HealthKey}`)}</p>
                 <p className="mt-0.5 text-xs text-plum-soft">{tr(`health.${c.key}.desc` as `health.${HealthKey}.desc`)}</p>
               </div>
-              {c.skipped ? <Pill tone="neutral">{tr("health.adminOnly")}</Pill> : <Pill tone={c.count ? "warning" : "success"}>{c.count}</Pill>}
+              {c.skipped ? <Pill tone="neutral">{tr("health.adminOnly")}</Pill> : <Pill tone={c.count ? (c.key === "consistency" ? "berry" : "warning") : "success"}>{c.count}</Pill>}
             </div>
             {c.count ? (
               <ul className="mt-3 divide-y divide-line/60">

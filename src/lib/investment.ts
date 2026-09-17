@@ -1,5 +1,6 @@
 import type { StatementsInput } from "@/lib/accounting/statements";
 import { buildAccrualPL } from "@/lib/accounting/statements";
+import { whoOwesWhom } from "@/lib/truth";
 import type { ExpenseCategory } from "@/lib/categories";
 import type { TransactionItemRow } from "@/lib/inventory/reports";
 import { shortProductName } from "@/lib/inventory/units";
@@ -61,10 +62,10 @@ export function buildInvestment(input: InvestmentInput, asOf: string, locale: "e
     rows.push({ id: t.id, date: t.date, who: t.payer, kind: "expense", label: labels.category(categories.get(t.category_id ?? "")), details, amount: t.net_amount, href: `/transactions/${t.id}/edit` });
   }
   const byPerson: Record<Person, number> = { mike: 0, sai: 0 };
+  // Display only: money sent for anything but the other's profit share counts as put in. It never changes who owes whom.
   for (const tr of input.transfers) {
-    if (tr.kind !== "capital" || tr.date > asOf) continue;
+    if (tr.reason === "profit_share" || tr.date > asOf) continue;
     rows.push({ id: tr.id, date: tr.date, who: tr.from_person, kind: "capital", label: labels.reason(tr.reason), details: tr.note, amount: tr.amount, href: `/transfers/${tr.id}/edit` });
-    byPerson[tr.to_person] = round2(byPerson[tr.to_person] - tr.amount);
   }
   rows.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   const running: Record<Person, number> = { ...byPerson };
@@ -75,9 +76,10 @@ export function buildInvestment(input: InvestmentInput, asOf: string, locale: "e
   byPerson.mike = running.mike;
   byPerson.sai = running.sai;
   const total = round2(byPerson.mike + byPerson.sai);
-  const fairShare = round2(total / 2);
-  const gap = round2(fairShare - byPerson.mike);
-  const settle = Math.abs(gap) >= 1 ? (gap > 0 ? { from: "mike" as const, to: "sai" as const, amount: gap } : { from: "sai" as const, to: "mike" as const, amount: round2(-gap) }) : null;
+  // "To be equal" is the one who-owes-whom number, cash basis, transfers already counted.
+  const truth = whoOwesWhom(input, asOf);
+  const fairShare = truth.fairShareOfCosts;
+  const settle = truth.owes;
 
   const income = input.transactions.filter((t) => t.type === "income" && t.date <= asOf);
   const cashReceived = sum(income.map((t) => (t.settlement?.status === "received_in_bank" ? t.net_amount : Math.min(t.net_amount, t.settlement?.paid_amount ?? 0))));
