@@ -239,30 +239,27 @@ test("payouts: new payout, reconciliation marks the probe sale as in the bank, e
   });
 });
 
-test("transfers on Home: valid saves and shows, invalid is refused", async ({ page, context }) => {
+test("transfers on Home: the sheet saves a valid transfer and refuses Other without a note", async ({ page, context }) => {
   await setLang(context, "en");
   await login(page, "admin");
-  const b = base("/ (transfer)");
-  await check(b, "invalid: same person both sides", async () => {
-    const closed = page.locator("details:not([open]) summary").first();
-    if (await closed.count()) await closed.click();
-    await page.locator('select[name="from_person"]').first().selectOption("mike");
-    await page.locator('select[name="to_person"]').first().selectOption("mike");
-    await page.locator('input[name="amount"]').first().fill("10");
-    await page.locator('textarea[name="note"]').first().fill(`${PROBE} transfer bad`);
-    await page.locator('form:has(input[name="amount"]) button[type=submit]').first().click();
-    await expect(page).toHaveURL(/transfer=invalid/);
+  const b = base("/ (transfer sheet)");
+  await check(b, "invalid: Other without a note is refused inline", async () => {
+    await page.getByRole("button", { name: "Record an internal transfer" }).click();
+    await expect(page.getByRole("heading", { name: "Record an internal transfer" })).toBeVisible();
+    await page.getByRole("radio", { name: "Other, say what" }).click();
+    await page.locator("#ts-amount").fill("10");
+    await page.locator("#ts-note").fill("");
+    await page.locator("#ts-note").evaluate((el) => (el as HTMLTextAreaElement).removeAttribute("required"));
+    await page.getByRole("button", { name: "Record transfer" }).click();
+    await expect(page.locator("p.text-berry", { hasText: /note is required/i })).toBeVisible();
   });
   await check(b, "valid: Mike to Sai 10 baht appears in the transfers list", async () => {
-    await page.goto("/");
-    const closed = page.locator("details:not([open]) summary").first();
-    if (await closed.count()) await closed.click();
-    await page.locator('select[name="from_person"]').first().selectOption("mike");
-    await page.locator('select[name="to_person"]').first().selectOption("sai");
-    await page.locator('input[name="amount"]').first().fill("10");
-    await page.locator('textarea[name="note"]').first().fill(`${PROBE} transfer`);
-    await page.locator('form:has(input[name="amount"]) button[type=submit]').first().click();
-    await page.waitForURL(/transfer=saved/, { timeout: 15_000 });
+    await page.getByRole("radio", { name: "My half of a cost the other paid" }).click();
+    await page.getByRole("radio", { name: "Mike" }).click();
+    await page.locator("#ts-amount").fill("10");
+    await page.locator("#ts-note").fill(`${PROBE} transfer`);
+    await page.getByRole("button", { name: "Record transfer" }).click();
+    await expect(page.getByText(/Recorded: Mike sent Sai/)).toBeVisible({ timeout: 15_000 });
     await page.goto("/");
     await expect(page.locator("li", { hasText: `${PROBE} transfer` }).first()).toBeVisible();
   });

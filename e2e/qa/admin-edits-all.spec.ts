@@ -49,14 +49,12 @@ test("contributor creates four rows; admin edits and deletes each", async ({ bro
   await saiPage.waitForURL(/\/payouts\/[0-9a-f-]{36}\/reconcile/, { timeout: 15_000 });
 
   await saiPage.goto("/");
-  const closedDetails = saiPage.locator("details:not([open]) summary").first();
-  if (await closedDetails.count()) await closedDetails.click();
-  await saiPage.locator('select[name="from_person"]').first().selectOption("sai");
-  await saiPage.locator('select[name="to_person"]').first().selectOption("mike");
-  await saiPage.locator('input[name="amount"]').first().fill("5");
-  await saiPage.locator('textarea[name="note"]').first().fill(`${PROBE} sai transfer`);
-  await saiPage.locator('form:has(input[name="amount"]) button[type=submit]').first().click();
-  await saiPage.waitForURL(/transfer=saved/, { timeout: 15_000 });
+  await saiPage.getByRole("button", { name: "Record an internal transfer" }).click();
+  await saiPage.getByRole("radio", { name: "Sai" }).click();
+  await saiPage.locator("#ts-amount").fill("5");
+  await saiPage.locator("#ts-note").fill(`${PROBE} sai transfer`);
+  await saiPage.getByRole("button", { name: "Record transfer" }).click();
+  await expect(saiPage.getByText(/Recorded: Sai sent Mike/)).toBeVisible({ timeout: 15_000 });
   await sai.close();
 
   const { data: income } = await admin.from("transactions").select("id").eq("business_id", BUSINESS).eq("note", `${PROBE} sai income`).single();
