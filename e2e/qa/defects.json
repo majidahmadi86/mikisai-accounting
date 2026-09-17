@@ -1,0 +1,56 @@
+[
+  {
+    "id": "D1",
+    "route": "/transactions (data)",
+    "found": "reconcile:items dry run on live data",
+    "description": "Four sales of 15 Sept had lines worth twice their gross (qty was raised to 2 while the per-unit price stayed at the whole amount), so Units and profitability double counted them.",
+    "fix": "Invariant lines = gross enforced in the RPC and server actions; reconcile:items --fix set unit price = gross / qty on the four rows and logged a system correction to audit_log.",
+    "commit": "3474168",
+    "status": "fixed"
+  },
+  {
+    "id": "D2",
+    "route": "/reports, /",
+    "found": "flows-admin: reports revenue moved by the net amount",
+    "description": "After saving an entry, Reports and Home kept the old numbers for up to 60 seconds: updateTag does not expire unstable_cache entries, so the ledger snapshot only refreshed on its safety-net timer.",
+    "fix": "ledgerChanged now calls revalidateTag(tag, \"max\") as well as updateTag.",
+    "commit": "0bebce6",
+    "status": "fixed"
+  },
+  {
+    "id": "D3",
+    "route": "/transactions",
+    "found": "flows-admin: ledger shows the row",
+    "description": "Ledger rows did not show the note, so an order id or a reference could not be found in the list.",
+    "fix": "Note shown as a clamped line under the customer or category on both layouts.",
+    "commit": "3536118",
+    "status": "fixed"
+  },
+  {
+    "id": "D4",
+    "route": "/more/data-health, /more/recently-deleted, /more/audit",
+    "found": "matrix: route names from the brief",
+    "description": "The names people reach for did not resolve; the pages live at /more/health, /more/deleted and /audit.",
+    "fix": "Redirects added in next.config.ts.",
+    "commit": "9e25ca8",
+    "status": "fixed"
+  },
+  {
+    "id": "D5",
+    "route": "/reports/units",
+    "found": "v2.4 screenshots at 375px",
+    "description": "Long product names in the phone cards ran into the next label; period labels wrapped.",
+    "fix": "Units table rebuilt with short single-line period labels, sticky period and product columns and horizontal scroll inside the card.",
+    "commit": "fba6fb0",
+    "status": "fixed"
+  },
+  {
+    "id": "D6",
+    "route": "/transactions/new, /transactions/[id]/edit",
+    "found": "brief item 1",
+    "description": "Editing quantity on a single-line sale left the unit price unchanged, so lines disagreed with the gross.",
+    "fix": "Amount and lines are linked: qty change keeps gross and recomputes the unit price, price change recomputes gross; line totals shown; server refuses mismatches with the difference.",
+    "commit": "3474168",
+    "status": "fixed"
+  }
+]

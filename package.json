@@ -14,7 +14,9 @@
     "verify:rls": "tsx scripts/verify-rls.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
-    "reconcile:items": "tsx scripts/reconcile-items.ts"
+    "reconcile:items": "tsx scripts/reconcile-items.ts",
+    "test:qa": "playwright test e2e/qa --workers=1",
+    "qa:report": "tsx scripts/qa-report.ts"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",
@@ -38,6 +40,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "pdfjs-dist": "^4.10.38",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",
