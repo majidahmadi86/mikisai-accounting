@@ -1,6 +1,6 @@
 # QA report · MikiSai Accounting v2.5 and v2.6
 
-Generated 2026-09-17T12:16:03.105Z from 616 recorded checks across 31 routes. **All checks pass; zero known defects.**
+Generated 2026-09-17T12:29:11.452Z from 616 recorded checks across 31 routes. **All checks pass; zero known defects.**
 
 Each cell is the number of checks that passed for that route as that role, at that viewport (phone = 375px, desktop = 1440px), in that language. A check is one assertion group: page loads with the right heading, page invariants (no sideways scroll, no raw dictionary key, no unfilled placeholder, no em dash, a heading), no console errors, plus the form, export and role checks the flow specs record.
 
@@ -57,6 +57,7 @@ None.
 | D7 | `every route (local production preview)` | matrix: no console errors, 156 visits | The CSP sent upgrade-insecure-requests on plain http too, so on a local production preview every subresource was upgraded to https://localhost and failed with ERR_SSL_PROTOCOL_ERROR in the console. Live (https) was unaffected. | The upgrade directive is emitted only when the request is https (URL protocol or x-forwarded-proto). | `63cd972` | fixed |
 | D8 | `/transactions/new?type=expense` | flows-admin: stock purchase with lines | With the amount still empty, choosing a product or quantity on a stock purchase (and on a sale) set the unit cost to zero instead of prefilling the amount from the standard cost times units, as v2.3 promised. | With no amount yet the line's standard price or cost prefills the amount; once an amount exists the line follows it. | `ea62c11` | fixed |
 | D9 | `/payouts/[id]/reconcile (QA harness)` | flows-admin: payout confirm | The QA payout probe confirmed the reconciliation proposal, which ticks the oldest waiting orders, so two of Mike's real 15 Sept orders (net 301.03 and 310.82) were marked received in bank by test payouts. | Both settlements were restored to pending with no payout; the spec now names the probe customer and ticks only the probe row before confirming, so a real order can never be touched. | `dc3ae87` | fixed |
+| D10 | `every route at 1440px; /stock at 375px` | v2.6 screenshots | With Stock added to the header the wordmark, Add button, language toggle and Sign out wrapped onto two lines at 1440px; on phones the Purchase backlog pill on a Stock card was clipped by the card edge. | Header right-hand group never wraps and never shrinks, the link row scrolls if it must, the signed-in label waits for xl; Stock card headers wrap the pill under the title when tight. | `426a825` | fixed |
 
 ## What is covered by Playwright
 
