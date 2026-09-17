@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Node --require preload must be CommonJS */
 // Lets a script run modules that import "server-only" outside Next (same as the integration tests).
 const Module = require("node:module");
 const path = require("node:path");
