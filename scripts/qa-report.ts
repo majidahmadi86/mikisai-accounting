@@ -53,6 +53,8 @@ md += `- \`e2e/qa/matrix.spec.ts\`: every route as admin and contributor, EN and
 md += `- \`e2e/qa/flows-admin.spec.ts\`: income form valid and invalid (lines that do not add up are refused with the difference), ledger and Reports move by the net amount, edit keeps gross and recomputes the unit price, soft delete and restore; quick entry with product chip and qty stepper; stock purchase with lines and backlog change; payout create, reconcile, confirm, edit and invalid; transfers valid and invalid; product create, edit, delete, restore; settings save; customers; units toggles; data health run; check books; audit export; sign out.\n`;
 md += `- \`e2e/qa/flows-contributor.spec.ts\`: add and edit own sale, no Delete button, add a product but not edit one, read-only settings, denied on admin pages, read-only data health, quick entry.\n`;
 md += `- \`e2e/qa/exports.spec.ts\`: every report's XLSX body compared cell for cell with the on-screen table, every PDF parsed and checked for its title and headline figure, units and download-everything exports.\n`;
+md += `- \`e2e/qa/admin-edits-all.spec.ts\`: the contributor creates an income, an expense, a payout and a transfer; the admin opens, edits and soft-deletes each, and the ledger row reads created by Sai · edited by Mike.\n`;
+md += `- \`e2e/snapshots-375.spec.ts\`: 375px visual baselines of Reports and Stock, plus a check that no stat value overflows its tile.\n`;
 md += `\n## Not automated\n\n- \`/import\` AI parsing (Gemini) is not called from tests; the page, its validation (empty input refused) and the review table are covered, the model call is exercised by hand.\n`;
 md += `\n## Screenshots after fixing\n\n${shots.map((s) => `- \`qa-output/shots/${s}\``).join("\n")}\n`;
 
