@@ -8,6 +8,8 @@ export type BalanceTransaction = {
   payer: Person | null;
   received_by: Person | null;
   settlement_status: SettlementStatus | null;
+  /** Part of a pending order already paid out (early payout). */
+  paid_amount?: number;
 };
 
 export type BalanceTransfer = {
@@ -22,6 +24,10 @@ export type Balance = {
   netProfit: number;
   target: number;
   holdings: Record<Person, number>;
+  /** Money that reached this person: payouts and transfers received. */
+  received: Record<Person, number>;
+  /** Money this person paid out: expenses and transfers sent. */
+  putIn: Record<Person, number>;
   delta: Record<Person, number>;
   owes: { from: Person; to: Person; amount: number } | null;
   pendingByPlatform: Record<Platform, { pending: number; settled_not_withdrawn: number; total: number; orders: number }>;
@@ -45,6 +51,8 @@ const EMPTY_PLATFORM = () => ({ pending: 0, settled_not_withdrawn: 0, total: 0, 
  */
 export function computeBalance(transactions: BalanceTransaction[], transfers: BalanceTransfer[]): Balance {
   const holdings: Record<Person, number> = { mike: 0, sai: 0 };
+  const received: Record<Person, number> = { mike: 0, sai: 0 };
+  const putIn: Record<Person, number> = { mike: 0, sai: 0 };
   let settledIncome = 0;
   let expenses = 0;
   const pendingByPlatform: Balance["pendingByPlatform"] = {
@@ -58,23 +66,41 @@ export function computeBalance(transactions: BalanceTransaction[], transfers: Ba
     if (tx.type === "income") {
       if (tx.settlement_status === "received_in_bank") {
         settledIncome += tx.net_amount;
-        if (tx.received_by) holdings[tx.received_by] += tx.net_amount;
+        if (tx.received_by) {
+          holdings[tx.received_by] += tx.net_amount;
+          received[tx.received_by] += tx.net_amount;
+        }
       } else {
+        // An early payout puts part of the order in the bank; the rest stays with the platform.
+        const paid = Math.min(tx.net_amount, Math.max(0, tx.paid_amount ?? 0));
+        const rest = tx.net_amount - paid;
+        if (paid > 0) {
+          settledIncome += paid;
+          if (tx.received_by) {
+            holdings[tx.received_by] += paid;
+            received[tx.received_by] += paid;
+          }
+        }
         const bucket = pendingByPlatform[tx.platform];
         const key = tx.settlement_status === "settled_not_withdrawn" ? "settled_not_withdrawn" : "pending";
-        bucket[key] += tx.net_amount;
-        bucket.total += tx.net_amount;
+        bucket[key] += rest;
+        bucket.total += rest;
         bucket.orders += 1;
       }
     } else {
       expenses += tx.net_amount;
-      if (tx.payer) holdings[tx.payer] -= tx.net_amount;
+      if (tx.payer) {
+        holdings[tx.payer] -= tx.net_amount;
+        putIn[tx.payer] += tx.net_amount;
+      }
     }
   }
 
   for (const tr of transfers) {
     holdings[tr.from_person] -= tr.amount;
     holdings[tr.to_person] += tr.amount;
+    putIn[tr.from_person] += tr.amount;
+    received[tr.to_person] += tr.amount;
   }
 
   const netProfit = settledIncome - expenses;
@@ -95,6 +121,8 @@ export function computeBalance(transactions: BalanceTransaction[], transfers: Ba
     netProfit: round2(netProfit),
     target: round2(target),
     holdings: { mike: round2(holdings.mike), sai: round2(holdings.sai) },
+    received: { mike: round2(received.mike), sai: round2(received.sai) },
+    putIn: { mike: round2(putIn.mike), sai: round2(putIn.sai) },
     delta,
     owes,
     pendingByPlatform,

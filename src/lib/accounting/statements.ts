@@ -58,6 +58,8 @@ export type CashFlow = {
 export type BalanceSheet = {
   asOf: string;
   cash: Record<Person, number>;
+  received: Record<Person, number>;
+  putIn: Record<Person, number>;
   cashTotal: number;
   /** Order money still with the platforms, at what you receive. */
   receivables: number;
@@ -152,6 +154,13 @@ function settledOn(t: ReportTx): string | null {
   return t.type === "income" && t.settlement?.status === "received_in_bank" ? (t.settlement.settled_at?.slice(0, 10) ?? t.date) : null;
 }
 
+/** Part of a pending order already in the bank (early payout), with the day it landed. */
+function partialOn(t: ReportTx): { date: string; amount: number } | null {
+  if (t.type !== "income" || !t.settlement || t.settlement.status === "received_in_bank") return null;
+  const paid = Math.min(t.net_amount, Math.max(0, t.settlement.paid_amount ?? 0));
+  return paid > 0 ? { date: t.settlement.settled_at?.slice(0, 10) ?? t.date, amount: paid } : null;
+}
+
 export function buildCashFlow(input: StatementsInput, period: Period): CashFlow {
   const byPerson: CashFlow["byPerson"] = { mike: { in: 0, out: 0, net: 0 }, sai: { in: 0, out: 0, net: 0 } };
   const landed = input.transactions.filter((t) => {
@@ -159,11 +168,13 @@ export function buildCashFlow(input: StatementsInput, period: Period): CashFlow 
     return d !== null && inPeriod(d, period);
   });
   for (const t of landed) if (t.received_by) byPerson[t.received_by].in = round2(byPerson[t.received_by].in + t.net_amount);
+  const partials = input.transactions.map((t) => ({ t, p: partialOn(t) })).filter((x): x is { t: ReportTx; p: { date: string; amount: number } } => x.p !== null && inPeriod(x.p.date, period));
+  for (const { t, p } of partials) if (t.received_by) byPerson[t.received_by].in = round2(byPerson[t.received_by].in + p.amount);
   const paid = input.transactions.filter((t) => t.type === "expense" && inPeriod(t.date, period));
   for (const t of paid) if (t.payer) byPerson[t.payer].out = round2(byPerson[t.payer].out + t.net_amount);
   for (const p of ["mike", "sai"] as const) byPerson[p].net = round2(byPerson[p].in - byPerson[p].out);
   const stockOut = sum(paid.filter((t) => input.categories.find((c) => c.id === t.category_id)?.stock_effect === "purchase").map((t) => t.net_amount));
-  const cashIn = sum(landed.map((t) => t.net_amount));
+  const cashIn = round2(sum(landed.map((t) => t.net_amount)) + sum(partials.map((x) => x.p.amount)));
   const cashOut = sum(paid.map((t) => t.net_amount));
   return { period, cashIn, cashInOrders: landed.length, cashOut, stockOut, operatingOut: round2(cashOut - stockOut), net: round2(cashIn - cashOut), byPerson };
 }
@@ -177,6 +188,10 @@ function balanceTxAsOf(t: ReportTx, asOf: string): BalanceTransaction {
     payer: t.payer,
     received_by: t.received_by,
     settlement_status: t.type === "income" ? (settled && settled <= asOf ? "received_in_bank" : "pending") : null,
+    paid_amount: (() => {
+      const p = partialOn(t);
+      return p && p.date <= asOf ? p.amount : 0;
+    })(),
   };
 }
 
@@ -198,6 +213,8 @@ export function buildBalanceSheet(input: StatementsInput, asOf: string): Balance
   return {
     asOf,
     cash: balance.holdings,
+    received: balance.received,
+    putIn: balance.putIn,
     cashTotal,
     receivables,
     inventory,

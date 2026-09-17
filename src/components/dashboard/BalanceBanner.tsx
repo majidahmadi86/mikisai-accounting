@@ -17,9 +17,12 @@ export function BalanceBanner({ balance, tr }: { balance: Balance; tr: Translato
       <dl className="mt-5 grid max-w-xl grid-cols-2 gap-3 sm:mt-6 sm:gap-4">
         {(["mike", "sai"] as const).map((p) => (
           <div key={p} className="rounded-xl bg-card/80 px-4 py-3">
-            <dt className="eyebrow">{tr("dashboard.balanceOf", { name: tr(`common.${p}`) })}</dt>
-            <dd className="mt-1 font-medium text-xl tabular text-plum sm:text-2xl">{thb(balance.holdings[p])}</dd>
-            <dd className="text-xs text-plum-faint">{tr("dashboard.target", { amount: thb(balance.target) })}</dd>
+            <dt className="eyebrow">{tr(`common.${p}`)}</dt>
+            <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.received")}</dd>
+            <dd className="font-medium text-lg tabular text-plum sm:text-xl">{thb(balance.received[p])}</dd>
+            <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.putIn")}</dd>
+            <dd className="font-medium text-lg tabular text-plum sm:text-xl">{thb(balance.putIn[p])}</dd>
+            <dd className="mt-1 text-xs text-plum-faint">{tr("dashboard.target", { amount: thb(balance.target) })}</dd>
           </div>
         ))}
       </dl>
