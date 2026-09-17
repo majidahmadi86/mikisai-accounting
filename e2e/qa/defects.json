@@ -70,5 +70,14 @@
     "fix": "With no amount yet the line's standard price or cost prefills the amount; once an amount exists the line follows it.",
     "commit": "ea62c11",
     "status": "fixed"
+  },
+  {
+    "id": "D9",
+    "route": "/payouts/[id]/reconcile (QA harness)",
+    "found": "flows-admin: payout confirm",
+    "description": "The QA payout probe confirmed the reconciliation proposal, which ticks the oldest waiting orders, so two of Mike's real 15 Sept orders (net 301.03 and 310.82) were marked received in bank by test payouts.",
+    "fix": "Both settlements were restored to pending with no payout; the spec now names the probe customer and ticks only the probe row before confirming, so a real order can never be touched.",
+    "commit": "dc3ae87",
+    "status": "fixed"
   }
 ]
