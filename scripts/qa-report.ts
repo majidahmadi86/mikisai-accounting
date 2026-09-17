@@ -1,5 +1,5 @@
 /**
- * Builds QA-REPORT.md from the QA sweep results (test-results/qa/results.jsonl,
+ * Builds QA-REPORT.md from the QA sweep results (qa-output/results.jsonl,
  * one line per check written by e2e/qa/*.spec.ts) and the defect log kept in
  * e2e/qa/defects.json.
  *
@@ -10,7 +10,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 type Result = { route: string; role: string; viewport: string; lang: string; check: string; pass: boolean; note?: string };
 type Defect = { id: string; route: string; found: string; description: string; fix: string; commit: string; status: "fixed" | "open" };
 
-const file = "test-results/qa/results.jsonl";
+const file = "qa-output/results.jsonl";
 const results: Result[] = existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as Result) : [];
 const defects: Defect[] = existsSync("e2e/qa/defects.json") ? (JSON.parse(readFileSync("e2e/qa/defects.json", "utf8")) as Defect[]) : [];
 
@@ -32,7 +32,7 @@ const cell = (route: string, role: string, viewport: string, lang: string): stri
 
 const total = rows.length;
 const failed = rows.filter((r) => !r.pass);
-const shots = existsSync("test-results/qa/shots") ? readdirSync("test-results/qa/shots").sort() : [];
+const shots = existsSync("qa-output/shots") ? readdirSync("qa-output/shots").sort() : [];
 
 let md = `# QA report · MikiSai Accounting v2.5\n\n`;
 md += `Generated ${new Date().toISOString()} from ${total} recorded checks across ${routes.length} routes. `;
@@ -49,12 +49,12 @@ md += `\n## Defects found during the sweep and their fixes\n\n| # | Route | Foun
 for (const d of defects) md += `| ${d.id} | \`${d.route}\` | ${d.found} | ${d.description} | ${d.fix} | \`${d.commit}\` | ${d.status} |\n`;
 
 md += `\n## What is covered by Playwright\n\n`;
-md += `- \`e2e/qa/matrix.spec.ts\`: every route as admin and contributor, EN and TH, 375px and 1440px, with a screenshot each (\`test-results/qa/shots/\`).\n`;
+md += `- \`e2e/qa/matrix.spec.ts\`: every route as admin and contributor, EN and TH, 375px and 1440px, with a screenshot each (\`qa-output/shots/\`).\n`;
 md += `- \`e2e/qa/flows-admin.spec.ts\`: income form valid and invalid (lines that do not add up are refused with the difference), ledger and Reports move by the net amount, edit keeps gross and recomputes the unit price, soft delete and restore; quick entry with product chip and qty stepper; stock purchase with lines and backlog change; payout create, reconcile, confirm, edit and invalid; transfers valid and invalid; product create, edit, delete, restore; settings save; customers; units toggles; data health run; check books; audit export; sign out.\n`;
 md += `- \`e2e/qa/flows-contributor.spec.ts\`: add and edit own sale, no Delete button, add a product but not edit one, read-only settings, denied on admin pages, read-only data health, quick entry.\n`;
 md += `- \`e2e/qa/exports.spec.ts\`: every report's XLSX body compared cell for cell with the on-screen table, every PDF parsed and checked for its title and headline figure, units and download-everything exports.\n`;
 md += `\n## Not automated\n\n- \`/import\` AI parsing (Gemini) is not called from tests; the page, its validation (empty input refused) and the review table are covered, the model call is exercised by hand.\n`;
-md += `\n## Screenshots after fixing\n\n${shots.map((s) => `- \`test-results/qa/shots/${s}\``).join("\n")}\n`;
+md += `\n## Screenshots after fixing\n\n${shots.map((s) => `- \`qa-output/shots/${s}\``).join("\n")}\n`;
 
 writeFileSync("QA-REPORT.md", md);
 console.log(`QA-REPORT.md written: ${total} checks, ${failed.length} failing, ${defects.length} defects logged, ${shots.length} screenshots.`);

@@ -47,3 +47,4 @@ supabase/.temp/
 # playwright
 /test-results/
 /playwright-report/
+qa-output/
