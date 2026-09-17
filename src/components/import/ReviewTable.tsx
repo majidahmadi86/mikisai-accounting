@@ -10,7 +10,7 @@ import { estimateNet } from "@/lib/parse/estimate";
 import type { ReviewRow } from "@/lib/parse/schema";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, type PlatformSetting } from "@/lib/types";
 import type { Product } from "@/lib/inventory/valuation";
-import { productLabel } from "@/lib/inventory/reports";
+import { pickerParts } from "@/lib/inventory/units";
 import { cn } from "@/lib/cn";
 import { unitSanity } from "@/lib/inventory/quantity";
 
@@ -103,7 +103,7 @@ export function ReviewTable({
                     <option value="">{t("import.unmatched")}</option>
                     {products.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {productLabel(p)}
+                        {[pickerParts(p).variant, pickerParts(p).name].filter(Boolean).join(" · ")}
                       </option>
                     ))}
                   </select>
@@ -229,7 +229,7 @@ export function ReviewTable({
                   <option value="">{t("import.unmatched")}</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {productLabel(p)}
+                      {[pickerParts(p).variant, pickerParts(p).name].filter(Boolean).join(" · ")}
                     </option>
                   ))}
                 </select>

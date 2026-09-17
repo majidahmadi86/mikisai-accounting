@@ -18,6 +18,9 @@ export function ProductForm({ tr, product, photoUrl, error }: { tr: Translator; 
         <Field label={tr("products.nameEn")} htmlFor="p-name" hint={tr("products.nameHint")}>
           <Input id="p-name" name="name" required maxLength={120} defaultValue={product?.name ?? ""} />
         </Field>
+        <Field label={tr("products.shortName")} htmlFor="p-short" hint={tr("products.shortNameHint")}>
+          <Input id="p-short" name="short_name" maxLength={40} defaultValue={product?.short_name ?? ""} placeholder="1 kg packs" />
+        </Field>
         <Field label={tr("products.nameTh")} htmlFor="p-name-th" hint={tr("products.nameThHint")}>
           <Input id="p-name-th" name="name_th" maxLength={120} defaultValue={product?.name_th ?? ""} />
         </Field>

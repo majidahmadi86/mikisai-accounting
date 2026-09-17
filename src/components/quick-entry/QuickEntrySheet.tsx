@@ -5,11 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createProduct } from "@/app/(app)/settings/products-actions";
 import { Button } from "@/components/ui/Button";
 import { Chips } from "@/components/ui/Chips";
-import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Field, Input, Textarea } from "@/components/ui/Field";
 import { CameraIcon, CloseIcon } from "@/components/ui/Icons";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { categoryLabel } from "@/lib/categories";
-import { productLabel } from "@/lib/inventory/reports";
+import { shortProductName } from "@/lib/inventory/units";
+import { ProductPicker } from "@/components/products/ProductPicker";
 import { salePriceFor } from "@/lib/inventory/product-stats";
 import { coversBacklog } from "@/lib/inventory/backlog";
 import { unitSanity } from "@/lib/inventory/quantity";
@@ -50,6 +51,7 @@ function parseAmount(text: string): number | null {
 }
 
 const NEW = "__new__";
+const MORE = "__more__";
 
 export function QuickEntrySheet({ initialType, retryInput }: { initialType: TransactionType; retryInput: TransactionInput | null }) {
   const t = useT();
@@ -71,6 +73,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
     return wanted && products.some((p) => p.id === wanted) ? wanted : products[0]?.id ?? NEW;
   });
   const [newName, setNewName] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
   const [newVariant, setNewVariant] = useState("");
   const [newLine, setNewLine] = useState<ProductLine>("sugar");
   const [quantity, setQuantity] = useState<number>(retryItem?.qty ?? retryInput?.quantity ?? 1);
@@ -141,7 +144,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
       setError(t("inventory.nameRequired"));
       return null;
     }
-    const result = await createProduct({ name: newName.trim(), variant: newVariant.trim(), product_line: newLine, unit_label: "box", default_price: isIncome && amount && quantity ? round2(amount / quantity) : 0, default_cost: !isIncome && unitCost ? unitCost : 0 });
+    const result = await createProduct({ name: newName.trim(), variant: newVariant.trim(), product_line: newLine, unit_label: "box", stock_mode: "buy_to_order", default_price: isIncome && amount && quantity ? round2(amount / quantity) : 0, default_cost: !isIncome && unitCost ? unitCost : 0 });
     if (!result.ok) {
       setError(t("common.error"));
       return null;
@@ -186,18 +189,48 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
     }
   }
 
+  const chipProducts = [...products].sort((a, b) => (a.id === data.lastProductId ? -1 : b.id === data.lastProductId ? 1 : 0)).slice(0, 8);
+  const inChips = chipProducts.some((p) => p.id === productId);
+  const backlogElsewhere = (() => {
+    if (stockEffect !== "purchase" || !selectedProduct || (data.backlog[selectedProduct.id] ?? 0) > 0) return null;
+    const hit = Object.entries(data.backlog).find(([pid, n]) => n > 0 && pid !== selectedProduct.id && products.find((p) => p.id === pid)?.product_line === selectedProduct.product_line);
+    if (!hit) return null;
+    const other = products.find((p) => p.id === hit[0])!;
+    return { a: shortProductName(other, locale), n: hit[1], b: shortProductName(selectedProduct, locale) };
+  })();
+
   const productPicker = (
     <div className="mt-4">
-      <Field label={t("inventory.product")} htmlFor="qe-product" hint={t("inventory.productHint")}>
-        <Select id="qe-product" value={productId} onChange={(e) => setProductId(e.target.value)}>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>
-              {productLabel(p)}
-            </option>
-          ))}
-          <option value={NEW}>+ {t("inventory.newProduct")}</option>
-        </Select>
+      <Field label={t("inventory.product")} hint={t("inventory.productHint")}>
+        <Chips
+          label={t("inventory.product")}
+          options={[...chipProducts.map((p) => ({ value: p.id, label: shortProductName(p, locale) })), { value: MORE, label: t("inventory.moreProducts") }]}
+          value={inChips ? productId : MORE}
+          onChange={(v) => {
+            if (v === MORE) setShowPicker(true);
+            else {
+              setProductId(v);
+              setShowPicker(false);
+            }
+          }}
+        />
       </Field>
+      {showPicker || !inChips ? (
+        <div className="mt-2">
+          <ProductPicker
+            id="qe-product"
+            products={products}
+            value={productId === NEW ? "" : productId}
+            onChange={(id) => setProductId(id)}
+            label={t("inventory.moreProducts")}
+            createLabel={stockEffect === "sample" ? t("inventory.newSampleProduct") : t("inventory.newProduct")}
+            onCreate={() => {
+              setProductId(NEW);
+              if (stockEffect === "sample" && !newName) setNewName("Sample ");
+            }}
+          />
+        </div>
+      ) : null}
       {productId === NEW ? (
         <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl bg-lavender-tint p-3">
           <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("inventory.name")} aria-label={t("inventory.name")} />
@@ -207,6 +240,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
           </div>
         </div>
       ) : null}
+      {backlogElsewhere ? <p className="mt-2 rounded-xl bg-warning-tint px-3 py-2 text-sm text-warning-ink">{t("inventory.crossBacklog", backlogElsewhere)}</p> : null}
     </div>
   );
 

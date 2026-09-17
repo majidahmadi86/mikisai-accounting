@@ -27,6 +27,7 @@ const ProductSchema = z.object({
   list_fb: optionalMoney,
   low_stock_threshold: z.coerce.number().int().min(0).max(100_000).default(3),
   notes: z.string().trim().max(2000).default(""),
+  short_name: z.string().trim().max(40).default(""),
 });
 
 export type NewProductInput = z.input<typeof ProductSchema>;
