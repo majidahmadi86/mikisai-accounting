@@ -24,23 +24,26 @@ function num(text: string): number {
  */
 function useLinked(initialAmount: string, initialItems: ItemDraft[], products: Product[], priceKey: "unit_price" | "unit_cost", active: boolean) {
   const [amount, setAmount] = useState(initialAmount);
+  // An amount typed by hand (or loaded from an existing row) is the truth the lines follow; a prefilled one keeps following the lines.
+  const [amountTouched, setAmountTouched] = useState(initialAmount !== "" && num(initialAmount) > 0);
   const [rows, setRows] = useState<ItemDraft[]>(() => (initialItems.length ? initialItems : [{ product_id: products[0]?.id ?? "", qty: 1, unit_price: products[0]?.default_price ?? 0, unit_cost: products[0]?.default_cost ?? 0 }]));
   const total = num(amount);
   const linesSum = round2(rows.reduce((a, r) => a + r.qty * (r[priceKey] ?? 0), 0));
 
   function onAmount(text: string) {
     setAmount(text);
+    setAmountTouched(text !== "");
     if (active && rows.length === 1) setRows([{ ...rows[0], [priceKey]: derivedUnitPrice(num(text), rows[0].qty) }]);
   }
   function onItems(next: ItemDraft[], change: ItemChange) {
     if (!active) return setRows(next);
     if (next.length === 1 && (change.field === "qty" || change.field === "product" || change.field === "remove")) {
       const r = next[0];
-      if (total > 0) {
+      if (amountTouched && total > 0) {
         // Single line follows the amount: the unit price is what makes the line equal it.
         setRows([{ ...r, [priceKey]: derivedUnitPrice(total, r.qty) }]);
       } else {
-        // No amount yet: the standard price or cost prefills it from the line.
+        // Nothing typed yet: the standard price or cost times units prefills the amount.
         setRows(next);
         setAmount(String(round2(r.qty * (r[priceKey] ?? 0))));
       }
