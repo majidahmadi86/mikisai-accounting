@@ -25,6 +25,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
+  // Names people reach for; the pages live under their shorter paths.
+  async redirects() {
+    return [
+      { source: "/more/data-health", destination: "/more/health", permanent: false },
+      { source: "/more/recently-deleted", destination: "/more/deleted", permanent: false },
+      { source: "/more/audit", destination: "/audit", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
