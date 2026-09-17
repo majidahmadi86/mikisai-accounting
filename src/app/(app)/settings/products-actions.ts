@@ -110,6 +110,18 @@ export async function saveProductForm(id: string | null, formData: FormData) {
   redirect(`/products/${id}?saved=1`);
 }
 
+/** Name a product where it is seen (Stock, Products): sets the short name. Admin only. */
+export async function renameProduct(id: string, shortName: string): Promise<{ ok: boolean }> {
+  if (!UUID.test(id)) return { ok: false };
+  const { supabase, profile } = await requireAdmin("product", id, "/products?denied=1");
+  const name = String(shortName ?? "").trim().slice(0, 40);
+  if (!name) return { ok: false };
+  const { error, count } = await supabase.from("products").update({ short_name: name }, { count: "exact" }).eq("id", id).eq("business_id", profile.business_id).is("deleted_at", null);
+  if (error || !count) return { ok: false };
+  ledgerChanged(profile.business_id);
+  return { ok: true };
+}
+
 /** Manual stock correction, admin only: a positive or negative adjustment at an optional unit cost. */
 export async function adjustStock(formData: FormData) {
   const productId = String(formData.get("product_id") ?? "");
