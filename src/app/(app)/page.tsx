@@ -5,20 +5,19 @@ import { Tour } from "@/components/tour/Tour";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
-import { TransferForm } from "@/components/transfers/TransferForm";
+import { RecordTransferButton } from "@/components/transfers/RecordTransferButton";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Pill } from "@/components/ui/Pill";
 import { StatCard } from "@/components/ui/StatCard";
 import { ExpandableNote } from "@/components/ui/ExpandableNote";
 import { requireSession } from "@/lib/auth";
-import { computeBalance } from "@/lib/balance";
+import { whoOwesWhom, stockPositions } from "@/lib/truth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone, statusName, statusTone } from "@/lib/labels";
 import { categoryById, categoryLabel } from "@/lib/categories";
 import { formatDate, thb } from "@/lib/money";
 import { PLATFORMS } from "@/lib/types";
-import { createTransfer } from "./transfers/actions";
 import { ItemsSummary } from "@/components/transactions/ItemsSummary";
 import { YesterdayCard } from "@/components/dashboard/YesterdayCard";
 import { buildYesterday } from "@/lib/dashboard/yesterday";
@@ -26,7 +25,6 @@ import { summariseItems } from "@/lib/inventory/units";
 import { todayIso } from "@/lib/money";
 import { lastHealthRun } from "@/lib/health/run";
 import { payoutReminderDue } from "@/lib/payouts/partial";
-import { valueStock } from "@/lib/inventory/valuation";
 import { shortProductName } from "@/lib/inventory/units";
 import { StockPill } from "@/components/products/StockPill";
 import { formatDateTime } from "@/lib/money";
@@ -38,17 +36,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const admin = session.profile.role === "admin";
   const categories = categoryById(snapshot.categories);
 
-  const balance = computeBalance(
-    snapshot.transactions.map((tx) => ({ type: tx.type, platform: tx.platform, net_amount: tx.net_amount, payer: tx.payer, received_by: tx.received_by, settlement_status: tx.settlement?.status ?? null, paid_amount: tx.settlement?.paid_amount ?? 0 })),
-    snapshot.transfers,
-  );
+  const balance = whoOwesWhom(snapshot, todayIso());
   const recent = snapshot.transactions.slice(0, 8);
   const productsById = new Map(snapshot.products.map((p) => [p.id, p]));
   const itemsOf = (id: string) => summariseItems(snapshot.items.filter((i) => i.transaction_id === id), productsById, locale, (n) => tr("transactions.items", { n }));
   const yesterday = buildYesterday(snapshot, todayIso());
   const health = await lastHealthRun(session.supabase, session.profile.business_id);
   const reminder = payoutReminderDue(new Date(), balance.pendingTotal, snapshot.payouts.map((p) => p.date));
-  const stockRows = valueStock(snapshot.products, snapshot.movements).products.filter((r) => r.product.active);
+  const stockRows = stockPositions(snapshot).filter((r) => r.product.active);
   const transfers = snapshot.transfers.slice(0, 20);
   const pendingPlatforms = PLATFORMS.filter((p) => balance.pendingByPlatform[p].orders > 0);
   const transferError = typeof sp.transfer === "string" ? sp.transfer : null;
@@ -210,13 +205,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
               </ul>
             )}
           </div>
-          <details className="group rounded-xl bg-ivory-deep/70 lg:col-span-2 lg:open" open={false}>
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium text-plum lg:cursor-default">
-              {tr("transfer.title")}
-              <span className="text-plum-faint transition-transform group-open:rotate-90 lg:hidden">→</span>
-            </summary>
-            <TransferForm tr={tr} action={createTransfer} error={transferError} submitLabel={tr("dashboard.addTransfer")} compact />
-          </details>
+          <div className="rounded-xl bg-ivory-deep/70 p-4 lg:col-span-2">
+            <p className="text-sm text-plum-soft">{tr("dashboard.transferHint")}</p>
+            {transferError ? <p className="mt-2 rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">{tr("common.error")}</p> : null}
+            <RecordTransferButton className="mt-3 w-full sm:w-auto" />
+          </div>
         </div>
       </Card>
 

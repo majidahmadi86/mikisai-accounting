@@ -29,7 +29,7 @@ export type QuickEntryContextData = {
 export type Notice = { message: string; actionLabel?: string; onAction?: () => void | Promise<void>; durationMs?: number };
 
 type Ctx = {
-  open: (type?: TransactionType) => void;
+  open: (type?: TransactionType | "transfer") => void;
   close: () => void;
   isOpen: boolean;
   data: QuickEntryContextData;
@@ -48,7 +48,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
   const t = useT();
   const router = useRouter();
   const [isOpen, setOpen] = useState(false);
-  const [initialType, setInitialType] = useState<TransactionType>("income");
+  const [initialType, setInitialType] = useState<TransactionType | "transfer">("income");
   const [toast, setToast] = useState<ToastState | null>(null);
   const [retryInput, setRetryInput] = useState<TransactionInput | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,7 +59,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
     timer.current = null;
   };
 
-  const open = useCallback((type: TransactionType = "income") => {
+  const open = useCallback((type: TransactionType | "transfer" = "income") => {
     setInitialType(type);
     setRetryInput(null);
     setOpen(true);
@@ -99,10 +99,11 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
 
   const notify = useCallback((notice: Notice) => {
     clearTimer();
+    router.refresh();
     noticeAction.current = notice.onAction ?? null;
     setToast({ kind: "saved", message: notice.message, actionLabel: notice.actionLabel });
     timer.current = setTimeout(() => setToast(null), notice.durationMs ?? 4000);
-  }, []);
+  }, [router]);
 
   const onToastAction = useCallback(() => {
     if (!toast) return;

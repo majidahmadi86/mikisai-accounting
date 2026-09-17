@@ -43,6 +43,21 @@ export async function createTransfer(formData: FormData) {
 }
 
 
+/** Bottom-sheet path: validates the client payload and inserts without a redirect. */
+export async function quickAddTransfer(input: unknown): Promise<{ ok: true; id: string } | { ok: false; error: "invalid" | "save" }> {
+  const { supabase, profile } = await requireSession();
+  const parsed = TransferSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const { data, error } = await supabase
+    .from("internal_transfers")
+    .insert({ business_id: profile.business_id, date: parsed.data.date, from_person: parsed.data.from_person, to_person: parsed.data.to_person, amount: parsed.data.amount, reason: parsed.data.reason, kind: kindForReason(parsed.data.reason), note: parsed.data.note ?? "" })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: "save" };
+  ledgerChanged(profile.business_id);
+  return { ok: true, id: data.id };
+}
+
 export async function updateTransfer(id: string, formData: FormData) {
   const session = await requireSession();
   const { supabase, profile } = session;

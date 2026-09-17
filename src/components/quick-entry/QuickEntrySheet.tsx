@@ -21,6 +21,7 @@ import { estimateNet } from "@/lib/parse/estimate";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, type Person, type Platform, type ProductLine, type TransactionType } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useQuickEntry } from "./QuickEntryProvider";
+import { TransferSheet } from "./TransferSheet";
 
 const STORAGE_KEY = "mikisai.quick-entry.v2";
 
@@ -53,15 +54,16 @@ function parseAmount(text: string): number | null {
 const NEW = "__new__";
 const MORE = "__more__";
 
-export function QuickEntrySheet({ initialType, retryInput }: { initialType: TransactionType; retryInput: TransactionInput | null }) {
+export function QuickEntrySheet({ initialType, retryInput }: { initialType: TransactionType | "transfer"; retryInput: TransactionInput | null }) {
   const t = useT();
   const locale = useLocale();
-  const { close, data, submit } = useQuickEntry();
+  const { close, data, submit, notify } = useQuickEntry();
+  const transferMode = initialType === "transfer";
   const remembered = useMemo(() => readRemembered(), []);
   const products = useMemo(() => data.products.filter((p) => p.active), [data.products]);
 
   const retryItem = retryInput?.items?.[0];
-  const [type, setType] = useState<TransactionType>(retryInput?.type ?? initialType);
+  const [type, setType] = useState<TransactionType>(retryInput?.type ?? (initialType === "transfer" ? "income" : initialType));
   const [amountText, setAmountText] = useState(() => (retryInput ? String(retryInput.type === "income" ? retryInput.gross_amount : retryInput.amount) : ""));
   const [amountTouched, setAmountTouched] = useState(Boolean(retryInput));
   const [netText, setNetText] = useState(() => (retryInput?.type === "income" && retryInput.net_amount != null ? String(retryInput.net_amount) : ""));
@@ -250,19 +252,29 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
       <div className="relative flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-ivory shadow-[0_-10px_40px_rgba(48,35,51,0.25)] md:max-h-[90vh] md:max-w-lg md:rounded-[24px]">
         <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-2">
           <div>
-            <p className="eyebrow">{t("nav.add")}</p>
+            <p className="eyebrow">{transferMode ? t("transfer.eyebrow") : t("nav.add")}</p>
             <h2 id="quick-entry-title" className="text-2xl text-plum">
-              {t("quick.title")}
+              {transferMode ? t("transfer.title") : t("quick.title")}
             </h2>
-            <p className="text-xs text-plum-soft">{t("quick.subtitle")}</p>
+            <p className="text-xs text-plum-soft">{transferMode ? t("transfer.sheetSubtitle") : t("quick.subtitle")}</p>
           </div>
           <button type="button" onClick={close} aria-label={t("quick.close")} className="-mr-2 flex h-11 w-11 items-center justify-center rounded-full text-plum-soft hover:bg-lavender-tint hover:text-plum">
             <CloseIcon />
           </button>
         </div>
 
+        {transferMode ? (
+          <TransferSheet
+            defaultFrom={data.person}
+            onSaved={(message) => {
+              close();
+              notify({ message });
+            }}
+            onError={(message) => notify({ message })}
+          />
+        ) : null}
         <form
-          className="min-h-0 flex-1 overflow-y-auto px-5 pb-4"
+          className={cn("min-h-0 flex-1 overflow-y-auto px-5 pb-4", transferMode && "hidden")}
           onSubmit={(e) => {
             e.preventDefault();
             void save(false);
@@ -438,7 +450,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
           </Link>
         </form>
 
-        <div className="border-t border-line bg-ivory px-5 pt-3 pb-4 pb-safe">
+        <div className={cn("border-t border-line bg-ivory px-5 pt-3 pb-4 pb-safe", transferMode && "hidden")}>
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <Button type="button" disabled={busy} onClick={() => void save(false)} className="min-h-12 text-base">
               {t("quick.save")}
