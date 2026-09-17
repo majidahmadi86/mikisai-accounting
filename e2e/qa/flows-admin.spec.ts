@@ -121,7 +121,8 @@ test("quick entry: income with product chip and qty 2 saves and appears in the l
     await page.getByRole("button", { name: /Add a note/ }).click();
     await page.locator("#qe-note").fill(`${PROBE} quick`);
     await page.getByRole("button", { name: /^Save$/ }).click();
-    await expect(page.getByText(/Saved/).first()).toBeVisible();
+    // The sheet closes at once; the toast gains its Undo action only once the server has saved.
+    await expect(page.getByRole("button", { name: /^Undo$/ })).toBeVisible({ timeout: 15_000 });
     await page.goto("/transactions");
     await expect(page.getByText(`${PROBE} quick`).first()).toBeVisible();
   });

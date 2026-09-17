@@ -59,7 +59,7 @@
     "found": "matrix: no console errors, 156 visits",
     "description": "The CSP sent upgrade-insecure-requests on plain http too, so on a local production preview every subresource was upgraded to https://localhost and failed with ERR_SSL_PROTOCOL_ERROR in the console. Live (https) was unaffected.",
     "fix": "The upgrade directive is emitted only when the request is https (URL protocol or x-forwarded-proto).",
-    "commit": "",
+    "commit": "63cd972",
     "status": "fixed"
   }
 ]

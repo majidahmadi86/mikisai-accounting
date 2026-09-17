@@ -83,6 +83,6 @@ test("contributor adds a sale, edits it, cannot delete, sees denied on admin pag
     await page.getByRole("button", { name: /Add a note/ }).click();
     await page.locator("#qe-note").fill(`${PROBE} contributor quick`);
     await page.getByRole("button", { name: /^Save$/ }).click();
-    await expect(page.getByText(/Saved/).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Undo$/ })).toBeVisible({ timeout: 15_000 });
   });
 });
