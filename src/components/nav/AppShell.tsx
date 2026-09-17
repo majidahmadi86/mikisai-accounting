@@ -48,7 +48,7 @@ export function AppShell({
               <span className="hidden md:block">
                 <AddButton label={tr("nav.add")} />
               </span>
-              <span className="hidden text-xs text-plum-soft xl:inline">
+              <span className="hidden text-xs text-plum-soft 2xl:inline">
                 {tr("nav.signedInAs")} <span className="font-medium text-plum">{displayName}</span>
               </span>
               <LangToggle locale={locale} />

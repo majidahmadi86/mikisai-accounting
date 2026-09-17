@@ -15,7 +15,7 @@ export function NavLinks({ links, className }: { links: { href: string; label: s
             key={link.href}
             href={link.href}
             className={cn(
-              "rounded-full px-3 py-2 text-sm whitespace-nowrap transition-colors",
+              "rounded-full px-2.5 py-2 text-sm whitespace-nowrap transition-colors",
               active ? "bg-lavender-tint text-berry font-medium" : "text-plum-soft hover:text-plum hover:bg-lavender-tint",
             )}
           >
