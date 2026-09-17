@@ -187,6 +187,7 @@ test("payouts: new payout, reconciliation marks the probe sale as in the bank, e
   await page.goto("/transactions/new?type=income");
   await page.locator("#gross_amount").fill("399");
   await page.locator("#net_amount").fill("377");
+  await page.locator("#customer_name").fill(`${PROBE} match`);
   await page.locator("#note").fill(`${PROBE} to-match`);
   await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
   await expect(page).toHaveURL(/saved=1/, { timeout: 15_000 });
@@ -210,7 +211,18 @@ test("payouts: new payout, reconciliation marks the probe sale as in the bank, e
     await expect(page.getByText(/Proposed match|matches/i).first()).toBeVisible();
   });
   await shot(page, "/payouts/[id]/reconcile", "admin", "desktop", "en");
-  await check(base("/payouts/[id]/reconcile"), "confirm: the sale is now in the bank and linked to the payout", async () => {
+  await check(base("/payouts/[id]/reconcile"), "confirm: only the probe sale is ticked, it is then in the bank and linked to the payout", async () => {
+    // The proposal ticks the oldest waiting orders; never touch Mike's real orders. Tick the probe only.
+    const rows = page.locator("table tbody tr");
+    const n = await rows.count();
+    for (let i = 0; i < n; i += 1) {
+      const row = rows.nth(i);
+      const box = row.locator('input[type="checkbox"]');
+      if ((await box.count()) === 0) continue;
+      const wanted = (await row.innerText()).includes(`${PROBE} to-match`) || (await row.innerText()).includes("QA-PROBE");
+      if ((await box.isChecked()) !== wanted) await box.click();
+    }
+    await expect(page.locator("table tbody tr").filter({ has: page.locator('input[type="checkbox"]:checked') })).toHaveCount(1);
     await page.getByRole("button", { name: /Confirm/ }).click();
     await page.waitForURL(/\/payouts(\?|$)/);
     const { data: tx } = await admin.from("transactions").select("id").eq("note", `${PROBE} to-match`).single();
@@ -353,7 +365,7 @@ test("units report toggles and data health run", async ({ page, context }) => {
   });
   await check(base("/more"), "sign out returns to login", async () => {
     await page.goto("/more");
-    await page.getByRole("button", { name: /Sign out/ }).click();
+    await page.locator("main").getByRole("button", { name: /Sign out/ }).click();
     await page.waitForURL(/\/login/);
   });
 });
