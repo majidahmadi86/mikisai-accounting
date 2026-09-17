@@ -1,6 +1,6 @@
-# QA report · MikiSai Accounting v2.5 and v2.6
+# QA report · MikiSai Accounting v2.5 to v2.7
 
-Generated 2026-09-17T12:29:11.452Z from 616 recorded checks across 31 routes. **All checks pass; zero known defects.**
+Generated 2026-09-17T14:42:13.904Z from 618 recorded checks across 32 routes. **All checks pass; zero known defects.**
 
 Each cell is the number of checks that passed for that route as that role, at that viewport (phone = 375px, desktop = 1440px), in that language. A check is one assertion group: page loads with the right heading, page invariants (no sideways scroll, no raw dictionary key, no unfilled placeholder, no em dash, a heading), no console errors, plus the form, export and role checks the flow specs record.
 
@@ -10,6 +10,7 @@ Each cell is the number of checks that passed for that route as that role, at th
 |---|---|---|---|---|---|---|---|---|
 | `/` | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 |
 | `/ (quick entry)` | · | · | pass 2 | · | pass 1 | · | · | · |
+| `/ (transfer sheet)` | · | · | pass 2 | · | · | · | · | · |
 | `/ (transfer)` | · | · | pass 2 | · | · | · | · | · |
 | `/audit` | pass 3 | pass 3 | pass 4 | pass 3 | pass 2 | pass 1 | pass 1 | pass 1 |
 | `/balance` | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 |
@@ -170,6 +171,7 @@ None.
 - `qa-output/shots/more__contributor__desktop__th.png`
 - `qa-output/shots/more__contributor__phone__en.png`
 - `qa-output/shots/more__contributor__phone__th.png`
+- `qa-output/shots/payouts-id-reconcile__admin__desktop__en.png`
 - `qa-output/shots/payouts-new__admin__desktop__en.png`
 - `qa-output/shots/payouts-new__admin__desktop__th.png`
 - `qa-output/shots/payouts-new__admin__phone__en.png`
@@ -234,6 +236,9 @@ None.
 - `qa-output/shots/stock__contributor__desktop__th.png`
 - `qa-output/shots/stock__contributor__phone__en.png`
 - `qa-output/shots/stock__contributor__phone__th.png`
+- `qa-output/shots/transactions-after-save__admin__desktop__en.png`
+- `qa-output/shots/transactions-after-save__contributor__phone__en.png`
+- `qa-output/shots/transactions-id-edit-after__admin__desktop__en.png`
 - `qa-output/shots/transactions-id-edit__admin__desktop__en.png`
 - `qa-output/shots/transactions-id-edit__admin__desktop__th.png`
 - `qa-output/shots/transactions-id-edit__admin__phone__en.png`
@@ -242,6 +247,7 @@ None.
 - `qa-output/shots/transactions-id-edit__contributor__desktop__th.png`
 - `qa-output/shots/transactions-id-edit__contributor__phone__en.png`
 - `qa-output/shots/transactions-id-edit__contributor__phone__th.png`
+- `qa-output/shots/transactions-new-invalid__admin__desktop__en.png`
 - `qa-output/shots/transactions-new__admin__desktop__en.png`
 - `qa-output/shots/transactions-new__admin__desktop__th.png`
 - `qa-output/shots/transactions-new__admin__phone__en.png`

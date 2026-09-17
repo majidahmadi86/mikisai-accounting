@@ -34,7 +34,7 @@ const total = rows.length;
 const failed = rows.filter((r) => !r.pass);
 const shots = existsSync("qa-output/shots") ? readdirSync("qa-output/shots").sort() : [];
 
-let md = `# QA report · MikiSai Accounting v2.5 and v2.6\n\n`;
+let md = `# QA report · MikiSai Accounting v2.5 to v2.7\n\n`;
 md += `Generated ${new Date().toISOString()} from ${total} recorded checks across ${routes.length} routes. `;
 md += failed.length ? `**${failed.length} check(s) failing.**\n\n` : `**All checks pass; zero known defects.**\n\n`;
 md += `Each cell is the number of checks that passed for that route as that role, at that viewport (phone = 375px, desktop = 1440px), in that language. A check is one assertion group: page loads with the right heading, page invariants (no sideways scroll, no raw dictionary key, no unfilled placeholder, no em dash, a heading), no console errors, plus the form, export and role checks the flow specs record.\n\n`;
