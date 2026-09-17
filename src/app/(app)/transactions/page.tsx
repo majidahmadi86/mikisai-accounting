@@ -129,6 +129,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                         return row.type === "income" ? <span className="font-medium text-warning-ink">{tr("transactions.noProduct")}</span> : productName(tr, row.product_line);
                       })()}
                     </p>
+                    {row.note ? <p className="mt-0.5 line-clamp-1 text-xs text-plum-faint [overflow-wrap:anywhere]">{row.note}</p> : null}
                     <p className="mt-1.5 flex flex-wrap gap-1.5">
                       <Pill tone={typeTone(row.type)}>{row.type === "income" ? tr("common.income") : tr("common.expense")}</Pill>
                       <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
@@ -181,7 +182,10 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                       return row.type === "income" ? <span className="font-medium text-warning-ink">{tr("transactions.noProduct")}</span> : productName(tr, row.product_line);
                     })()}
                   </Td>
-                  <Td className="max-w-48 truncate text-plum-soft">{row.type === "income" ? (row.customer_name ?? "") : categoryLabel(categories.get(row.category_id ?? ""), locale)}</Td>
+                  <Td className="max-w-56 text-plum-soft">
+                    <span className="block truncate">{row.type === "income" ? (row.customer_name ?? "") : categoryLabel(categories.get(row.category_id ?? ""), locale)}</span>
+                    {row.note ? <span className="block truncate text-xs text-plum-faint">{row.note}</span> : null}
+                  </Td>
                   <Td align="right" className="text-plum-faint">
                     {row.type === "income" ? thb(row.gross_amount) : ""}
                   </Td>
