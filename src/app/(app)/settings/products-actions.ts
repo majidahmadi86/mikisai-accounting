@@ -28,6 +28,7 @@ const ProductSchema = z.object({
   low_stock_threshold: z.coerce.number().int().min(0).max(100_000).default(3),
   notes: z.string().trim().max(2000).default(""),
   short_name: z.string().trim().max(40).default(""),
+  expected_net_per_unit: z.preprocess((v) => (v === "" || v === null || v === undefined ? null : v), z.coerce.number().min(0).max(99_999_999).nullable()).default(null),
 });
 
 export type NewProductInput = z.input<typeof ProductSchema>;
@@ -112,13 +113,15 @@ export async function saveProductForm(id: string | null, formData: FormData) {
 /** Manual stock correction, admin only: a positive or negative adjustment at an optional unit cost. */
 export async function adjustStock(formData: FormData) {
   const productId = String(formData.get("product_id") ?? "");
-  const { supabase, profile } = await requireAdmin("stock_movement", null, `/products/${productId}?error=denied`);
+  const back = formData.get("redirect_to") === "/stock" ? "/stock" : `/products/${productId}`;
+  const { supabase, profile } = await requireAdmin("stock_movement", null, `${back}?error=denied`);
+  // A count correction always says why.
   const parsed = z
-    .object({ product_id: z.string().uuid(), qty: z.coerce.number().int().refine((n) => n !== 0), unit_cost: optionalMoney, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), note: z.string().trim().max(500).default("") })
+    .object({ product_id: z.string().uuid(), qty: z.coerce.number().int().refine((n) => n !== 0), unit_cost: optionalMoney, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), note: z.string().trim().min(3).max(500) })
     .safeParse({ product_id: productId, qty: formData.get("qty"), unit_cost: formData.get("unit_cost"), date: formData.get("date"), note: formData.get("note") ?? "" });
-  if (!parsed.success) redirect(`/products/${productId}?error=invalid`);
+  if (!parsed.success) redirect(`${back}?error=invalid`);
   const { error } = await supabase.from("stock_movements").insert({ business_id: profile.business_id, kind: "adjustment", ...parsed.data, unit_cost: parsed.data.unit_cost ?? null });
-  if (error) redirect(`/products/${productId}?error=save`);
+  if (error) redirect(`${back}?error=save`);
   ledgerChanged(profile.business_id);
-  redirect(`/products/${productId}?saved=1`);
+  redirect(`${back}?saved=1`);
 }

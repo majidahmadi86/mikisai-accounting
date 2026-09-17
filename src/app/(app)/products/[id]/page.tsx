@@ -147,7 +147,7 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
               <Input id="adj-date" name="date" type="date" defaultValue={today} required />
             </Field>
             <Field label={tr("common.note")} htmlFor="adj-note" hint={tr("inventory.adjustHint")}>
-              <Input id="adj-note" name="note" />
+              <Input id="adj-note" name="note" required minLength={3} />
             </Field>
             <div className="col-span-full">
               <Button type="submit" variant="secondary">

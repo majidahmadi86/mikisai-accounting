@@ -7,7 +7,7 @@ import type { TransactionItemRow } from "@/lib/inventory/reports";
 import { num, type Business, type Customer, type InternalTransfer, type Payout, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
 
 export type LedgerTransaction = Transaction & {
-  settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null } | null;
+  settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null; paid_amount: number } | null;
 };
 
 export type LedgerSnapshot = {
@@ -42,7 +42,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
       const [tx, tr, po, ps, cu, bz, ec, pr, mv, it] = await Promise.all([
         admin
           .from("transactions")
-          .select("*, settlements(status, settled_at, payout_id)")
+          .select("*, settlements(status, settled_at, payout_id, paid_amount)")
           .eq("business_id", businessId)
           .is("deleted_at", null)
           .order("date", { ascending: false })
@@ -54,7 +54,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("businesses").select("id, name, exposure_limit").eq("id", businessId).maybeSingle(),
         admin.from("expense_categories").select("id, name_en, name_th, sort, active, stock_effect").eq("business_id", businessId).order("sort"),
         admin.from("products").select("*").eq("business_id", businessId).is("deleted_at", null).order("name"),
-        admin.from("stock_movements").select("id, product_id, qty, kind, unit_cost, transaction_id, date, created_at").eq("business_id", businessId).order("date").order("created_at"),
+        admin.from("stock_movements").select("id, product_id, qty, kind, unit_cost, transaction_id, date, created_at, created_by, note").eq("business_id", businessId).order("date").order("created_at"),
         admin.from("transaction_items").select("id, transaction_id, product_id, qty, unit_price, unit_cost").eq("business_id", businessId),
       ]);
 
@@ -67,7 +67,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
           gross_amount: num(row.gross_amount),
           net_amount: num(row.net_amount),
           quantity: num(row.quantity) || 1,
-          settlement: s ? { status: s.status as SettlementStatus, settled_at: s.settled_at ?? null, payout_id: s.payout_id ?? null } : null,
+          settlement: s ? { status: s.status as SettlementStatus, settled_at: s.settled_at ?? null, payout_id: s.payout_id ?? null, paid_amount: num(s.paid_amount) } : null,
         };
       });
 
@@ -84,7 +84,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         })),
         customers: (cu.data ?? []) as Customer[],
         categories: (ec.data ?? []) as ExpenseCategory[],
-        products: (pr.data ?? []).map((p) => ({ ...(p as Product), name_th: p.name_th ?? "", list_prices: (p.list_prices ?? {}) as Record<string, number>, photo_path: p.photo_path ?? null, notes: p.notes ?? "", stock_mode: (p.stock_mode ?? "buy_to_order") as Product["stock_mode"], short_name: p.short_name ?? "", default_cost: num(p.default_cost), default_price: num(p.default_price), low_stock_threshold: num(p.low_stock_threshold) })),
+        products: (pr.data ?? []).map((p) => ({ ...(p as Product), name_th: p.name_th ?? "", list_prices: (p.list_prices ?? {}) as Record<string, number>, photo_path: p.photo_path ?? null, notes: p.notes ?? "", stock_mode: (p.stock_mode ?? "buy_to_order") as Product["stock_mode"], short_name: p.short_name ?? "", expected_net_per_unit: p.expected_net_per_unit == null ? null : num(p.expected_net_per_unit), default_cost: num(p.default_cost), default_price: num(p.default_price), low_stock_threshold: num(p.low_stock_threshold) })),
         movements: (mv.data ?? []).map((m) => ({ ...(m as StockMovement), qty: num(m.qty), unit_cost: m.unit_cost == null ? null : num(m.unit_cost) })),
         items: (it.data ?? []).map((i) => ({ id: i.id as string, transaction_id: i.transaction_id as string, product_id: i.product_id as string, qty: num(i.qty), unit_price: num(i.unit_price), unit_cost: i.unit_cost == null ? null : num(i.unit_cost) })),
         business: { id: businessId, name: bz.data?.name ?? "MikiSai", exposure_limit: bz.data ? num(bz.data.exposure_limit) : 3000 },

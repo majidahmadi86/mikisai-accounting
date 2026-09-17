@@ -15,6 +15,8 @@ export default async function MorePage({ searchParams }: PageProps<"/more">) {
   const items = [
     { href: "/reports", title: tr("more.reports"), desc: tr("more.reportsDesc") },
     { href: "/products", title: tr("nav.products"), desc: tr("products.subtitle") },
+    { href: "/stock", title: tr("stock.title"), desc: tr("stock.subtitle") },
+    { href: "/investment", title: tr("investment.title"), desc: tr("investment.subtitle") },
     { href: "/import", title: tr("more.import"), desc: tr("more.importDesc") },
     { href: "/payouts", title: tr("more.payouts"), desc: tr("more.payoutsDesc") },
     { href: "/customers", title: tr("more.customers"), desc: tr("more.customersDesc") },

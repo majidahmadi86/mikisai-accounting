@@ -7,7 +7,7 @@ import { useQuickEntry } from "@/components/quick-entry/QuickEntryProvider";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/cn";
 
-const MORE_ROUTES = ["/more", "/import", "/payouts", "/customers", "/settings", "/insights", "/audit", "/reports", "/products"];
+const MORE_ROUTES = ["/more", "/import", "/payouts", "/customers", "/settings", "/insights", "/audit", "/reports", "/products", "/stock", "/investment"];
 
 function Tab({ href, label, icon, active }: { href: string; label: string; icon: React.ReactNode; active: boolean }) {
   return (

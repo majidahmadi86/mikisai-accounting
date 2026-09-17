@@ -23,6 +23,7 @@ export function AppShell({
     { href: "/", label: tr("nav.home") },
     { href: "/transactions", label: tr("nav.ledger") },
     { href: "/products", label: tr("nav.products") },
+    { href: "/stock", label: tr("nav.stock") },
     { href: "/balance", label: tr("nav.balance") },
     { href: "/reports", label: tr("nav.reports") },
     { href: "/insights", label: tr("nav.insights") },

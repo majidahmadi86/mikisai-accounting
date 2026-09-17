@@ -23,7 +23,9 @@ export type ReportTx = {
   customer_name: string | null;
   note: string;
   created_at: string;
-  settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null } | null;
+  settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null; paid_amount?: number } | null;
+  created_by?: string | null;
+  updated_by?: string | null;
 };
 
 export type ReportTransfer = { id: string; date: string; from_person: Person; to_person: Person; amount: number; note: string };
@@ -34,6 +36,8 @@ export type ReportInput = {
   transfers: ReportTransfer[];
   payouts: ReportPayout[];
   categories: ExpenseCategory[];
+  /** Platform fee percentages, for the default expected net per unit. */
+  settings?: { platform: Platform; commission_pct: number }[];
   products?: Product[];
   movements?: StockMovement[];
   items?: TransactionItemRow[];
@@ -56,7 +60,7 @@ export type ProductRow = { product: ProductLine; orders: number; units: number; 
 export type PlatformRow = { platform: Platform; orders: number; gross: number; net: number; fees: number; feePct: number };
 export type CategoryRow = { category: ExpenseCategory; count: number; amount: number; share: number; previous: number; changePct: number | null };
 export type StatusRow = { platform: Platform; pendingOrders: number; pending: number; walletOrders: number; wallet: number; bankOrders: number; bank: number; total: number };
-export type OwesRow = { asOf: string; mikeHolds: number; saiHolds: number; netProfit: number; owes: Balance["owes"] };
+export type OwesRow = { asOf: string; mikeHolds: number; saiHolds: number; received: Record<"mike" | "sai", number>; putIn: Record<"mike" | "sai", number>; netProfit: number; owes: Balance["owes"] };
 export type CustomerRow = { name: string; platform: Platform; orders: number; gross: number; net: number; lastOrder: string };
 
 export type ReportBundle = {
@@ -222,10 +226,11 @@ export function buildOwesHistory(input: ReportInput, period: Period): OwesRow[] 
         payer: t.payer,
         received_by: t.received_by,
         settlement_status: (t.type === "income" ? (t.settlement?.status === "received_in_bank" && t.settlement.settled_at && t.settlement.settled_at <= cutoff ? "received_in_bank" : "pending") : null) as SettlementStatus | null,
+        paid_amount: t.type === "income" && t.settlement?.status !== "received_in_bank" && t.settlement?.settled_at && t.settlement.settled_at <= cutoff ? (t.settlement.paid_amount ?? 0) : 0,
       }));
     const transfers = input.transfers.filter((tr) => tr.date <= asOf);
     const b = computeBalance(txs, transfers);
-    return { asOf, mikeHolds: b.holdings.mike, saiHolds: b.holdings.sai, netProfit: b.netProfit, owes: b.owes };
+    return { asOf, mikeHolds: b.holdings.mike, saiHolds: b.holdings.sai, received: b.received, putIn: b.putIn, netProfit: b.netProfit, owes: b.owes };
   });
 }
 
@@ -272,6 +277,9 @@ export function buildReports(input: ReportInput, period: Period, generatedAt = n
             movements: input.movements ?? [],
             items: input.items ?? [],
             sales: input.transactions.filter((t) => t.type === "income").map((t) => ({ id: t.id, date: t.date, net_amount: t.net_amount })),
+            expenses: tx.filter((t) => t.type === "expense").map((t) => ({ id: t.id, category_id: t.category_id, net_amount: t.net_amount })),
+            categories: input.categories,
+            feePct: input.settings?.find((s) => s.platform === "tiktok")?.commission_pct ?? 0,
           },
           period,
         )

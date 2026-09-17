@@ -41,6 +41,8 @@ export type Ownership = {
   created_by: string | null;
   deleted_at: string | null;
   deleted_by: string | null;
+  updated_by?: string | null;
+  updated_at?: string | null;
 };
 
 export type Transaction = {
@@ -66,6 +68,8 @@ export type Settlement = {
   business_id: string;
   transaction_id: string;
   status: SettlementStatus;
+  /** Part of the order already in the bank while the rest stays pending (early payout). */
+  paid_amount: number;
   settled_at: string | null;
   payout_id: string | null;
   created_at: string;

@@ -22,6 +22,8 @@ export type Product = {
   notes: string;
   /** Admin-set short label for ledger rows and chips, for example "1 kg packs". */
   short_name: string;
+  /** What a unit really brings in after fees and discounts; null means standard price x (1 - platform fee). */
+  expected_net_per_unit: number | null;
   /** buy_to_order: sold before bought, negative stock is a backlog. stocked: must never go negative. */
   stock_mode: StockMode;
   deleted_at?: string | null;
@@ -33,6 +35,8 @@ export type StockMode = (typeof STOCK_MODES)[number];
 export type StockMovement = {
   id: string;
   product_id: string;
+  created_by?: string | null;
+  note?: string;
   /** Positive brings units in, negative takes them out. */
   qty: number;
   kind: StockMovementKind;

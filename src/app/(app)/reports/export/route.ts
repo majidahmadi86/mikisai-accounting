@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { recordAudit } from "@/lib/audit";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
-import { inventoryTables, isReportId, reportTables, transferTable, unitsTable, type ExportTable } from "@/lib/exports/tables";
+import { inventoryTables, isReportId, movementsTable, reportTables, transferTable, unitsTable, type ExportTable } from "@/lib/exports/tables";
+import { buildStockPage } from "@/lib/inventory/stock-page";
 import { buildUnitsReport, last14Days } from "@/lib/inventory/units";
 import { todayIso } from "@/lib/money";
 import { buildWorkbook } from "@/lib/exports/xlsx";
@@ -33,6 +34,13 @@ export async function GET(request: Request) {
   const bundle = buildReports(snapshot, period);
   const all = [...reportTables(bundle, tr, locale), ...inventoryTables(bundle, tr)];
   let tables: ExportTable[] = report === "all" ? all : all.filter((x) => x.id === report);
+  if (report === "movements") {
+    const { data: profiles } = await session.supabase.from("profiles").select("id, display_name");
+    const names = new Map((profiles ?? []).map((p) => [p.id as string, p.display_name as string]));
+    const product = url.searchParams.get("product");
+    const { history } = buildStockPage({ products: snapshot.products, movements: snapshot.movements, items: snapshot.items, names }, { product: product && /^[0-9a-f-]{36}$/i.test(product) ? product : null, from: url.searchParams.get("from"), to: url.searchParams.get("to") });
+    tables = [movementsTable(history, tr, locale)];
+  }
   if (report === "units" || report === "all") {
     const g = url.searchParams.get("granularity");
     const granularity = g === "week" || g === "month" ? g : "day";

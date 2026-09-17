@@ -29,7 +29,7 @@ export type ExportTable = {
   emphasis?: number[];
 };
 
-export const REPORT_IDS = ["units", "pl", "cashflow", "balance", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
+export const REPORT_IDS = ["movements", "units", "pl", "cashflow", "balance", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
 export type ReportId = (typeof REPORT_IDS)[number];
 
 export function isReportId(v: unknown): v is ReportId {
@@ -63,8 +63,11 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
   ];
   const bs = bundle.balanceSheet;
   const balanceRows: Cell[][] = [
-    [tr("reports.bsCash", { name: tr("common.mike") }), bs.cash.mike],
-    [tr("reports.bsCash", { name: tr("common.sai") }), bs.cash.sai],
+    [tr("reports.bsReceived", { name: tr("common.mike") }), bs.received.mike],
+    [tr("reports.bsPutIn", { name: tr("common.mike") }), neg(bs.putIn.mike)],
+    [tr("reports.bsReceived", { name: tr("common.sai") }), bs.received.sai],
+    [tr("reports.bsPutIn", { name: tr("common.sai") }), neg(bs.putIn.sai)],
+    [tr("reports.bsCashTotal"), bs.cashTotal],
     [tr("reports.bsReceivables"), bs.receivables],
     [tr("reports.bsInventory"), bs.inventory],
     [tr("reports.bsAssets"), bs.assets],
@@ -187,15 +190,19 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
       description: tr("reports.owesDesc"),
       columns: [
         { key: "asOf", label: tr("reports.asOf"), kind: "date" },
-        { key: "mike", label: tr("reports.holds", { name: tr("common.mike") }), kind: "money" },
-        { key: "sai", label: tr("reports.holds", { name: tr("common.sai") }), kind: "money" },
+        { key: "mikeReceived", label: tr("reports.received", { name: tr("common.mike") }), kind: "money" },
+        { key: "mikePutIn", label: tr("reports.putIn", { name: tr("common.mike") }), kind: "money" },
+        { key: "saiReceived", label: tr("reports.received", { name: tr("common.sai") }), kind: "money" },
+        { key: "saiPutIn", label: tr("reports.putIn", { name: tr("common.sai") }), kind: "money" },
         { key: "profit", label: tr("dashboard.netProfit"), kind: "money" },
         { key: "owes", label: tr("reports.owes"), kind: "text" },
       ],
       rows: bundle.owesHistory.map((r) => [
         formatDate(r.asOf, locale),
-        r.mikeHolds,
-        r.saiHolds,
+        r.received.mike,
+        r.putIn.mike,
+        r.received.sai,
+        r.putIn.sai,
         r.netProfit,
         r.owes ? tr("dashboard.owes", { from: tr(`common.${r.owes.from}`), to: tr(`common.${r.owes.to}`), amount: `฿${r.owes.amount.toFixed(2)}` }) : tr("reports.balanced"),
       ]),
@@ -279,14 +286,16 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
       columns: [
         { key: "product", label: tr("common.product"), kind: "text" },
         { key: "qty", label: tr("reports.units"), kind: "int" },
+        { key: "expectedNet", label: tr("reports.expectedNet"), kind: "money" },
+        { key: "realizedNet", label: tr("reports.realizedNet"), kind: "money" },
         { key: "expected", label: tr("reports.expectedMargin"), kind: "money" },
         { key: "actual", label: tr("reports.actualMargin"), kind: "money" },
         { key: "variance", label: tr("reports.variance"), kind: "money" },
         { key: "variancePct", label: tr("reports.variancePct"), kind: "pct" },
         { key: "flag", label: tr("reports.flag"), kind: "text" },
       ],
-      rows: inv.marginPlan.map((r) => [productLabel(r.product), r.qty, r.expectedMargin, r.actualMargin, r.variance, r.variancePct, r.worse ? tr("reports.worse") : ""]),
-      totals: [1, 2, 3, 4],
+      rows: inv.marginPlan.map((r) => [productLabel(r.product), r.qty, r.expectedNetPerUnit, r.realizedNetPerUnit, r.expectedMargin, r.actualMargin, r.variance, r.variancePct, r.worse ? tr("reports.worse") : ""]),
+      totals: [1, 4, 5, 6],
       totalLabel: tr("common.total"),
     },
     {
@@ -303,6 +312,27 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
       totalLabel: tr("common.total"),
     },
   ];
+}
+
+/** Stock movement history for the Stock page export. */
+export function movementsTable(rows: import("@/lib/inventory/stock-page").MovementRow[], tr: Translator, locale: Locale): ExportTable {
+  return {
+    id: "movements",
+    title: tr("stock.history"),
+    description: tr("stock.historyDesc"),
+    columns: [
+      { key: "date", label: tr("common.date"), kind: "date" },
+      { key: "product", label: tr("common.product"), kind: "text" },
+      { key: "kind", label: tr("stock.kind"), kind: "text" },
+      { key: "qty", label: tr("inventory.qty"), kind: "int" },
+      { key: "perUnit", label: tr("stock.perUnit"), kind: "money" },
+      { key: "who", label: tr("stock.recordedBy"), kind: "text" },
+      { key: "note", label: tr("common.note"), kind: "text" },
+    ],
+    rows: rows.map((m) => [formatDate(m.date, locale), shortProductName(m.product, locale), tr(`stock.kind.${m.kind}`), m.qty, m.perUnit, m.who ?? "", m.note]),
+    totals: [3],
+    totalLabel: tr("common.total"),
+  };
 }
 
 /** Units per product per day, week or month, with subtotals and a per-product total. */
