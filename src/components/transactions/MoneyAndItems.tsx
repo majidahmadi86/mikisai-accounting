@@ -35,9 +35,15 @@ function useLinked(initialAmount: string, initialItems: ItemDraft[], products: P
   function onItems(next: ItemDraft[], change: ItemChange) {
     if (!active) return setRows(next);
     if (next.length === 1 && (change.field === "qty" || change.field === "product" || change.field === "remove")) {
-      // Single line follows the amount.
       const r = next[0];
-      setRows([{ ...r, [priceKey]: derivedUnitPrice(total, r.qty) }]);
+      if (total > 0) {
+        // Single line follows the amount: the unit price is what makes the line equal it.
+        setRows([{ ...r, [priceKey]: derivedUnitPrice(total, r.qty) }]);
+      } else {
+        // No amount yet: the standard price or cost prefills it from the line.
+        setRows(next);
+        setAmount(String(round2(r.qty * (r[priceKey] ?? 0))));
+      }
       return;
     }
     setRows(next);
