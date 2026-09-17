@@ -6,6 +6,7 @@ import { productLabel } from "@/lib/inventory/reports";
 import { formatDate } from "@/lib/money";
 import type { ReportBundle } from "@/lib/reports/build";
 import { shortProductName, type UnitsReport, type UnitsRow } from "@/lib/inventory/units";
+import { shortPeriodLabel } from "@/lib/inventory/units-labels";
 
 /**
  * One tabular description of every report. The on-screen page, the XLSX
@@ -306,13 +307,7 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
 
 /** Units per product per day, week or month, with subtotals and a per-product total. */
 export function unitsTable(report: UnitsReport, tr: Translator, locale: Locale): ExportTable {
-  const label = (r: UnitsRow): string => {
-    const range = r.from === r.to ? formatDate(r.from, locale) : `${formatDate(r.from, locale)} → ${formatDate(r.to, locale)}`;
-    if (r.kind === "week") return `${tr("units.weekSubtotal")} · ${range}`;
-    if (r.kind === "month") return `${tr("units.monthSubtotal")} · ${range}`;
-    if (r.kind === "total") return `${tr("common.total")} · ${range}`;
-    return range;
-  };
+  const label = (r: UnitsRow): string => shortPeriodLabel(r.from, r.to, r.kind, locale, tr("common.total"));
   const toCells = (r: UnitsRow): Cell[] => [label(r), shortProductName(r.product, locale), r.orders, r.unitsSold, r.unitsBought, r.samplesOut, r.onHandEnd, r.backlogEnd, r.avgSalePrice, r.avgCostEnd];
   const all = [...report.rows, ...report.totals];
   return {

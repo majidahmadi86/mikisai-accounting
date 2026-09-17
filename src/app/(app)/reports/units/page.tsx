@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GranularityPicker } from "@/components/reports/GranularityPicker";
 import { PeriodPicker } from "@/components/reports/PeriodPicker";
-import { ReportTableView } from "@/components/reports/ReportTableView";
+import { UnitsSummaryStrip, UnitsTable } from "@/components/reports/UnitsTable";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -75,9 +75,12 @@ export default async function UnitsReportPage({ searchParams }: PageProps<"/repo
         )}
       </Card>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader title={table.title} subtitle={table.description} />
-        <div className="px-5 pb-5 sm:px-6 sm:pb-6">{report.rows.length ? <ReportTableView table={table} /> : <p className="text-sm text-plum-soft">{tr("units.empty")}</p>}</div>
+        <div className="min-w-0 px-5 pb-5 sm:px-6 sm:pb-6">
+          <UnitsSummaryStrip totals={report.totals} />
+          <UnitsTable rows={report.rows} totals={report.totals} granularity={granularity} />
+        </div>
       </Card>
     </div>
   );
