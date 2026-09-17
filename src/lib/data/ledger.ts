@@ -1,5 +1,5 @@
 import "server-only";
-import { revalidatePath, unstable_cache, updateTag } from "next/cache";
+import { revalidatePath, revalidateTag, unstable_cache, updateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ExpenseCategory } from "@/lib/categories";
 import type { Product, StockMovement } from "@/lib/inventory/valuation";
@@ -99,8 +99,14 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
   )();
 }
 
-/** Call after any write to the ledger. Expires the snapshot and every page under the app layout. */
+/**
+ * Call after any write to the ledger. Expires the snapshot and every page
+ * under the app layout. updateTag covers "use cache" entries; unstable_cache
+ * entries (the snapshot) are only expired by revalidateTag, so both run.
+ */
 export function ledgerChanged(businessId: string): void {
-  updateTag(ledgerTag(businessId));
+  const tag = ledgerTag(businessId);
+  updateTag(tag);
+  revalidateTag(tag, "max");
   revalidatePath("/", "layout");
 }
