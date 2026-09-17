@@ -63,6 +63,9 @@ export function ProductForm({ tr, product, photoUrl, error }: { tr: Translator; 
         <Field label={tr("products.standardPrice")} htmlFor="p-price" hint={tr("products.standardPriceHint")}>
           <Input id="p-price" name="default_price" type="number" inputMode="decimal" min={0} step="0.01" defaultValue={product?.default_price ?? 0} className="tabular text-lg" />
         </Field>
+        <Field label={tr("products.expectedNet")} htmlFor="p-expected" hint={tr("products.expectedNetHint")}>
+          <Input id="p-expected" name="expected_net_per_unit" type="number" inputMode="decimal" min={0} step="0.01" defaultValue={product?.expected_net_per_unit ?? ""} placeholder={tr("common.optional")} className="tabular text-lg" />
+        </Field>
       </div>
 
       <div>

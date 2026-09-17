@@ -85,7 +85,11 @@ export function productDetailStats(
 export type MarginPlan = {
   product: Product;
   qty: number;
-  /** Standard sale price minus standard cost, times units sold. */
+  /** What a unit is expected to bring in after fees: the admin-set figure, else standard price x (1 - platform fee). */
+  expectedNetPerUnit: number;
+  /** What a unit actually brought in: revenue received divided by units. */
+  realizedNetPerUnit: number | null;
+  /** Expected net per unit minus standard cost, times units sold. */
   expectedMargin: number;
   /** What actually happened: revenue received minus cost at moving average. */
   actualMargin: number;
@@ -97,11 +101,28 @@ export type MarginPlan = {
 
 export const MARGIN_ALERT_PCT = 5;
 
-export function marginVsPlan(rows: { product: Product; qty: number; grossMargin: number }[]): MarginPlan[] {
+/** The net a unit is expected to bring in: the admin-set figure, else the standard price less the platform fee. */
+export function expectedNetPerUnit(product: Pick<Product, "expected_net_per_unit" | "default_price">, feePct: number): number {
+  if (product.expected_net_per_unit != null && product.expected_net_per_unit > 0) return product.expected_net_per_unit;
+  return round2(product.default_price * (1 - Math.max(0, feePct) / 100));
+}
+
+export function marginVsPlan(rows: { product: Product; qty: number; grossMargin: number; revenue?: number }[], feePct = 0): MarginPlan[] {
   return rows.map((r) => {
-    const expected = round2((r.product.default_price - r.product.default_cost) * r.qty);
+    const net = expectedNetPerUnit(r.product, feePct);
+    const expected = round2((net - r.product.default_cost) * r.qty);
     const variance = round2(r.grossMargin - expected);
     const variancePct = expected > 0 ? round2((variance / expected) * 100) : null;
-    return { product: r.product, qty: r.qty, expectedMargin: expected, actualMargin: r.grossMargin, variance, variancePct, worse: variancePct !== null && variancePct < -MARGIN_ALERT_PCT };
+    return {
+      product: r.product,
+      qty: r.qty,
+      expectedNetPerUnit: net,
+      realizedNetPerUnit: r.revenue !== undefined && r.qty > 0 ? round2(r.revenue / r.qty) : null,
+      expectedMargin: expected,
+      actualMargin: r.grossMargin,
+      variance,
+      variancePct,
+      worse: variancePct !== null && variancePct < -MARGIN_ALERT_PCT,
+    };
   });
 }

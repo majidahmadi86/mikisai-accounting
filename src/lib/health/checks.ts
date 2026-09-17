@@ -8,7 +8,7 @@ import { buildReports } from "@/lib/reports/build";
 import { daysBetween, thisMonth } from "@/lib/reports/period";
 import type { Role } from "@/lib/types";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
@@ -101,7 +101,15 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
       .map((r): HealthIssue => ({ id: r.entity_id ?? r.created_at, label: `${r.entity_type} · ${r.created_at.slice(0, 16).replace("T", " ")}`, href: r.entity_type === "transaction" && r.entity_id ? txHref(r.entity_id) : "/audit" }));
   }
 
-  // 10. Every report total equals the ledger sum for this month, and the books balance.
+  // 10. Products selling regularly without an honest expectation of what a unit brings in.
+  const saleIds = new Set(income.map((t) => t.id));
+  const salesPerProduct = new Map<string, number>();
+  for (const it of input.items) if (saleIds.has(it.transaction_id)) salesPerProduct.set(it.product_id, (salesPerProduct.get(it.product_id) ?? 0) + 1);
+  const noExpectedNet = input.products
+    .filter((p) => !p.deleted_at && (p.expected_net_per_unit == null || p.expected_net_per_unit <= 0) && (salesPerProduct.get(p.id) ?? 0) >= 5)
+    .map((p): HealthIssue => ({ id: p.id, label: `${p.name}${p.variant ? ` · ${p.variant}` : ""}`, href: `/products/${p.id}/edit`, detail: `${salesPerProduct.get(p.id)} sales` }));
+
+  // 11. Every report total equals the ledger sum for this month, and the books balance.
   const totals = reportTotalMismatches(input, today);
 
   const checks: HealthCheck[] = [
@@ -114,6 +122,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("transfer_no_reason", noReason),
     check("duplicate_order_ids", duplicates),
     check("late_contributor_edit", lateEdits, { adminOnly: true, skipped: !input.audit }),
+    check("no_expected_net", noExpectedNet),
     check("report_totals", totals),
   ];
   const issues = checks.reduce((a, c) => a + c.count, 0);

@@ -19,10 +19,10 @@ const SAMPLE_IDS = ["00000000-0000-4000-8000-0000000000b3", "00000000-0000-4000-
 export const UNIT_NET = 377;
 export const UNIT_GROSS = 399;
 
-const base: Omit<Product, "id" | "name" | "variant" | "default_cost" | "active"> = { name_th: "", product_line: "sugar", unit_label: "box", default_price: UNIT_GROSS, list_prices: { tiktok: UNIT_GROSS }, low_stock_threshold: 3, photo_path: null, notes: "", short_name: "", stock_mode: "buy_to_order" };
+const base: Omit<Product, "id" | "name" | "variant" | "default_cost" | "active"> = { name_th: "", product_line: "sugar", unit_label: "box", default_price: UNIT_GROSS, list_prices: { tiktok: UNIT_GROSS }, low_stock_threshold: 3, photo_path: null, notes: "", short_name: "", stock_mode: "buy_to_order", expected_net_per_unit: null };
 
 export const REAL_PRODUCTS: Product[] = [
-  { ...base, id: BOX_ID, name: "Coconut sugar Rung Nirand Amphawa", variant: "10 kg box (1 kg x 10 packs)", short_name: "1 kg packs", default_cost: 260, active: true },
+  { ...base, id: BOX_ID, name: "Coconut sugar Rung Nirand Amphawa", variant: "10 kg box (1 kg x 10 packs)", short_name: "1 kg packs", default_cost: 260, active: true, expected_net_per_unit: 311 },
   ...SAMPLE_IDS.map((id, i) => ({ ...base, id, name: `Sample sugar ${"ABC"[i]}`, variant: "10 kg", default_cost: 296.67, default_price: 0, list_prices: {}, active: false })),
 ];
 

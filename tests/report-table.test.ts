@@ -46,6 +46,6 @@ describe("report table rows as rendered", () => {
     const rows = rowsWithTotal(tables.find((x) => x.id === "owes")!);
     expect(rows).toHaveLength(1);
     expect(rows[0].cells[0]).toBe("30 Sept 2026");
-    expect(rows[0].cells[4]).toBe("Mike owes Sai ฿171.50");
+    expect(rows[0].cells[6]).toBe("Mike owes Sai ฿171.50");
   });
 });

@@ -19,6 +19,7 @@ const box: Product = {
   notes: "",
   short_name: "",
   stock_mode: "buy_to_order",
+  expected_net_per_unit: null,
 };
 
 describe("quantities are whole units", () => {
