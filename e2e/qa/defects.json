@@ -52,5 +52,14 @@
     "fix": "Amount and lines are linked: qty change keeps gross and recomputes the unit price, price change recomputes gross; line totals shown; server refuses mismatches with the difference.",
     "commit": "3474168",
     "status": "fixed"
+  },
+  {
+    "id": "D7",
+    "route": "every route (local production preview)",
+    "found": "matrix: no console errors, 156 visits",
+    "description": "The CSP sent upgrade-insecure-requests on plain http too, so on a local production preview every subresource was upgraded to https://localhost and failed with ERR_SSL_PROTOCOL_ERROR in the console. Live (https) was unaffected.",
+    "fix": "The upgrade directive is emitted only when the request is https (URL protocol or x-forwarded-proto).",
+    "commit": "",
+    "status": "fixed"
   }
 ]

@@ -10,7 +10,7 @@ const supabaseOrigin = (() => {
 })();
 
 /** Strict CSP: only scripts carrying this request's nonce may run; no third-party origins at all. */
-function buildCsp(nonce: string): string {
+function buildCsp(nonce: string, secure: boolean): string {
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -22,14 +22,16 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     `connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace("https://", "wss://")}`.trim(),
-    "upgrade-insecure-requests",
+    // Only on https: over plain http (local production preview) the upgrade sends every subresource to a TLS port that is not there.
+    ...(secure ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 
 /** Refreshes the Supabase session cookie, gates every page behind sign-in and sets the nonce CSP. */
 export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("base64");
-  const csp = buildCsp(nonce);
+  const secure = request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
+  const csp = buildCsp(nonce, secure);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("content-security-policy", csp);

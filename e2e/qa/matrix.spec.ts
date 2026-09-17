@@ -93,12 +93,12 @@ for (const role of ["admin", "contributor"] as Role[]) {
             await check(base, "loads with title", async () => {
               await expect(page.locator("h1").first()).toHaveText(route.title[lang]);
             });
-            await check(base, "page invariants", () => pageInvariants(page, VIEWPORTS[viewport].width));
+            await check(base, "page invariants", () => pageInvariants(page, VIEWPORTS[viewport].width), { soft: true });
+            await shot(page, route.path, role, viewport, lang);
             await check(base, "no console errors", () => {
               const real = errors.filter((e) => !/favicon|hydrat|404/i.test(e));
               expect(real, real.join(" | ")).toEqual([]);
             });
-            await shot(page, route.path, role, viewport, lang);
           });
         }
       });
