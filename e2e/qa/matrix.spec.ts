@@ -9,19 +9,28 @@
 import { expect, test, type Page } from "@playwright/test";
 import { check, login, pageInvariants, setLang, shot, VIEWPORTS, type Lang, type Role, type Viewport } from "./helpers";
 
+/** The first matching link's href, or null at once when there is none. */
+async function firstHref(page: Page, selector: string): Promise<string | null> {
+  const links = page.locator(selector);
+  if ((await links.count()) === 0) return null;
+  return links.first().getAttribute("href");
+}
+
 type Route = { path: string; title: { en: RegExp; th: RegExp }; adminOnly?: boolean; resolve?: (page: Page) => Promise<string | null> };
 
 const ROUTES: Route[] = [
   { path: "/", title: { en: /Balanced|owes/i, th: /สมดุล|ค้างจ่าย/ } },
   { path: "/transactions", title: { en: /^Transactions$/, th: /^รายการ$/ } },
-  { path: "/transactions/[id]/edit", title: { en: /Edit transaction/, th: /แก้ไขรายการ/ }, resolve: async (page) => (await page.locator('a[href^="/transactions/"][href$="/edit"]').first().getAttribute("href")) },
+  { path: "/transactions/[id]/edit", title: { en: /Edit transaction/, th: /แก้ไขรายการ/ }, resolve: (page) => firstHref(page, 'a[href^="/transactions/"][href$="/edit"]') },
   { path: "/transactions/new", title: { en: /New income/, th: /รายรับใหม่/ } },
   { path: "/import", title: { en: /Import a sales report/, th: /นำเข้ารายงานการขาย/ } },
   { path: "/payouts", title: { en: /^Payouts$/, th: /^ยอดโอนเข้า$/ } },
   { path: "/payouts/new", title: { en: /payout/i, th: /ยอดโอน/ } },
-  { path: "/payouts/[id]/reconcile", title: { en: /Match|Reconcile|payout/i, th: /จับคู่|ยอดโอน/ }, resolve: async (page) => (await page.locator('a[href^="/payouts/"][href$="/reconcile"]').first().getAttribute("href")) },
+  { path: "/payouts/[id]/reconcile", title: { en: /Match|Reconcile|payout/i, th: /จับคู่|ยอดโอน/ }, resolve: (page) => firstHref(page, 'a[href^="/payouts/"][href$="/reconcile"]') },
   { path: "/products", title: { en: /^Products$/, th: /^สินค้า$/ } },
-  { path: "/products/[id]", title: { en: /Coconut sugar|Sample/, th: /น้ำตาล|Coconut|Sample/ }, resolve: async (page) => (await page.locator('a[href^="/products/"]').filter({ hasNotText: /Add product|เพิ่มสินค้า/ }).first().getAttribute("href")) },
+  { path: "/products/[id]", title: { en: /Coconut sugar|Sample/, th: /น้ำตาล|Coconut|Sample/ }, resolve: (page) => firstHref(page, 'a[href^="/products/"]:not([href="/products/new"])') },
+  { path: "/stock", title: { en: /^Stock$/, th: /^สต็อก$/ } },
+  { path: "/investment", title: { en: /^Investment$/, th: /^เงินลงทุน$/ } },
   { path: "/balance", title: { en: /^My Balance$/, th: /^ยอดของฉัน$/ } },
   { path: "/reports", title: { en: /^Reports$/, th: /^รายงาน$/ } },
   { path: "/reports/units", title: { en: /^Units$/, th: /^หน่วยสินค้า$/ } },
