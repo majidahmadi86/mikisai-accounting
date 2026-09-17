@@ -67,8 +67,8 @@ export default async function StockPage({ searchParams }: PageProps<"/stock">) {
           const backlog = c.stock.backlog > 0;
           return (
             <Card key={p.id} className={cn("px-5 py-4", !p.active && "opacity-60")}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                <div className="min-w-0 flex-1 basis-40">
                   <Link href={`/products/${p.id}`} className="block truncate text-base font-medium text-plum hover:underline">
                     {shortProductName(p, locale)}
                   </Link>

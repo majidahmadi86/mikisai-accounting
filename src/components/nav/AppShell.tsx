@@ -35,18 +35,20 @@ export function AppShell({
       <header className="sticky top-0 z-10 border-b border-line bg-ivory/85 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-8">
-              <Brand />
-              <NavLinks links={links} className="hidden md:flex" />
+            <div className="flex min-w-0 items-center gap-4 lg:gap-6">
+              <span className="shrink-0">
+                <Brand />
+              </span>
+              <NavLinks links={links} className="hidden min-w-0 overflow-x-auto md:flex" />
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap sm:gap-3">
               <Link href="/products" aria-label={tr("nav.products")} className="flex h-11 w-11 items-center justify-center rounded-full text-plum-soft hover:bg-lavender-tint hover:text-berry md:hidden">
                 <BoxIcon />
               </Link>
               <span className="hidden md:block">
                 <AddButton label={tr("nav.add")} />
               </span>
-              <span className="hidden text-xs text-plum-soft lg:inline">
+              <span className="hidden text-xs text-plum-soft xl:inline">
                 {tr("nav.signedInAs")} <span className="font-medium text-plum">{displayName}</span>
               </span>
               <LangToggle locale={locale} />
