@@ -51,7 +51,7 @@ export function MarkAsSent({ from, to, amount, today }: { from: Person; to: Pers
               </button>
             </div>
             <form action={createTransfer} className="mt-4 space-y-3">
-              <input type="hidden" name="reason" value="profit_settlement" />
+              <input type="hidden" name="reason" value="profit_share" />
               <input type="hidden" name="redirect_to" value="/balance" />
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("transfer.from")} htmlFor="ms-from">

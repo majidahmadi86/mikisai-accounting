@@ -33,7 +33,7 @@ export function TransferForm({
         <Input id={`${idp}-date`} name="date" type="date" required defaultValue={initial?.date ?? todayIso()} />
       </Field>
       <Field label={tr("transfer.reason")}>
-        <ReasonChips defaultValue={initial?.reason ?? "profit_settlement"} />
+        <ReasonChips defaultValue={initial?.reason ?? "profit_share"} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label={tr("transfer.from")} htmlFor={`${idp}-from`}>

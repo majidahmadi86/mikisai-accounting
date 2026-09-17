@@ -19,12 +19,12 @@ export type Role = (typeof ROLES)[number];
 export const TRANSFER_KINDS = ["settlement", "capital"] as const;
 export type TransferKind = (typeof TRANSFER_KINDS)[number];
 
-export const TRANSFER_REASONS = ["stock_purchase", "samples", "profit_settlement", "expense_reimbursement", "other"] as const;
+export const TRANSFER_REASONS = ["for_stock", "for_samples", "my_half_of_costs", "profit_share", "other"] as const;
 export type TransferReason = (typeof TRANSFER_REASONS)[number];
 
 /** The database derives kind from reason with the same rule; kept here for forms and tests. */
 export function kindForReason(reason: TransferReason): TransferKind {
-  return reason === "profit_settlement" ? "settlement" : "capital";
+  return reason === "profit_share" ? "settlement" : "capital";
 }
 
 export type Business = { id: string; name: string; exposure_limit: number };

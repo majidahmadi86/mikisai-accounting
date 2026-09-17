@@ -10,7 +10,7 @@ import { TRANSFER_REASONS, type TransferReason } from "@/lib/types";
  * derived from the reason in the database, so there is nothing else to pick.
  * Exposes the chosen reason so the form can require a note for "other".
  */
-export function ReasonChips({ defaultValue = "profit_settlement", onChange }: { defaultValue?: TransferReason; onChange?: (r: TransferReason) => void }) {
+export function ReasonChips({ defaultValue = "profit_share", onChange }: { defaultValue?: TransferReason; onChange?: (r: TransferReason) => void }) {
   const t = useT();
   const [reason, setReason] = useState<TransferReason>(defaultValue);
   return (

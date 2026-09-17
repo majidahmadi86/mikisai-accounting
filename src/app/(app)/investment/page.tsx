@@ -56,14 +56,15 @@ export default async function InvestmentPage({ searchParams }: PageProps<"/inves
             <div>
               <p className="eyebrow">{tr("investment.toBeEqual")}</p>
               <p className="mt-1 text-xl font-medium text-plum">{tr("investment.owes", { from: who(inv.settle.from), to: who(inv.settle.to), amount: thb(inv.settle.amount) })}</p>
-              <p className="mt-1 text-xs text-plum-soft">{tr("investment.owesHint")}</p>
+              <p className="mt-1 text-xs text-plum-soft">{tr("investment.alreadyCounted")}</p>
+              <p className="mt-1 text-xs text-plum-faint">{tr("investment.owesHint")}</p>
             </div>
             <form action={createTransfer}>
               <input type="hidden" name="date" value={today} />
               <input type="hidden" name="from_person" value={inv.settle.from} />
               <input type="hidden" name="to_person" value={inv.settle.to} />
               <input type="hidden" name="amount" value={inv.settle.amount} />
-              <input type="hidden" name="reason" value="expense_reimbursement" />
+              <input type="hidden" name="reason" value="my_half_of_costs" />
               <input type="hidden" name="note" value={tr("investment.recordNote")} />
               <input type="hidden" name="redirect_to" value="/investment" />
               <Button type="submit">{tr("investment.record", { amount: thb(inv.settle.amount) })}</Button>

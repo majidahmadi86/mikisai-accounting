@@ -25,7 +25,7 @@ let probeId = "";
 test.beforeAll(async () => {
   const { data, error } = await admin
     .from("internal_transfers")
-    .insert({ business_id: BUSINESS, date: "2026-09-16", from_person: "sai", to_person: "mike", amount: 1, kind: "settlement", reason: "profit_settlement", note: LONG_NOTE })
+    .insert({ business_id: BUSINESS, date: "2026-09-16", from_person: "sai", to_person: "mike", amount: 1, kind: "settlement", reason: "profit_share", note: LONG_NOTE })
     .select("id")
     .single();
   if (error || !data) throw error ?? new Error("probe insert failed");
