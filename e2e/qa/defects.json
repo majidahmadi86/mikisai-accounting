@@ -79,5 +79,14 @@
     "fix": "Both settlements were restored to pending with no payout; the spec now names the probe customer and ticks only the probe row before confirming, so a real order can never be touched.",
     "commit": "dc3ae87",
     "status": "fixed"
+  },
+  {
+    "id": "D10",
+    "route": "every route at 1440px; /stock at 375px",
+    "found": "v2.6 screenshots",
+    "description": "With Stock added to the header the wordmark, Add button, language toggle and Sign out wrapped onto two lines at 1440px; on phones the Purchase backlog pill on a Stock card was clipped by the card edge.",
+    "fix": "Header right-hand group never wraps and never shrinks, the link row scrolls if it must, the signed-in label waits for xl; Stock card headers wrap the pill under the title when tight.",
+    "commit": "426a825",
+    "status": "fixed"
   }
 ]
