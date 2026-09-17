@@ -57,7 +57,14 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
   if (filters.from) query = query.gte("date", filters.from);
   if (filters.to) query = query.lte("date", filters.to);
 
-  const { data } = await query;
+  const [{ data }, { data: profiles }] = await Promise.all([query, supabase.from("profiles").select("id, display_name")]);
+  const nameOf = new Map((profiles ?? []).map((p) => [p.id as string, p.display_name as string]));
+  const byline = (row: { created_by: string | null; updated_by?: string | null }) => {
+    const c = row.created_by ? nameOf.get(row.created_by) : null;
+    const e = row.updated_by ? nameOf.get(row.updated_by) : null;
+    if (!c && !e) return "";
+    return [c ? tr("transactions.rowCreatedBy", { name: c }) : "", e && e !== c ? tr("transactions.rowEditedBy", { name: e }) : e && c ? tr("transactions.rowEditedBy", { name: e }) : ""].filter(Boolean).join(" · ");
+  };
   const rows = (data ?? []).map((row) => {
     const s = Array.isArray(row.settlements) ? row.settlements[0] : row.settlements;
     return {
@@ -130,6 +137,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                       })()}
                     </p>
                     {row.note ? <p className="mt-0.5 line-clamp-1 text-xs text-plum-faint [overflow-wrap:anywhere]">{row.note}</p> : null}
+                    {byline(row) ? <p className="mt-0.5 text-[11px] text-plum-faint">{byline(row)}</p> : null}
                     <p className="mt-1.5 flex flex-wrap gap-1.5">
                       <Pill tone={typeTone(row.type)}>{row.type === "income" ? tr("common.income") : tr("common.expense")}</Pill>
                       <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
@@ -185,6 +193,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                   <Td className="max-w-56 text-plum-soft">
                     <span className="block truncate">{row.type === "income" ? (row.customer_name ?? "") : categoryLabel(categories.get(row.category_id ?? ""), locale)}</span>
                     {row.note ? <span className="block truncate text-xs text-plum-faint">{row.note}</span> : null}
+                    {byline(row) ? <span className="block truncate text-[11px] text-plum-faint">{byline(row)}</span> : null}
                   </Td>
                   <Td align="right" className="text-plum-faint">
                     {row.type === "income" ? thb(row.gross_amount) : ""}
