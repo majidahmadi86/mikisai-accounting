@@ -88,10 +88,10 @@ export function reviewRowsFor(orders: ParsedOrder[], platform: Platform, receive
 }
 
 /** Payouts seen on wallet screens or in a finance export, each with the FIFO match it would make on confirm. */
-export async function payoutRowsFor(supabase: SupabaseClient, payouts: ParsedPayout[], platform: Platform, receivedBy: Person, uploadDate = todayIso()): Promise<PayoutRow[]> {
+export async function payoutRowsFor(supabase: SupabaseClient, businessId: string, payouts: ParsedPayout[], platform: Platform, receivedBy: Person, uploadDate = todayIso()): Promise<PayoutRow[]> {
   const out: PayoutRow[] = [];
   for (const p of mergeParsedPayouts(payouts)) {
-    const { proposal, clawbackOffset } = await proposeForAmount(supabase, platform, p.amount);
+    const { proposal, clawbackOffset } = await proposeForAmount(supabase, businessId, platform, p.amount);
     out.push({
       key: crypto.randomUUID(),
       include: true,

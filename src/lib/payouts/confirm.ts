@@ -7,16 +7,17 @@ import { num } from "@/lib/types";
 export type PayoutMatchResult = { settlementIds: string[]; orders: number; amountReceived: number; clawbackOffset: number; previouslyLinked: string[] };
 
 /** Pending clawbacks on a platform: they come out of the next payout, so the orders it covers add up to the amount plus these. */
-export async function pendingClawbacks(supabase: SupabaseClient, platform: string): Promise<{ ids: string[]; total: number }> {
-  const { data } = await supabase.from("clawbacks").select("id, amount, transactions!inner(platform)").eq("status", "pending").is("deleted_at", null).eq("transactions.platform", platform);
+export async function pendingClawbacks(supabase: SupabaseClient, businessId: string, platform: string): Promise<{ ids: string[]; total: number }> {
+  const { data } = await supabase.from("clawbacks").select("id, amount, transactions!inner(platform)").eq("business_id", businessId).eq("status", "pending").is("deleted_at", null).eq("transactions.platform", platform);
   return { ids: (data ?? []).map((c) => c.id as string), total: (data ?? []).reduce((a, c) => a + num(c.amount), 0) };
 }
 
 /** Unpaid orders on a platform, oldest first, in the shape the FIFO matcher wants. */
-export async function unpaidCandidates(supabase: SupabaseClient, platform: string, payoutId?: string) {
+export async function unpaidCandidates(supabase: SupabaseClient, businessId: string, platform: string, payoutId?: string) {
   let q = supabase
     .from("settlements")
     .select("id, transaction_id, payout_id, status, transactions!inner(date, created_at, net_amount, platform, deleted_at)")
+    .eq("business_id", businessId)
     .eq("transactions.platform", platform)
     .is("deleted_at", null)
     .is("transactions.deleted_at", null);
@@ -48,13 +49,14 @@ export async function matchPayout(supabase: SupabaseClient, businessId: string, 
   const toUnlink = previouslyLinked.filter((id) => !ids.includes(id));
   if (toUnlink.length) await supabase.from("settlements").update({ status: "pending", settled_at: null, payout_id: null, paid_amount: 0 }).in("id", toUnlink);
 
-  const clawbacks = await pendingClawbacks(supabase, payout.platform as string);
+  const clawbacks = await pendingClawbacks(supabase, businessId, payout.platform as string);
   let eligibleIds: string[] = [];
   if (ids.length) {
     const { data: eligible } = await supabase
       .from("settlements")
       .select("id, payout_id, transactions!inner(platform, date, created_at, net_amount)")
       .in("id", ids)
+      .eq("business_id", businessId)
       .is("deleted_at", null)
       .eq("transactions.platform", payout.platform);
     const rows = (eligible ?? [])
@@ -78,8 +80,8 @@ export async function matchPayout(supabase: SupabaseClient, businessId: string, 
 }
 
 /** FIFO proposal for a payout amount on a platform: the oldest unpaid orders that add up to it (plus pending clawbacks). */
-export async function proposeForAmount(supabase: SupabaseClient, platform: string, amount: number) {
-  const [candidates, clawbacks] = await Promise.all([unpaidCandidates(supabase, platform), pendingClawbacks(supabase, platform)]);
+export async function proposeForAmount(supabase: SupabaseClient, businessId: string, platform: string, amount: number) {
+  const [candidates, clawbacks] = await Promise.all([unpaidCandidates(supabase, businessId, platform), pendingClawbacks(supabase, businessId, platform)]);
   const proposal = proposeFifoMatch(candidates, amount + clawbacks.total);
   return { proposal, candidates, clawbackOffset: clawbacks.total };
 }

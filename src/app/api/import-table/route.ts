@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     const parsedPayouts: ParsedPayout[] = Array.from(byDay.entries())
       .filter(([, amount]) => amount > 0)
       .map(([date, amount]) => ({ date: date === "?" ? null : date, amount, note: "Seller Center statement" }));
-    payouts = await payoutRowsFor(supabase, parsedPayouts, platform, received_by);
+    payouts = await payoutRowsFor(supabase, businessId, parsedPayouts, platform, received_by);
     const negative = settlements.filter((s) => s.amount < 0).length;
     if (negative) warnings.push(`${negative} adjustment row(s) with a negative amount were netted into the day's payout.`);
   }

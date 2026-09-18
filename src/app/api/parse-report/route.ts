@@ -178,7 +178,7 @@ export async function POST(request: Request) {
   for (const b of succeeded) warnings.push(...b.warnings);
   const existing = await existingOrders(supabase, businessId, platform, orders.map((o) => o.order_id ?? ""));
   const rows: ReviewRow[] = reviewRowsFor(orders, platform, received_by, ctx, existing);
-  const payouts = await payoutRowsFor(supabase, succeeded.flatMap((b) => b.payouts ?? []), platform, received_by);
+  const payouts = await payoutRowsFor(supabase, businessId, succeeded.flatMap((b) => b.payouts ?? []), platform, received_by);
 
   const body: ParseResponse = { upload_ids: uploadIds, rows, payouts, batches: batches.length, warnings: Array.from(new Set(warnings)) };
 
