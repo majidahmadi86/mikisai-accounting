@@ -19,7 +19,7 @@ export function SearchBox() {
     <>
       <form
         role="search"
-        className="hidden lg:block"
+        className="hidden 2xl:block"
         onSubmit={(e) => {
           e.preventDefault();
           const query = q.trim();
@@ -42,7 +42,7 @@ export function SearchBox() {
           />
         </label>
       </form>
-      <Link href="/search" aria-label={t("search.title")} className="flex h-11 w-11 items-center justify-center rounded-full text-plum-soft hover:bg-lavender-tint hover:text-berry lg:hidden">
+      <Link href="/search" aria-label={t("search.title")} className="flex h-11 w-11 items-center justify-center rounded-full text-plum-soft hover:bg-lavender-tint hover:text-berry 2xl:hidden">
         <SearchIcon />
       </Link>
     </>
