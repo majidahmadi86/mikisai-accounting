@@ -9,8 +9,8 @@ import { thb, todayIso } from "@/lib/money";
 import type { OrderStatus } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
+/** Keeps a tap inside the control from reaching the row link around it. */
 const stop = (e: React.SyntheticEvent) => {
-  e.preventDefault();
   e.stopPropagation();
 };
 
@@ -78,6 +78,7 @@ export function OrderStatusButton({ id, status, refund, netAmount, admin, compac
     <form
       onClick={stop}
       onSubmit={(e) => {
+        e.preventDefault();
         stop(e);
         if (!valid) return setError(t("orders.refundInvalid", { max: thb(netAmount) }));
         setError(null);

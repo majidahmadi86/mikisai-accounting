@@ -10,7 +10,7 @@ export function QuickOrderButton({ className, variant = "secondary" }: { classNa
   const { open } = useQuickEntry();
   return (
     <Button type="button" variant={variant} className={className} onClick={() => open("order")}>
-      {t("quick.order")}
+      {t("quick.orderTitle")}
     </Button>
   );
 }

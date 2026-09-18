@@ -113,7 +113,7 @@ const en = {
   "transactions.count": "{n} entries",
 
   "import.title": "Import a sales report",
-  "import.subtitle": "Paste text or upload screenshots and PDFs. Nothing is saved until you confirm.",
+  "import.subtitle": "A Seller Center export, screenshots shared from the phone, or pasted text. Nothing is saved until you confirm.",
   "import.pasteLabel": "Pasted report text",
   "import.pastePlaceholder": "Paste the order list or receipt text here",
   "import.filesLabel": "Screenshots or PDF",
@@ -1209,7 +1209,7 @@ const th: Record<DictionaryKey, string> = {
   "transactions.count": "{n} รายการ",
 
   "import.title": "นำเข้ารายงานการขาย",
-  "import.subtitle": "วางข้อความ หรืออัปโหลดภาพหน้าจอและ PDF ระบบจะไม่บันทึกจนกว่าคุณจะยืนยัน",
+  "import.subtitle": "ไฟล์จาก Seller Center ภาพหน้าจอที่แชร์จากมือถือ หรือข้อความที่วาง ระบบจะไม่บันทึกจนกว่าคุณจะยืนยัน",
   "import.pasteLabel": "ข้อความจากรายงาน",
   "import.pastePlaceholder": "วางรายการออเดอร์หรือข้อความจากใบเสร็จที่นี่",
   "import.filesLabel": "ภาพหน้าจอหรือ PDF",

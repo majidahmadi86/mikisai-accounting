@@ -472,7 +472,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
           </Link>
         </form>
 
-        <div className={cn("border-t border-line bg-ivory px-5 pt-3 pb-4 pb-safe", transferMode && "hidden")}>
+        <div className={cn("border-t border-line bg-ivory px-5 pt-3 pb-4 pb-safe", (transferMode || orderMode) && "hidden")}>
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <Button type="button" disabled={busy} onClick={() => void save(false)} className="min-h-12 text-base">
               {t("quick.save")}

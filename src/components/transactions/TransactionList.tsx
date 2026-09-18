@@ -57,11 +57,6 @@ export function TransactionList({ rows, tr, locale, categories, itemsOf, byline,
                   <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
                   {row.settlement_status && row.status === "active" ? <Pill tone={statusTone(row.settlement_status)}>{statusName(tr, row.settlement_status)}</Pill> : null}
                 </p>
-                {row.type === "income" ? (
-                  <div className="mt-2">
-                    <OrderStatusButton id={row.id} status={row.status} refund={row.refund_amount} netAmount={row.net_amount} admin={admin} compact />
-                  </div>
-                ) : null}
               </div>
               <div className="shrink-0 text-right">
                 <p className={`tabular text-base font-medium ${row.type === "expense" ? "text-plum-soft" : "text-berry"}`}>
@@ -71,6 +66,11 @@ export function TransactionList({ rows, tr, locale, categories, itemsOf, byline,
                 {row.type === "income" && row.gross_amount !== row.net_amount ? <p className="text-xs text-plum-faint tabular">{thb(row.gross_amount)}</p> : null}
               </div>
             </Link>
+            {row.type === "income" ? (
+              <div className="px-4 pb-3">
+                <OrderStatusButton id={row.id} status={row.status} refund={row.refund_amount} netAmount={row.net_amount} admin={admin} compact />
+              </div>
+            ) : null}
           </StackedItem>
         ))}
       </StackedList>
