@@ -1,6 +1,6 @@
-# QA report · MikiSai Accounting v2.5 to v2.7
+# QA report · MikiSai Accounting v2.5 to v2.8
 
-Generated 2026-09-17T14:42:13.904Z from 618 recorded checks across 32 routes. **All checks pass; zero known defects.**
+Generated 2026-09-18T04:25:11.995Z from 618 recorded checks across 32 routes. **All checks pass; zero known defects.**
 
 Each cell is the number of checks that passed for that route as that role, at that viewport (phone = 375px, desktop = 1440px), in that language. A check is one assertion group: page loads with the right heading, page invariants (no sideways scroll, no raw dictionary key, no unfilled placeholder, no em dash, a heading), no console errors, plus the form, export and role checks the flow specs record.
 
@@ -59,6 +59,9 @@ None.
 | D8 | `/transactions/new?type=expense` | flows-admin: stock purchase with lines | With the amount still empty, choosing a product or quantity on a stock purchase (and on a sale) set the unit cost to zero instead of prefilling the amount from the standard cost times units, as v2.3 promised. | With no amount yet the line's standard price or cost prefills the amount; once an amount exists the line follows it. | `ea62c11` | fixed |
 | D9 | `/payouts/[id]/reconcile (QA harness)` | flows-admin: payout confirm | The QA payout probe confirmed the reconciliation proposal, which ticks the oldest waiting orders, so two of Mike's real 15 Sept orders (net 301.03 and 310.82) were marked received in bank by test payouts. | Both settlements were restored to pending with no payout; the spec now names the probe customer and ticks only the probe row before confirming, so a real order can never be touched. | `dc3ae87` | fixed |
 | D10 | `every route at 1440px; /stock at 375px` | v2.6 screenshots | With Stock added to the header the wordmark, Add button, language toggle and Sign out wrapped onto two lines at 1440px; on phones the Purchase backlog pill on a Stock card was clipped by the card edge. | Header right-hand group never wraps and never shrinks, the link row scrolls if it must, the signed-in label waits for xl; Stock card headers wrap the pill under the title when tight. | `426a825` | fixed |
+| D11 | `/audit` | v2.8 QA sweep (matrix invariants) | Audit rows written for system corrections (transfer reason, purchase product, orphan cleanup) rendered the raw key audit.entity.system_correction. | Entity label added in EN and TH. | `596be74` | fixed |
+| D12 | `/ (quick order sheet)` | v2.8 screenshots at 375px | In quick-order mode the income form's sticky Save / Save and add another footer stayed visible under the order form. | The footer hides in order mode like it does in transfer mode. | `4e1ad07` | fixed |
+| D13 | `/search, /transactions (phone cards)` | v2.8 cancel flow test | Mark cancelled opened its form inside the row link, and the form's click handler prevented the default of every click, so Cancel this order never submitted. | The status control renders below the row link and only stops propagation; submit is prevented in the submit handler alone. | `4e1ad07` | fixed |
 
 ## What is covered by Playwright
 

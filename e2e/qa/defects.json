@@ -88,5 +88,32 @@
     "fix": "Header right-hand group never wraps and never shrinks, the link row scrolls if it must, the signed-in label waits for xl; Stock card headers wrap the pill under the title when tight.",
     "commit": "426a825",
     "status": "fixed"
+  },
+  {
+    "id": "D11",
+    "route": "/audit",
+    "found": "v2.8 QA sweep (matrix invariants)",
+    "description": "Audit rows written for system corrections (transfer reason, purchase product, orphan cleanup) rendered the raw key audit.entity.system_correction.",
+    "fix": "Entity label added in EN and TH.",
+    "commit": "596be74",
+    "status": "fixed"
+  },
+  {
+    "id": "D12",
+    "route": "/ (quick order sheet)",
+    "found": "v2.8 screenshots at 375px",
+    "description": "In quick-order mode the income form's sticky Save / Save and add another footer stayed visible under the order form.",
+    "fix": "The footer hides in order mode like it does in transfer mode.",
+    "commit": "4e1ad07",
+    "status": "fixed"
+  },
+  {
+    "id": "D13",
+    "route": "/search, /transactions (phone cards)",
+    "found": "v2.8 cancel flow test",
+    "description": "Mark cancelled opened its form inside the row link, and the form's click handler prevented the default of every click, so Cancel this order never submitted.",
+    "fix": "The status control renders below the row link and only stops propagation; submit is prevented in the submit handler alone.",
+    "commit": "4e1ad07",
+    "status": "fixed"
   }
 ]
