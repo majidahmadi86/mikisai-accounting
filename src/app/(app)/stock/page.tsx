@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { adjustStock } from "@/app/(app)/settings/products-actions";
 import { StockPill } from "@/components/products/StockPill";
-import { InlineRename } from "@/components/products/InlineRename";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
@@ -77,7 +76,6 @@ export default async function StockPage({ searchParams }: PageProps<"/stock">) {
                     {p.name}
                     {p.variant ? ` · ${p.variant}` : ""}
                   </p>
-                  {admin ? <InlineRename productId={p.id} current={p.short_name} compact /> : null}
                 </div>
                 <StockPill row={c.stock} tr={tr} />
               </div>

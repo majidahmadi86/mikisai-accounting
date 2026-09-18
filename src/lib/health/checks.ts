@@ -13,7 +13,7 @@ import { buildMyBalance } from "@/lib/my-balance";
 import { inventoryValue, stockPositions, whoOwesWhom, type TruthInput, type TruthTransfer } from "@/lib/truth";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "unnamed_products", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
@@ -115,11 +115,6 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     .filter((p) => !p.deleted_at && (p.expected_net_per_unit == null || p.expected_net_per_unit <= 0) && (salesPerProduct.get(p.id) ?? 0) >= 5)
     .map((p): HealthIssue => ({ id: p.id, label: `${p.name}${p.variant ? ` · ${p.variant}` : ""}`, href: `/products/${p.id}/edit`, detail: `${salesPerProduct.get(p.id)} sales` }));
 
-  // 11. Products that still show as a bare size because nobody named them.
-  const unnamed = input.products
-    .filter((p) => !p.deleted_at && p.active && !p.short_name && (/^\d/.test(p.variant) || /^Sample/i.test(p.name)))
-    .map((p): HealthIssue => ({ id: p.id, label: `${p.name}${p.variant ? ` · ${p.variant}` : ""}`, href: `/stock`, detail: "needs a name" }));
-
   // 12. Consistency: every page must show the same who-owes-whom and the same stock.
   const consistency = consistencyMismatches(input, today);
 
@@ -137,7 +132,6 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("duplicate_order_ids", duplicates),
     check("late_contributor_edit", lateEdits, { adminOnly: true, skipped: !input.audit }),
     check("no_expected_net", noExpectedNet),
-    check("unnamed_products", unnamed),
     check("consistency", consistency),
     check("report_totals", totals),
   ];

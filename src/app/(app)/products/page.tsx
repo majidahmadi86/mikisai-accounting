@@ -5,7 +5,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { StockPill } from "@/components/products/StockPill";
-import { InlineRename } from "@/components/products/InlineRename";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
 import { Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
@@ -63,7 +62,6 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                     <span className="block truncate text-xs text-plum-faint">
                       {r.product.variant || productName(tr, r.product.product_line)} · {thb(r.product.default_price)}
                     </span>
-                    {admin ? <InlineRename productId={r.product.id} current={r.product.short_name} compact /> : null}
                     <span className="mt-1 flex flex-wrap gap-1.5">
                       <StockPill row={r} tr={tr} />
                       {!r.product.active ? <Pill tone="neutral">{tr("settings.inactive")}</Pill> : null}
