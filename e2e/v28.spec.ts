@@ -35,6 +35,7 @@ test.afterAll(async () => {
     await admin.from("transactions").delete().in("id", ids);
     await admin.from("audit_log").delete().in("entity_id", ids);
   }
+  await admin.from("tiktok_sku_map").delete().like("sku_key", "name:coconut sugar rung nirand amphawa%").eq("learned", true);
   await admin.from("import_runs").delete().eq("source", "quick").gte("ran_at", new Date(Date.now() - 3600_000).toISOString());
 });
 
@@ -84,11 +85,13 @@ test("Seller Center export in review with gold tags; Ledger with Order ID; quick
     `${known},Completed,15/09/2569 10:00:00,15/09/2569 10:01:00,Coconut sugar Rung Nirand Amphawa,10 kg box (1 kg x 10 packs),2,798,798,qa_buyer_c`,
   ].join("\n");
   await page.goto("/import");
-  await page.locator("#table-file").setInputFiles({ name: "orders.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf8") });
-  await expect(page.getByText("Review before saving")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText("already recorded").first()).toBeVisible();
-  await expect(page.getByText("cancelled", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/1 of 3 rows will be saved|2 of 3 rows will be saved/)).toBeVisible();
+  await page.locator("#nightly-orders").setInputFiles({ name: "orders.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf8") });
+  await expect(page.getByText("Tonight's files")).toBeVisible({ timeout: 30_000 });
+  // One new order without a settlement waits for a look, the cancelled one was never a sale, the known one is skipped.
+  await expect(page.getByText("1 need a look")).toBeVisible();
+  await expect(page.getByText("1 already in the ledger")).toBeVisible();
+  await expect(page.getByText("no settlement yet, net estimated").first()).toBeVisible();
+  await expect(page.getByText("net estimated", { exact: true }).first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/import-review-tags-375.png`, fullPage: true });
 
   // Ledger: copyable Order IDs.

@@ -40,6 +40,20 @@ Profit = Revenue (you received) - Cost of units sold (moving average) - Operatin
 - Quantities: a sale cannot be saved without a product and a whole-unit quantity. Import reads "x2", "จำนวน 2" and kg or box variants deterministically (`src/lib/inventory/quantity.ts`): "20 kg" or "2 กล่อง" is the 10 kg box times two. A missing quantity is red in review and blocks confirm. When you receive per unit is outside 0.6x to 1.6x the standard price the app warns "Amount looks like N units, not M" without blocking.
 - Data health (More → Data health): automated checks with counts, rows and one-tap open; runs on page load and daily via the Vercel cron in `vercel.json` hitting `/api/health/daily` with `CRON_SECRET`. Home shows the last run.
 
+## Nightly TikTok files (v2.9-CSV)
+
+Until TikTok approves the Open API app, the admin's nightly routine is the way in: export, drop, confirm.
+
+- `/import` opens with the Nightly TikTok panel: two drop zones (Orders export, Finance export; CSV or XLSX; several files at once; either box takes either file) with links to the two Seller Center pages. Home shows the admin a "Yesterday's routine" card with the last run and its counts, in a warning tone after 36 hours.
+- File type is read from the headers; columns are found by meaning in Thai or English (`src/lib/import/tiktok.ts`, now including SKU id, payout id, payout date and payout amount), Buddhist years are handled, the mapping is saved per file type and the admin adjusts it once. Originals are kept in `report_uploads`.
+- `/api/import-nightly` turns file rows into the API sync's own shapes (`src/lib/tiktok/from-file.ts`) and runs them through the same `planSync`, the same dedupe by order number and the same `tiktok_sku_map` (migration 0025): a row from a file and a row from the API are the same thing downstream. The auto-confirm rule is identical; ambiguous rows land in the one review; status changes go through `mark_order_status`. One screen, one confirm, through `commitRows`.
+- Finance file: payouts are deduped by TikTok payment id and pay exactly the orders the file names (`matchPayoutExact`), so a real order is never settled by guesswork. `payout_allocations` records which payout paid how much of which order, so one order can be covered by two payouts (70% early, 30% later): pending with the part paid after the first, in the bank after the second. A payout the file does not fully explain waits on Payouts for one tap. The API sync passes the same per-order amounts from its statements.
+- `tiktok_sku_map`: a SKU matched by name is remembered; one the app cannot place waits for the admin to pick its product once, on the review screen.
+- Data health: "No TikTok import in 36 h", "SKUs awaiting mapping", "Orders in file missing a status", "Payout not fully matched".
+- `/more/connect-tiktok` is honest about the API: the admin sets "Approval pending · individual sellers may not qualify · ticket sent <date>" (`tiktok_app_status`), and Authorize stays disabled with a hint until approval is marked received.
+- Sai's phone path (share-to-app screenshots, same review, same dedupe) is unchanged.
+- Tests: `tests/fixtures/seller-center` holds exports with Thai headers, Buddhist years, a cancelled order and an order paid 70% then 30%. `tests/nightly-import.test.ts` asserts the mapping, that a second drop changes nothing, that the cancellation applies, that both payouts name the same order, and that a CSV row seen again by the API sync is not duplicated (and is field for field identical). `tests/integration/payout-7030.test.ts` runs the two payouts against the live database; `e2e/v29-csv.spec.ts` drops the files at 1440px.
+
 ## TikTok Shop Open API sync (v2.9)
 
 The app reads Sai's shop directly, so TikTok needs no manual entry. `/more/connect-tiktok` walks through the one-time setup in EN and TH, shows the connection and lists every sync.
