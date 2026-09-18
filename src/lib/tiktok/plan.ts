@@ -10,12 +10,16 @@ import type { CommitRow } from "@/lib/import/commit";
 import type { ParsedOrder, ReviewRow } from "@/lib/parse/schema";
 import type { Person } from "@/lib/types";
 import type { SyncedOrder, SyncedPayment, SyncedReturn } from "./map";
+import { skuKey, type PaymentAllocation } from "./from-file";
 
 export type QueueReason = "no_settlement" | "product_unmatched" | "multiple_products" | "no_quantity" | "no_amount";
 export type PlannedStatusChange = { transaction_id: string; order_ref: string; order_status: "cancelled" | "refunded"; date: string; refund_amount: number | null };
-export type PlannedPayout = { date: string; platform: "tiktok"; amount: number; received_by: Person; note: string; external_ref: string };
+export type PlannedPayout = { date: string; platform: "tiktok"; amount: number; received_by: Person; note: string; external_ref: string; allocations: PaymentAllocation[] };
+export type SkuSeen = { sku_key: string; sku_name: string; product_id: string | null; learned: boolean };
 export type SyncPlan = {
   auto: CommitRow[];
+  /** The same rows as review rows, so a screen can show what will be saved without a second model. */
+  autoReview: ReviewRow[];
   queue: { order_ref: string; row: ReviewRow; reasons: QueueReason[] }[];
   statusChanges: PlannedStatusChange[];
   payouts: PlannedPayout[];
@@ -23,6 +27,10 @@ export type SyncPlan = {
   skipped: number;
   /** Not a sale: unpaid orders, and cancelled orders that were never recorded. */
   ignored: number;
+  /** SKUs met in this run that the map did not know: matched by name (learned) or awaiting mapping (product_id null). */
+  skus: SkuSeen[];
+  /** Payments already recorded, skipped by their TikTok payment id. */
+  knownPayments: number;
 };
 
 export type PlanInput = {
@@ -30,7 +38,11 @@ export type PlanInput = {
   returns: SyncedReturn[];
   /** What the seller receives per order, from finance statements. */
   settlements: Map<string, number>;
-  payments: SyncedPayment[];
+  payments: (SyncedPayment & { allocations?: PaymentAllocation[] })[];
+  /** TikTok SKU to product, the one map the API sync and the file import share. A null product means awaiting mapping. */
+  skuMap?: Map<string, string | null>;
+  /** TikTok payment ids already recorded as payouts. */
+  knownPaymentIds?: Set<string>;
   ctx: { products: ImportProduct[]; settings: FeeSettings };
   existing: Map<string, ExistingOrder>;
   receivedBy: Person;
@@ -56,7 +68,10 @@ function toParsed(o: SyncedOrder, net: number | null, refund: SyncedReturn | und
 }
 
 export function planSync(input: PlanInput): SyncPlan {
-  const plan: SyncPlan = { auto: [], queue: [], statusChanges: [], payouts: [], skipped: 0, ignored: 0 };
+  const plan: SyncPlan = { auto: [], autoReview: [], queue: [], statusChanges: [], payouts: [], skipped: 0, ignored: 0, skus: [], knownPayments: 0 };
+  const skuMap = input.skuMap ?? new Map<string, string | null>();
+  const skuSeen = new Set<string>();
+  const products = new Map(input.ctx.products.map((p) => [p.id, p]));
   const refunds = new Map<string, SyncedReturn>();
   for (const r of input.returns) if (r.completed && (r.refund_amount ?? 0) > 0) refunds.set(r.order_ref, r);
   const seen = new Set<string>();
@@ -79,7 +94,17 @@ export function planSync(input: PlanInput): SyncPlan {
     }
 
     const net = input.settlements.get(o.order_ref) ?? null;
-    const [row] = reviewRowsFor([toParsed(o, net, refund)], "tiktok", input.receivedBy, input.ctx, new Map(), input.today);
+    const [matched] = reviewRowsFor([toParsed(o, net, refund)], "tiktok", input.receivedBy, input.ctx, new Map(), input.today);
+    // The SKU map decides first; a name match is only the fallback, and what it finds is remembered.
+    const first = o.lines[0];
+    const key = first ? skuKey(first) : null;
+    const mapped = key && skuMap.has(key) ? skuMap.get(key) ?? null : undefined;
+    const mappedProduct = mapped ? products.get(mapped) : undefined;
+    const row: ReviewRow = mappedProduct ? { ...matched, product_id: mappedProduct.id, product_line: mappedProduct.product_line, product_matched: true } : mapped === null ? { ...matched, product_id: null, product_matched: false } : matched;
+    if (key && mapped === undefined && !skuSeen.has(key)) {
+      skuSeen.add(key);
+      plan.skus.push({ sku_key: key, sku_name: [first.product_name, first.sku_name].filter(Boolean).join(" · "), product_id: row.product_id, learned: Boolean(row.product_id) });
+    }
     const reasons: QueueReason[] = [];
     if (net == null) reasons.push("no_settlement");
     if (o.lines.length > 1) reasons.push("multiple_products");
@@ -90,6 +115,7 @@ export function planSync(input: PlanInput): SyncPlan {
       plan.queue.push({ order_ref: o.order_ref, row: { ...row, refund_amount: refund ? refund.refund_amount : null }, reasons });
       continue;
     }
+    plan.autoReview.push({ ...row, refund_amount: refund ? refund.refund_amount : null });
     plan.auto.push({
       date: row.date as string,
       platform: "tiktok",
@@ -118,7 +144,11 @@ export function planSync(input: PlanInput): SyncPlan {
 
   for (const p of input.payments) {
     if (p.status !== "paid") continue;
-    plan.payouts.push({ date: p.date, platform: "tiktok", amount: p.amount, received_by: input.receivedBy, note: `TikTok payment ${p.external_id}`, external_ref: p.external_id });
+    if (input.knownPaymentIds?.has(p.external_id)) {
+      plan.knownPayments += 1;
+      continue;
+    }
+    plan.payouts.push({ date: p.date, platform: "tiktok", amount: p.amount, received_by: input.receivedBy, note: `TikTok payment ${p.external_id}`, external_ref: p.external_id, allocations: p.allocations ?? [] });
   }
   return plan;
 }

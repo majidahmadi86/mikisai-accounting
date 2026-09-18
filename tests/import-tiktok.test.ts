@@ -256,7 +256,7 @@ describe("ordersFromRows", () => {
     expect(a1.raw_status).toBe("Completed");
     expect(a1.quantity).toBe(3);
     expect(a1.lines).toHaveLength(2);
-    expect(a1.lines[0]).toEqual({ sku_name: "Serum, 30ml", variant: "30ml", quantity: 1, unit_price: 100, subtotal: 90 });
+    expect(a1.lines[0]).toMatchObject({ sku_name: "Serum, 30ml", variant: "30ml", quantity: 1, unit_price: 100, subtotal: 90 });
     expect(a1.lines[1].variant).toBe("Large");
     expect(a1.order_amount).toBe(270);
     expect(a1.refund_amount).toBe(0);
@@ -323,8 +323,8 @@ describe("settlementsFromRows", () => {
     const mapping = detectMapping(table.headers, "finance");
     const rows = settlementsFromRows(table.rows, mapping);
     expect(rows).toHaveLength(3);
-    expect(rows[0]).toEqual({ order_id: "A1", type: "order", raw_type: "Order", settled_at: "2026-09-21", amount: 251.4, status: "Settled", row_number: 1 });
-    expect(rows[1]).toEqual({ order_id: null, type: "adjustment", raw_type: "Adjustment", settled_at: "2026-09-22", amount: -35, status: "Settled", row_number: 2 });
+    expect(rows[0]).toMatchObject({ order_id: "A1", type: "order", raw_type: "Order", settled_at: "2026-09-21", amount: 251.4, status: "Settled", row_number: 1 });
+    expect(rows[1]).toMatchObject({ order_id: null, type: "adjustment", raw_type: "Adjustment", settled_at: "2026-09-22", amount: -35, status: "Settled", row_number: 2 });
     expect(rows[2].amount).toBe(-90);
     expect(rows[2].order_id).toBe("C3");
   });

@@ -8,6 +8,8 @@ import { refreshAccessToken, TikTokApiError, TikTokClient, type TikTokConfig } f
 import { decryptSecret, encryptSecret } from "./crypto";
 import { mapOrder, mapPayment, mapReturn, mapStatementTransactions, type SyncedOrder, type SyncedPayment, type SyncedReturn } from "./map";
 import { planSync } from "./plan";
+import type { PaymentAllocation } from "./from-file";
+import { loadSkuMap, knownPaymentIds, rememberSkus } from "./sku-map";
 import { tiktokConfig } from "./config";
 
 export type SyncTrigger = "cron" | "webhook" | "manual";
@@ -103,10 +105,15 @@ export async function runTiktokSync(db: SupabaseClient, businessId: string, trig
       if (mapped) returns.push(mapped);
     }
     const settlements = new Map<string, number>();
+    // Which orders each payment paid, and how much: a statement names its payment, its transactions name the orders.
+    const paidBy = new Map<string, PaymentAllocation[]>();
     let maxStatement = connection.finance_cursor ? unix(connection.finance_cursor) : 0;
     for await (const s of client.searchStatements({ statementTimeGe: financeSince })) {
       if (s.statement_time > maxStatement) maxStatement = s.statement_time;
-      for (const [ref, value] of mapStatementTransactions(await client.getStatementTransactions(s.id))) settlements.set(ref, value);
+      for (const [ref, value] of mapStatementTransactions(await client.getStatementTransactions(s.id))) {
+        settlements.set(ref, Math.round(((settlements.get(ref) ?? 0) + value) * 100) / 100);
+        if (s.payment_id && value > 0) paidBy.set(s.payment_id, [...(paidBy.get(s.payment_id) ?? []), { order_ref: ref, amount: value }]);
+      }
     }
     const payments: SyncedPayment[] = [];
     for await (const p of client.searchPayments({ createTimeGe: financeSince })) {
@@ -119,7 +126,9 @@ export async function runTiktokSync(db: SupabaseClient, businessId: string, trig
     const existing = await existingOrders(db, businessId, "tiktok", refs);
     // The shop is Sai's: its payouts land in her account unless the business says otherwise.
     const receivedBy: Person = "sai";
-    const plan = planSync({ orders, returns, settlements, payments, ctx, existing, receivedBy, today: todayIso() });
+    const [skuMap, knownPayments] = await Promise.all([loadSkuMap(db, businessId), knownPaymentIds(db, businessId, "tiktok")]);
+    const plan = planSync({ orders, returns, settlements, payments: payments.map((p) => ({ ...p, allocations: paidBy.get(p.external_id) ?? [] })), ctx, existing, receivedBy, today: todayIso(), skuMap, knownPaymentIds: knownPayments });
+    await rememberSkus(db, businessId, plan.skus);
 
     // Orders waiting in the queue that this run could now settle leave the queue; the rest are upserted.
     const autoRefs = plan.auto.map((r) => r.order_id as string);
@@ -136,7 +145,7 @@ export async function runTiktokSync(db: SupabaseClient, businessId: string, trig
     const audit = async (entry: AuditEntry) => {
       await db.from("audit_log").insert({ business_id: businessId, actor_user_id: null, action: entry.action, entity_type: entry.entity_type, entity_id: entry.entity_id, before: entry.before ?? null, after: { ...entry.after, by: "tiktok_sync" } });
     };
-    const result = await commitRows(db, businessId, { rows: plan.auto, status_changes: plan.statusChanges.map(({ transaction_id, order_status, date, refund_amount }) => ({ transaction_id, order_status, date, refund_amount })), payouts: plan.payouts, upload_ids: [], source: "tiktok", skipped: plan.skipped }, { createdBy: connection.connected_by, audit });
+    const result = await commitRows(db, businessId, { rows: plan.auto, status_changes: plan.statusChanges.map(({ transaction_id, order_status, date, refund_amount }) => ({ transaction_id, order_status, date, refund_amount })), payouts: plan.payouts, upload_ids: [], source: "tiktok", skipped: plan.skipped, details: {} }, { createdBy: connection.connected_by, audit });
     if (!result.ok) throw new Error(result.error);
 
     const cancelled = plan.statusChanges.filter((c) => c.order_status === "cancelled").length;

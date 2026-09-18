@@ -21,6 +21,7 @@ export const FIELD_KEYS = [
   "paid_at",
   "delivered_at",
   "cancelled_at",
+  "sku_id",
   "sku_name",
   "variant",
   "quantity",
@@ -33,6 +34,9 @@ export const FIELD_KEYS = [
   "settled_at",
   "statement_type",
   "statement_status",
+  "payment_id",
+  "payout_date",
+  "payout_amount",
 ] as const;
 
 export type FieldKey = (typeof FIELD_KEYS)[number];
@@ -88,6 +92,10 @@ const SYNONYMS: Record<FieldKey, Synonyms> = {
     names: ["cancelledtime", "canceledtime", "cancellationtime", "cancelledat", "canceledat", "เวลาที่ยกเลิก", "เวลายกเลิก"],
     avoid: ["reason", "type", "เหตุผล", "ประเภท"],
   },
+  sku_id: {
+    names: ["skuid", "sellersku", "รหัสsku", "skuรหัส", "รหัสสินค้าsku"],
+    avoid: ["quantity", "price", "subtotal", "name", "จำนวน", "ราคา", "ชื่อ"],
+  },
   sku_name: {
     names: ["productname", "skuname", "itemname", "ชื่อสินค้า", "product", "สินค้า"],
     avoid: ["id", "category", "sku", "หมวด", "รหัส", "ตัวเลือก"],
@@ -130,6 +138,18 @@ const SYNONYMS: Record<FieldKey, Synonyms> = {
   statement_type: {
     names: ["type", "transactiontype", "statementtype", "ประเภท", "ประเภทรายการ"],
     avoid: ["cancel", "return", "ยกเลิก", "คืน"],
+  },
+  payment_id: {
+    names: ["paymentid", "payoutid", "withdrawalid", "paymentreferenceid", "รหัสการชำระเงิน", "รหัสการโอนเงิน", "หมายเลขการโอนเงิน", "รหัสการจ่ายเงิน"],
+    avoid: ["method", "วิธี"],
+  },
+  payout_date: {
+    names: ["paymenttime", "paymentdate", "payouttime", "payoutdate", "paidtime", "bankpaidtime", "วันที่โอนเงิน", "เวลาที่โอนเงิน", "วันที่จ่ายเงิน", "วันที่เงินเข้าบัญชี"],
+    avoid: ["amount", "ยอด"],
+  },
+  payout_amount: {
+    names: ["paymentamount", "payoutamount", "amountpaid", "ยอดโอน", "ยอดเงินที่โอน", "ยอดจ่ายเงิน"],
+    avoid: ["date", "time", "วันที่", "เวลา"],
   },
   statement_status: {
     names: ["status", "statementstatus", "settlementstatus", "สถานะ", "สถานะการชำระบัญชี"],
@@ -208,8 +228,8 @@ export function detectFileType(headers: string[]): ImportFileType {
   return "unknown";
 }
 
-const ORDER_FIELDS: FieldKey[] = FIELD_KEYS.filter((k) => !["settled_at", "statement_type", "statement_status", "seller_received"].includes(k));
-const FINANCE_FIELDS: FieldKey[] = ["order_id", "statement_type", "created_at", "settled_at", "seller_received", "refund_amount", "statement_status"];
+const ORDER_FIELDS: FieldKey[] = FIELD_KEYS.filter((k) => !["settled_at", "statement_type", "statement_status", "seller_received", "payment_id", "payout_date", "payout_amount"].includes(k));
+const FINANCE_FIELDS: FieldKey[] = ["order_id", "statement_type", "created_at", "settled_at", "seller_received", "refund_amount", "statement_status", "payment_id", "payout_date", "payout_amount"];
 
 /**
  * Maps every field we can to one header. Exact matches are taken first across all
@@ -302,7 +322,7 @@ export function parseMoney(text: string | null | undefined): number | null {
 
 export type ImportedOrderStatus = "active" | "cancelled" | "refunded" | "unknown";
 
-export type ImportedOrderLine = { sku_name: string; variant: string; quantity: number; unit_price: number | null; subtotal: number | null };
+export type ImportedOrderLine = { sku_id?: string; sku_name: string; variant: string; quantity: number; unit_price: number | null; subtotal: number | null };
 
 export type ImportedOrder = {
   order_id: string;
@@ -395,6 +415,7 @@ export function ordersFromRows(rows: Record<string, string>[], mapping: ColumnMa
   const orders: ImportedOrder[] = [];
   for (const [order_id, group] of groups) {
     const lines: ImportedOrderLine[] = group.rows.map((row) => ({
+      ...(cell(row, mapping, "sku_id") ? { sku_id: cell(row, mapping, "sku_id") } : {}),
       sku_name: cell(row, mapping, "sku_name"),
       variant: cell(row, mapping, "variant"),
       quantity: parseMoney(cell(row, mapping, "quantity")) ?? 0,
@@ -444,6 +465,10 @@ export type ImportedSettlement = {
   settled_at: string | null;
   amount: number;
   status: string;
+  /** The payout that carried this row, when the file says: id, day and total. */
+  payment_id: string | null;
+  payout_date: string | null;
+  payout_amount: number | null;
   row_number: number;
 };
 
@@ -468,6 +493,9 @@ export function settlementsFromRows(rows: Record<string, string>[], mapping: Col
       settled_at: normalizeDate(cell(row, mapping, "settled_at")),
       amount: amount ?? 0,
       status: cell(row, mapping, "statement_status"),
+      payment_id: cell(row, mapping, "payment_id") || null,
+      payout_date: normalizeDate(cell(row, mapping, "payout_date")),
+      payout_amount: parseMoney(cell(row, mapping, "payout_amount")),
       row_number: i + 1,
     });
   });

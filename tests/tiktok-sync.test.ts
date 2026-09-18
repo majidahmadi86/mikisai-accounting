@@ -69,7 +69,7 @@ describe("planning a sync", () => {
     // A cancelled order that was never recorded is not a sale.
     expect(plan.ignored).toBe(1);
     expect(plan.statusChanges).toEqual([]);
-    expect(plan.payouts).toEqual([{ date: "2026-09-17", platform: "tiktok", amount: 734.16, received_by: "sai", note: "TikTok payment 7500000000000000001", external_ref: "7500000000000000001" }]);
+    expect(plan.payouts).toEqual([{ date: "2026-09-17", platform: "tiktok", amount: 734.16, received_by: "sai", note: "TikTok payment 7500000000000000001", external_ref: "7500000000000000001", allocations: [] }]);
   });
 
   it("dedupes against the ledger by order number and applies cancellations and refunds to orders already there", () => {
