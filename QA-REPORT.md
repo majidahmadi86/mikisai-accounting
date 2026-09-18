@@ -1,6 +1,6 @@
-# QA report · MikiSai Accounting v2.5 to v2.8
+# QA report · MikiSai Accounting v2.5 to v2.9
 
-Generated 2026-09-18T04:25:11.995Z from 618 recorded checks across 32 routes. **All checks pass; zero known defects.**
+Generated 2026-09-18T10:19:33.549Z from 618 recorded checks across 32 routes. **All checks pass; zero known defects.**
 
 Each cell is the number of checks that passed for that route as that role, at that viewport (phone = 375px, desktop = 1440px), in that language. A check is one assertion group: page loads with the right heading, page invariants (no sideways scroll, no raw dictionary key, no unfilled placeholder, no em dash, a heading), no console errors, plus the form, export and role checks the flow specs record.
 
@@ -62,6 +62,7 @@ None.
 | D11 | `/audit` | v2.8 QA sweep (matrix invariants) | Audit rows written for system corrections (transfer reason, purchase product, orphan cleanup) rendered the raw key audit.entity.system_correction. | Entity label added in EN and TH. | `596be74` | fixed |
 | D12 | `/ (quick order sheet)` | v2.8 screenshots at 375px | In quick-order mode the income form's sticky Save / Save and add another footer stayed visible under the order form. | The footer hides in order mode like it does in transfer mode. | `4e1ad07` | fixed |
 | D13 | `/search, /transactions (phone cards)` | v2.8 cancel flow test | Mark cancelled opened its form inside the row link, and the form's click handler prevented the default of every click, so Cancel this order never submitted. | The status control renders below the row link and only stops propagation; submit is prevented in the submit handler alone. | `4e1ad07` | fixed |
+| D14 | `every route at 1440px` | v2.9-CSV screenshots | The header search input added in v2.8 squeezed the link row at 1440px so Reports was clipped and Insights and More scrolled out of view. | The input shows from 2xl; below that a search icon opens the Search page. | `32ff05e` | fixed |
 
 ## What is covered by Playwright
 

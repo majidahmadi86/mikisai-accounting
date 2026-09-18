@@ -115,5 +115,14 @@
     "fix": "The status control renders below the row link and only stops propagation; submit is prevented in the submit handler alone.",
     "commit": "4e1ad07",
     "status": "fixed"
+  },
+  {
+    "id": "D14",
+    "route": "every route at 1440px",
+    "found": "v2.9-CSV screenshots",
+    "description": "The header search input added in v2.8 squeezed the link row at 1440px so Reports was clipped and Insights and More scrolled out of view.",
+    "fix": "The input shows from 2xl; below that a search icon opens the Search page.",
+    "commit": "32ff05e",
+    "status": "fixed"
   }
 ]
