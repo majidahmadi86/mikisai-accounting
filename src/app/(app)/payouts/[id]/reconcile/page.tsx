@@ -31,7 +31,7 @@ export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]
     .eq("transactions.platform", payout.platform)
     .is("deleted_at", null)
     .is("transactions.deleted_at", null)
-    .or(`payout_id.eq.${id},and(payout_id.is.null,status.in.(pending,settled_not_withdrawn))`);
+    .or(`payout_id.eq.${id},status.in.(pending,settled_not_withdrawn)`);
 
   const candidates: ReconcileCandidate[] = (rows ?? [])
     .map((s) => {

@@ -5,7 +5,7 @@ import { FIELD_KEYS } from "@/lib/import/tiktok";
 import { findDuplicateOrder, writeItems } from "@/lib/ledger/insert";
 import { applyOrderStatus } from "@/lib/ledger/status";
 import { round2 } from "@/lib/money";
-import { matchPayout, proposeForAmount } from "@/lib/payouts/confirm";
+import { matchPayout, matchPayoutExact, proposeForAmount } from "@/lib/payouts/confirm";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES } from "@/lib/types";
 
 const money = z.coerce.number().min(0).max(99_999_999);
@@ -45,6 +45,8 @@ export const PayoutInputSchema = z.object({
   note: z.string().trim().max(500).default(""),
   /** The platform's own id for the payment, so a sync never records it twice. */
   external_ref: z.string().trim().max(100).nullable().default(null),
+  /** When the source says which orders the payout paid and how much (finance export, API statement). Empty means match oldest first. */
+  allocations: z.array(z.object({ order_ref: z.string().trim().min(1).max(100), amount: z.coerce.number().positive().max(99_999_999) })).max(2000).default([]),
 });
 
 export const CommitSchema = z.object({
@@ -54,6 +56,8 @@ export const CommitSchema = z.object({
   upload_ids: z.array(z.string().uuid()).max(50).default([]),
   source: z.enum(["csv", "screenshots", "tiktok"]).default("screenshots"),
   skipped: z.coerce.number().int().min(0).default(0),
+  /** What the import saw beyond its counts: file names, orders without a status, SKUs awaiting mapping. */
+  details: z.record(z.string(), z.unknown()).default({}),
 });
 
 export type CommitRow = z.infer<typeof CommitRowSchema>;
@@ -159,16 +163,20 @@ export async function commitRows(db: SupabaseClient, businessId: string, payload
       .select("id")
       .single();
     if (error || !created) continue;
-    const { proposal } = await proposeForAmount(db, businessId, p.platform, p.amount);
-    // Only a match inside the tolerance is applied on its own; otherwise the payout waits on Payouts for one tap.
-    const result = proposal.matched ? await matchPayout(db, businessId, created.id as string, proposal.selectedIds) : null;
+    // A source that names the orders it paid is applied exactly; otherwise oldest first, and only when the amount fits.
+    let result = null;
+    if (p.allocations.length) result = await matchPayoutExact(db, businessId, created.id as string, p.allocations);
+    else {
+      const { proposal } = await proposeForAmount(db, businessId, p.platform, p.amount);
+      result = proposal.matched ? await matchPayout(db, businessId, created.id as string, proposal.selectedIds) : null;
+    }
     await opts.audit({ action: "confirm_payout", entity_type: "payout", entity_id: created.id as string, before: null, after: { settlement_ids: result?.settlementIds ?? [], orders: result?.orders ?? 0, amount_received: p.amount, clawbacks_offset: result?.clawbackOffset ?? 0, matched: Boolean(result), source } });
     payoutsMade += 1;
   }
 
   if (upload_ids.length) await db.from("report_uploads").update({ parsed: true }).in("id", upload_ids).eq("business_id", businessId);
-  if (inserted.length || cancellations || payoutsMade || skipped) {
-    await db.from("import_runs").insert({ business_id: businessId, source, orders: inserted.length, cancellations, payouts: payoutsMade, skipped, ...(opts.createdBy ? { created_by: opts.createdBy } : {}) });
+  if (inserted.length || cancellations || payoutsMade || skipped || Object.keys(payload.details).length) {
+    await db.from("import_runs").insert({ business_id: businessId, source, orders: inserted.length, cancellations, payouts: payoutsMade, skipped, details: payload.details, ...(opts.createdBy ? { created_by: opts.createdBy } : {}) });
   }
   await opts.audit({
     action: "confirm_import",

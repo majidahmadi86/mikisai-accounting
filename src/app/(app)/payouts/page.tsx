@@ -30,6 +30,13 @@ export default async function PayoutsPage() {
     supabase.from("payouts").select("*").is("deleted_at", null).order("date", { ascending: false }).order("created_at", { ascending: false }),
     supabase.from("settlements").select("payout_id, deleted_at, transactions(net_amount)").not("payout_id", "is", null),
   ]);
+  const { data: allocationRows } = await supabase.from("payout_allocations").select("payout_id, amount");
+  // One order can be paid by two payouts (70% early, 30% later): allocations say which payout paid how much.
+  const allocated = new Map<string, { count: number; total: number }>();
+  for (const a of allocationRows ?? []) {
+    const cur = allocated.get(a.payout_id as string) ?? { count: 0, total: 0 };
+    allocated.set(a.payout_id as string, { count: cur.count + 1, total: round2(cur.total + num(a.amount)) });
+  }
 
   // A sale deleted after it was matched leaves its settlement pointing at the payout until someone re-confirms.
   const byPayout = summarisePayoutMatches(
@@ -40,7 +47,9 @@ export default async function PayoutsPage() {
   );
 
   const rows = ((payouts ?? []) as Payout[]).map((p) => {
-    const m = byPayout.get(p.id);
+    const legacy = byPayout.get(p.id);
+    const viaAllocations = allocated.get(p.id);
+    const m = viaAllocations ? { count: viaAllocations.count, total: viaAllocations.total, removed: legacy?.removed ?? 0, unallocated: legacy?.unallocated ?? 0 } : legacy;
     return { ...p, amount_received: num(p.amount_received), match: m && m.count > 0 ? m : undefined, removed: m && m.removed > 0 ? m : undefined };
   });
 
