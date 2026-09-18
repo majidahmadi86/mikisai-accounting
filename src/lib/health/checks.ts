@@ -12,9 +12,10 @@ import { buildStockPage } from "@/lib/inventory/stock-page";
 import { buildMyBalance } from "@/lib/my-balance";
 import { inventoryValue, stockPositions, whoOwesWhom, type ClawbackLite, type TruthInput, type TruthTransfer } from "@/lib/truth";
 import type { ReportTx } from "@/lib/reports/build";
+import { tiktokProblems, type TiktokStatus } from "@/lib/tiktok/status";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
@@ -31,6 +32,7 @@ export type HealthInput = Omit<StatementsInput, "transfers"> & {
   cancelled?: ReportTx[];
   clawbacks?: ClawbackLite[];
   cashAdjustments?: ReportTx[];
+  tiktok?: TiktokStatus | null;
 };
 
 export const UNMATCHED_PAYOUT_DAYS = 20;
@@ -178,6 +180,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("orphan_movements", orphanMovements),
     check("cancelled_counted", cancelledCounted),
     check("date_assumed", assumed),
+    check("tiktok_sync", tiktokProblems(input.tiktok, Date.parse(ranAt)).map((p): HealthIssue => ({ id: p.id, label: p.label, href: "/more/connect-tiktok", detail: p.detail }))),
     check("consistency", consistency),
     check("report_totals", totals),
   ];

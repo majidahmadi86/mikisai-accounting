@@ -18,6 +18,7 @@ export default async function MorePage({ searchParams }: PageProps<"/more">) {
     { href: "/stock", title: tr("stock.title"), desc: tr("stock.subtitle") },
     { href: "/investment", title: tr("investment.title"), desc: tr("investment.subtitle") },
     { href: "/import", title: tr("more.import"), desc: tr("more.importDesc") },
+    { href: "/more/connect-tiktok", title: tr("tiktok.title"), desc: tr("tiktok.moreDesc") },
     { href: "/payouts", title: tr("more.payouts"), desc: tr("more.payoutsDesc") },
     { href: "/customers", title: tr("more.customers"), desc: tr("more.customersDesc") },
     { href: "/insights", title: tr("more.insights"), desc: tr("more.insightsDesc") },

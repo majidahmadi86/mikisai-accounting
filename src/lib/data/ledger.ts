@@ -6,6 +6,8 @@ import type { Product, StockMovement } from "@/lib/inventory/valuation";
 import type { TransactionItemRow } from "@/lib/inventory/reports";
 import { num, type Business, type Clawback, type Customer, type ImportRun, type InternalTransfer, type Payout, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
 import { normalizeLedger, type ClawbackLite } from "@/lib/truth";
+import { loadTiktokStatus } from "@/lib/tiktok/load-status";
+import type { TiktokStatus } from "@/lib/tiktok/status";
 
 export type LedgerTransaction = Transaction & {
   settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null; paid_amount: number } | null;
@@ -30,6 +32,8 @@ export type LedgerSnapshot = {
   business: Business;
   /** What last fed the ledger: a Seller Center file, shared screenshots or a quick order. */
   lastImport: ImportRun | null;
+  /** The TikTok Shop connection as the app may show it; never the tokens. */
+  tiktok: TiktokStatus;
   fetchedAt: string;
 };
 
@@ -87,6 +91,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
           settlement: s ? { status: s.status as SettlementStatus, settled_at: s.settled_at ?? null, payout_id: s.payout_id ?? null, paid_amount: num(s.paid_amount) } : null,
         };
       });
+      const tiktok = await loadTiktokStatus(admin, businessId);
       const clawbacks: ClawbackLite[] = (cb.data ?? []).map((c) => ({ ...(c as Clawback), amount: num(c.amount) }));
       const normalized = normalizeLedger(allTransactions, clawbacks);
 
@@ -111,6 +116,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         items: (it.data ?? []).map((i) => ({ id: i.id as string, transaction_id: i.transaction_id as string, product_id: i.product_id as string, qty: num(i.qty), unit_price: num(i.unit_price), unit_cost: i.unit_cost == null ? null : num(i.unit_cost) })),
         business: { id: businessId, name: bz.data?.name ?? "MikiSai", exposure_limit: bz.data ? num(bz.data.exposure_limit) : 3000 },
         lastImport: ir.data ? (ir.data as ImportRun) : null,
+        tiktok,
         fetchedAt: new Date().toISOString(),
       };
     },

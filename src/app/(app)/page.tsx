@@ -8,6 +8,7 @@ import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
 import { RecordTransferButton } from "@/components/transfers/RecordTransferButton";
 import { QuickOrderButton } from "@/components/quick-entry/QuickOrderButton";
 import { InstallCard } from "@/components/pwa/InstallCard";
+import { relativeTime } from "@/lib/tiktok/status";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Pill } from "@/components/ui/Pill";
 import { StatCard } from "@/components/ui/StatCard";
@@ -61,6 +62,20 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           {snapshot.lastImport
             ? tr("dashboard.lastImport", { source: tr(`dashboard.source.${snapshot.lastImport.source}`), time: formatDateTime(snapshot.lastImport.ran_at, locale), orders: snapshot.lastImport.orders, cancellations: snapshot.lastImport.cancellations, payouts: snapshot.lastImport.payouts })
             : tr("dashboard.lastImportNone")}{" "}
+          →
+        </Link>
+        <br />
+        <Link href="/more/connect-tiktok" className={snapshot.tiktok.state === "expired" || snapshot.tiktok.state === "error" ? "font-medium text-berry hover:underline" : "hover:underline"}>
+          {snapshot.tiktok.connected
+            ? [
+                tr(`tiktok.home.${snapshot.tiktok.state === "connected" ? "connected" : "attention"}`),
+                snapshot.tiktok.last_sync_at ? tr("tiktok.lastSync", { time: relativeTime(snapshot.tiktok.last_sync_at, locale) }) : tr("tiktok.home.neverSynced"),
+                snapshot.tiktok.last_log ? tr("tiktok.newOrders", { n: snapshot.tiktok.last_log.orders_new }) : "",
+                snapshot.tiktok.queued ? tr("tiktok.toReview", { n: snapshot.tiktok.queued }) : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : tr("tiktok.home.notConnected")}{" "}
           →
         </Link>
       </p>
