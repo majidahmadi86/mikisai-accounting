@@ -5,6 +5,7 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { num, PLATFORMS, type PlatformSetting } from "@/lib/types";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { SyncQueue, type QueuedOrder } from "@/components/import/SyncQueue";
+import { NightlyPanel } from "@/components/import/NightlyPanel";
 import type { ReviewRow } from "@/lib/parse/schema";
 
 // The import module (file handling, review grid) is only loaded on this route.
@@ -27,7 +28,8 @@ export default async function ImportPage() {
     <div>
       <PageHeader title={tr("import.title")} subtitle={tr("import.subtitle")} />
       <SyncQueue key={queued.map((q) => q.id).join(",")} queued={queued} settings={settings} products={snapshot.products.filter((p) => p.active)} />
-      <ImportWorkbench settings={settings} defaultReceivedBy={profile.display_name === "Sai" ? "sai" : "mike"} products={snapshot.products.filter((p) => p.active)} admin={profile.role === "admin"} />
+      <NightlyPanel settings={settings} products={snapshot.products.filter((p) => p.active)} admin={profile.role === "admin"} defaultReceivedBy="sai" />
+      <ImportWorkbench settings={settings} defaultReceivedBy={profile.display_name === "Sai" ? "sai" : "mike"} products={snapshot.products.filter((p) => p.active)} />
     </div>
   );
 }

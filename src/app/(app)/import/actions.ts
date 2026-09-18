@@ -53,3 +53,12 @@ export async function dismissQueued(ids: string[]): Promise<{ ok: boolean }> {
   const { error } = await supabase.from("sync_queue").update({ status: "dismissed", updated_at: new Date().toISOString() }).in("id", clean).eq("business_id", profile.business_id);
   return { ok: !error };
 }
+
+/** A TikTok SKU gets its product once; every later row from a file or from the API resolves through it. */
+export async function mapSku(skuKey: string, productId: string): Promise<{ ok: boolean }> {
+  const { supabase, profile, userId } = await requireSession();
+  if (typeof skuKey !== "string" || !skuKey.trim() || skuKey.length > 400 || !/^[0-9a-f-]{36}$/i.test(productId)) return { ok: false };
+  const { error } = await supabase.from("tiktok_sku_map").upsert({ business_id: profile.business_id, sku_key: skuKey, product_id: productId, learned: false, updated_at: new Date().toISOString(), updated_by: userId }, { onConflict: "business_id,sku_key" });
+  if (!error) ledgerChanged(profile.business_id);
+  return { ok: !error };
+}

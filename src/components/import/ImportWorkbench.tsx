@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { commitImport, type CommitResult } from "@/app/(app)/import/actions";
-import { MappingPanel } from "./MappingPanel";
 import { PayoutRows } from "./PayoutRows";
 import { ReviewTable } from "./ReviewTable";
 import { Button } from "@/components/ui/Button";
@@ -11,24 +10,22 @@ import { Card } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useT } from "@/lib/i18n/client";
 import { platformName } from "@/lib/labels";
-import type { ColumnMapping } from "@/lib/import/tiktok";
 import type { ParseResponse, PayoutRow, ReviewRow } from "@/lib/parse/schema";
 import { takeSharedFiles } from "@/lib/pwa/shared-files";
 import { PEOPLE, PLATFORMS, type Person, type Platform, type PlatformSetting } from "@/lib/types";
 import type { Product } from "@/lib/inventory/valuation";
 
-type Phase = { name: "idle" } | { name: "parsing"; what: "table" | "screens" } | { name: "review"; result: ParseResponse; source: "csv" | "screenshots" } | { name: "done"; result: Extract<CommitResult, { ok: true }> };
+type Phase = { name: "idle" } | { name: "parsing"; what: "screens" } | { name: "review"; result: ParseResponse; source: "csv" | "screenshots" } | { name: "done"; result: Extract<CommitResult, { ok: true }> };
 
 export const MAX_FILES = 12;
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
-const TABLE_TYPES = /\.(csv|xlsx|xls|tsv)$/i;
 
 /**
  * Three ways in, one review, one confirm: a Seller Center export (the
  * nightly desktop path), screenshots shared or picked from the phone, or
  * pasted text. Every row shows what the import assumed in gold.
  */
-export function ImportWorkbench({ settings, defaultReceivedBy, products, admin }: { settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[]; defaultReceivedBy: Person; products: Product[]; admin: boolean }) {
+export function ImportWorkbench({ settings, defaultReceivedBy, products }: { settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[]; defaultReceivedBy: Person; products: Product[] }) {
   const t = useT();
   const params = useSearchParams();
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
@@ -37,7 +34,6 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products, admin }
   const [receivedBy, setReceivedBy] = useState<Person>(defaultReceivedBy);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [table, setTable] = useState<File | null>(null);
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [payouts, setPayouts] = useState<PayoutRow[]>([]);
   const [sharedNote, setSharedNote] = useState<string | null>(null);
@@ -94,31 +90,6 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products, admin }
     }
   }
 
-  async function parseTable(file: File, mapping?: ColumnMapping) {
-    setError(null);
-    const fd = new FormData();
-    fd.set("platform", platform);
-    fd.set("received_by", receivedBy);
-    fd.set("file", file);
-    if (mapping) fd.set("mapping", JSON.stringify(mapping));
-    setPhase({ name: "parsing", what: "table" });
-    try {
-      const res = await fetch("/api/import-table", { method: "POST", body: fd });
-      const body = (await res.json()) as ParseResponse & { error?: string; missing?: string[] };
-      if (!res.ok) {
-        setError(body.error === "unknown-file" ? t("import.unknownFile") : body.error === "columns-missing" ? t("import.columnsMissing", { fields: (body.missing ?? []).join(", ") }) : t("import.errorTable"));
-        setPhase({ name: "idle" });
-        return;
-      }
-      setRows(body.rows);
-      setPayouts(body.payouts ?? []);
-      setPhase({ name: "review", result: body, source: "csv" });
-    } catch {
-      setError(t("import.errorTable"));
-      setPhase({ name: "idle" });
-    }
-  }
-
   function confirm(result: ParseResponse, source: "csv" | "screenshots") {
     const selected = rows.filter((r) => r.include);
     const fresh = selected.filter((r) => !r.existing);
@@ -163,7 +134,6 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products, admin }
     setPayouts([]);
     setText("");
     setFiles([]);
-    setTable(null);
     setError(null);
   }
 
@@ -220,7 +190,6 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products, admin }
           ) : null}
           {error ? <p className="mt-3 text-sm text-berry">{error}</p> : null}
         </Card>
-        {phase.result.table && table ? <MappingPanel fileType={phase.result.table.file_type} headers={phase.result.table.headers} mapping={phase.result.table.mapping} admin={admin} onReread={(m) => void parseTable(table, m)} /> : null}
         <PayoutRows rows={payouts} onChange={setPayouts} />
         {rows.length === 0 && payouts.length === 0 ? <Card className="p-6 text-sm text-plum-soft">{t("import.noRows")}</Card> : null}
         {rows.length ? <ReviewTable rows={rows} onChange={setRows} settings={settings} products={products} /> : null}
@@ -253,30 +222,6 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products, admin }
             </Select>
           </Field>
         </div>
-      </Card>
-
-      <Card className="p-5 sm:p-6">
-        <p className="eyebrow">{t("import.tableEyebrow")}</p>
-        <p className="mt-1 font-display text-xl text-plum">{t("import.tableTitle")}</p>
-        <p className="text-sm text-plum-soft">{t("import.tableHint")}</p>
-        <div className="mt-3">
-          <Field label={t("import.tableLabel")} htmlFor="table-file">
-            <Input
-              id="table-file"
-              type="file"
-              accept=".csv,.xlsx,.xls,.tsv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              disabled={parsing}
-              onChange={(e) => {
-                const f = e.target.files?.[0] ?? null;
-                if (!f) return;
-                if (!TABLE_TYPES.test(f.name)) return setError(t("import.unknownFile"));
-                setTable(f);
-                void parseTable(f);
-              }}
-            />
-          </Field>
-        </div>
-        {parsing && phase.what === "table" ? <p className="mt-2 text-sm text-plum-soft">{t("import.readingTable")}…</p> : null}
       </Card>
 
       <Card className="p-5 sm:p-6">
