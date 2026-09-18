@@ -77,7 +77,7 @@ export type Transaction = {
 } & Ownership;
 
 /** One run of an entry path, so Home can say what last fed the ledger. */
-export type ImportRun = { id: string; business_id: string; source: "csv" | "screenshots" | "quick"; ran_at: string; orders: number; cancellations: number; payouts: number; skipped: number; note: string; created_by: string | null };
+export type ImportRun = { id: string; business_id: string; source: "csv" | "screenshots" | "quick"; ran_at: string; orders: number; cancellations: number; payouts: number; skipped: number; note: string; created_by: string | null; details?: Record<string, unknown> };
 
 /** Money already paid out for a sale that was then cancelled or refunded: a negative settlement the next payout offsets. */
 export type Clawback = {
@@ -113,6 +113,8 @@ export type Payout = {
   amount_received: number;
   received_by: Person;
   note: string;
+  /** The platform payment id when a file or the API reported the payout. */
+  external_ref?: string | null;
   created_at: string;
 } & Ownership;
 

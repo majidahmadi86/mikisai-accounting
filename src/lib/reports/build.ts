@@ -39,7 +39,7 @@ export type ReportTx = {
 };
 
 export type ReportTransfer = { id: string; date: string; from_person: Person; to_person: Person; amount: number; note: string };
-export type ReportPayout = { id: string; date: string; platform: Platform; amount_received: number; received_by: Person; note: string };
+export type ReportPayout = { id: string; date: string; platform: Platform; amount_received: number; received_by: Person; note: string; external_ref?: string | null };
 
 export type ReportInput = {
   transactions: ReportTx[];

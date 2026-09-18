@@ -9,6 +9,8 @@ import { RecordTransferButton } from "@/components/transfers/RecordTransferButto
 import { QuickOrderButton } from "@/components/quick-entry/QuickOrderButton";
 import { InstallCard } from "@/components/pwa/InstallCard";
 import { relativeTime } from "@/lib/tiktok/status";
+import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
+import { SELLER_CENTER_FINANCE, SELLER_CENTER_ORDERS } from "@/lib/import/links";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Pill } from "@/components/ui/Pill";
 import { StatCard } from "@/components/ui/StatCard";
@@ -56,6 +58,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
     <div>
       <Tour autoOpen />
       {!admin ? <InstallCard /> : null}
+      {admin ? <NightlyRoutine last={snapshot.lastTiktokImport} tr={tr} locale={locale} /> : null}
       <BalanceBanner balance={balance} tr={tr} />
       <p className="-mt-3 mb-6 text-xs text-plum-faint">
         <Link href="/import" className="hover:underline">
@@ -253,5 +256,37 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
         </div>
       )}
     </div>
+  );
+}
+
+/** The admin's nightly TikTok routine: export, drop, confirm, with when it last ran and what it brought. */
+function NightlyRoutine({ last, tr, locale }: { last: { ran_at: string; orders: number; cancellations: number; payouts: number } | null; tr: ReturnType<typeof t>; locale: "en" | "th" }) {
+  // eslint-disable-next-line react-hooks/purity -- a server component rendered per request
+  const stale = !last || Date.now() - Date.parse(last.ran_at) > NIGHTLY_STALE_HOURS * 3600 * 1000;
+  return (
+    <Card tone={stale ? "warning" : "card"} className="mb-6 px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="eyebrow">{tr("nightly.routineEyebrow")}</p>
+          <p className="mt-1 font-display text-xl text-plum">{tr("nightly.routineTitle")}</p>
+          <p className="mt-1 text-sm text-plum-soft">{last ? tr("nightly.routineLast", { time: formatDateTime(last.ran_at, locale), orders: last.orders, cancellations: last.cancellations, payouts: last.payouts }) : tr("nightly.routineNever")}</p>
+        </div>
+        <ButtonLink href="/import">{tr("nightly.routineGo")}</ButtonLink>
+      </div>
+      <ol className="mt-3 grid gap-2 text-sm text-plum sm:grid-cols-3">
+        <li className="rounded-xl bg-ivory-deep px-3 py-2">
+          1. {tr("nightly.step1")}{" "}
+          <a href={SELLER_CENTER_ORDERS} target="_blank" rel="noreferrer" className="font-medium text-berry hover:underline">
+            {tr("nightly.ordersLink")} ↗
+          </a>
+          {" · "}
+          <a href={SELLER_CENTER_FINANCE} target="_blank" rel="noreferrer" className="font-medium text-berry hover:underline">
+            {tr("nightly.financeLink")} ↗
+          </a>
+        </li>
+        <li className="rounded-xl bg-ivory-deep px-3 py-2">2. {tr("nightly.step2")}</li>
+        <li className="rounded-xl bg-ivory-deep px-3 py-2">3. {tr("nightly.step3")}</li>
+      </ol>
+    </Card>
   );
 }

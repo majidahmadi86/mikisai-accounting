@@ -32,6 +32,12 @@ export type LedgerSnapshot = {
   business: Business;
   /** What last fed the ledger: a Seller Center file, shared screenshots or a quick order. */
   lastImport: ImportRun | null;
+  /** The last run that fed TikTok orders from files or from the API, for the nightly routine. */
+  lastTiktokImport: ImportRun | null;
+  /** TikTok SKUs no product is mapped to yet. */
+  skusAwaiting: { sku_key: string; sku_name: string }[];
+  /** What payouts paid, per payout, from payout_allocations. */
+  payoutCoverage: Record<string, number>;
   /** The TikTok Shop connection as the app may show it; never the tokens. */
   tiktok: TiktokStatus;
   fetchedAt: string;
@@ -52,7 +58,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
     async () => {
       const admin = createAdminClient();
       // Soft-deleted rows are hidden everywhere; only the Recently deleted list reads them.
-      const [tx, tr, po, ps, cu, bz, ec, pr, mv, it, cb, ir] = await Promise.all([
+      const [tx, tr, po, ps, cu, bz, ec, pr, mv, it, cb, ir, nr, sk, pa] = await Promise.all([
         admin
           .from("transactions")
           .select("*, settlements(status, settled_at, payout_id, paid_amount, deleted_at)")
@@ -71,6 +77,9 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("transaction_items").select("id, transaction_id, product_id, qty, unit_price, unit_cost").eq("business_id", businessId).is("deleted_at", null),
         admin.from("clawbacks").select("*").eq("business_id", businessId).is("deleted_at", null).order("created_at"),
         admin.from("import_runs").select("*").eq("business_id", businessId).order("ran_at", { ascending: false }).limit(1).maybeSingle(),
+        admin.from("import_runs").select("*").eq("business_id", businessId).in("source", ["csv", "tiktok"]).order("ran_at", { ascending: false }).limit(1).maybeSingle(),
+        admin.from("tiktok_sku_map").select("sku_key, sku_name").eq("business_id", businessId).is("product_id", null).order("created_at"),
+        admin.from("payout_allocations").select("payout_id, amount").eq("business_id", businessId),
       ]);
 
       const allTransactions: LedgerTransaction[] = (tx.data ?? []).map((row) => {
@@ -116,6 +125,9 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         items: (it.data ?? []).map((i) => ({ id: i.id as string, transaction_id: i.transaction_id as string, product_id: i.product_id as string, qty: num(i.qty), unit_price: num(i.unit_price), unit_cost: i.unit_cost == null ? null : num(i.unit_cost) })),
         business: { id: businessId, name: bz.data?.name ?? "MikiSai", exposure_limit: bz.data ? num(bz.data.exposure_limit) : 3000 },
         lastImport: ir.data ? (ir.data as ImportRun) : null,
+        lastTiktokImport: nr.data ? (nr.data as ImportRun) : null,
+        skusAwaiting: (sk.data ?? []) as { sku_key: string; sku_name: string }[],
+        payoutCoverage: (pa.data ?? []).reduce<Record<string, number>>((acc, a) => ({ ...acc, [a.payout_id as string]: Math.round(((acc[a.payout_id as string] ?? 0) + num(a.amount)) * 100) / 100 }), {}),
         tiktok,
         fetchedAt: new Date().toISOString(),
       };

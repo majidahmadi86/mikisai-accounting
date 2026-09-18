@@ -13,9 +13,10 @@ import { buildMyBalance } from "@/lib/my-balance";
 import { inventoryValue, stockPositions, whoOwesWhom, type ClawbackLite, type TruthInput, type TruthTransfer } from "@/lib/truth";
 import type { ReportTx } from "@/lib/reports/build";
 import { tiktokProblems, type TiktokStatus } from "@/lib/tiktok/status";
+import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
@@ -33,6 +34,9 @@ export type HealthInput = Omit<StatementsInput, "transfers"> & {
   clawbacks?: ClawbackLite[];
   cashAdjustments?: ReportTx[];
   tiktok?: TiktokStatus | null;
+  lastTiktokImport?: { ran_at: string; source: string; details?: Record<string, unknown> } | null;
+  skusAwaiting?: { sku_key: string; sku_name: string }[];
+  payoutCoverage?: Record<string, number>;
 };
 
 export const UNMATCHED_PAYOUT_DAYS = 20;
@@ -180,12 +184,38 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("orphan_movements", orphanMovements),
     check("cancelled_counted", cancelledCounted),
     check("date_assumed", assumed),
+    check("tiktok_import_stale", nightlyStale(input, ranAt)),
+    check("skus_awaiting", (input.skusAwaiting ?? []).map((s): HealthIssue => ({ id: s.sku_key, label: s.sku_name || s.sku_key, href: "/import", detail: "pick its product" }))),
+    check("orders_missing_status", Number(input.lastTiktokImport?.details?.missing_status ?? 0) > 0 ? [{ id: "missing-status", label: `${Number(input.lastTiktokImport?.details?.missing_status)} order(s) in the last file had no status the import knows`, href: "/import", detail: "treated as active" }] : []),
+    check("payout_not_matched", payoutsNotMatched(input, income)),
     check("tiktok_sync", tiktokProblems(input.tiktok, Date.parse(ranAt)).map((p): HealthIssue => ({ id: p.id, label: p.label, href: "/more/connect-tiktok", detail: p.detail }))),
     check("consistency", consistency),
     check("report_totals", totals),
   ];
   const issues = checks.reduce((a, c) => a + c.count, 0);
   return { ranAt, checks, issues, ok: issues === 0 };
+}
+
+/** TikTok sales exist but nothing fed them for 36 hours: the nightly routine was skipped (or the API sync stopped). */
+function nightlyStale(input: HealthInput, ranAt: string): HealthIssue[] {
+  // Only when the caller knows about imports at all (the snapshot does; a bare fixture does not).
+  if (input.lastTiktokImport === undefined) return [];
+  if (!input.transactions.some((t) => t.type === "income" && t.platform === "tiktok")) return [];
+  const last = input.lastTiktokImport?.ran_at ?? null;
+  const hours = last ? (Date.parse(ranAt) - Date.parse(last)) / 3600000 : Infinity;
+  if (hours <= NIGHTLY_STALE_HOURS) return [];
+  return [{ id: "nightly", label: last ? `Last TikTok import ${last.slice(0, 16).replace("T", " ")}` : "No TikTok import yet", href: "/import", detail: last ? `${Math.floor(hours)} h ago` : "drop the Orders and Finance exports" }];
+}
+
+/** Payouts that carry a platform payment id (a file or the API reported them) but do not pay orders for their full amount. */
+function payoutsNotMatched(input: HealthInput, income: HealthInput["transactions"]): HealthIssue[] {
+  const legacy = new Map<string, number>();
+  for (const t of income) if (t.settlement?.payout_id) legacy.set(t.settlement.payout_id, round2((legacy.get(t.settlement.payout_id) ?? 0) + (t.settlement.status === "received_in_bank" ? t.net_amount : (t.settlement.paid_amount ?? 0))));
+  return input.payouts
+    .filter((p) => (p as { external_ref?: string | null }).external_ref)
+    .map((p) => ({ p, covered: input.payoutCoverage?.[p.id] ?? legacy.get(p.id) ?? 0 }))
+    .filter(({ p, covered }) => p.amount_received - covered > Math.max(0.05, p.amount_received * 0.02))
+    .map(({ p, covered }): HealthIssue => ({ id: p.id, label: `${p.date} · ${p.platform} · ฿${p.amount_received.toFixed(2)}`, href: `/payouts/${p.id}/reconcile`, detail: `฿${round2(p.amount_received - covered).toFixed(2)} not matched` }));
 }
 
 /** The equalities that must hold between pages: one number, everywhere. */
