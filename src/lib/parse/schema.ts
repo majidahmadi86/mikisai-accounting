@@ -51,6 +51,8 @@ export type ReviewRow = ParsedOrder & {
   product_id: string | null;
   product_matched: boolean;
   tags: ReviewTag[];
+  /** For a refunded order: what the platform took back, when the source says. */
+  refund_amount?: number | null;
   /** The ledger row with the same order number on the same platform, if any. */
   existing: { id: string; date: string; net_amount: number; status: "active" | "cancelled" | "refunded" } | null;
 };

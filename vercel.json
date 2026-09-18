@@ -14,6 +14,10 @@
     {
       "path": "/api/health/daily",
       "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/tiktok/sync",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
