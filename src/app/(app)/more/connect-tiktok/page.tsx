@@ -10,7 +10,9 @@ import { formatDateTime } from "@/lib/money";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadTiktokStatus, recentSyncLog } from "@/lib/tiktok/load-status";
 import { relativeTime } from "@/lib/tiktok/status";
-import { disconnectTiktok, startTiktokAuth, syncTiktokNow } from "./actions";
+import { disconnectTiktok, saveAppStatus, startTiktokAuth, syncTiktokNow } from "./actions";
+import { Field, Input, Select } from "@/components/ui/Field";
+import { formatDate } from "@/lib/money";
 
 const CALLBACK = "https://mikisai.mikaro.studio/api/tiktok/callback";
 const WEBHOOK = "https://mikisai.mikaro.studio/api/tiktok/webhook";
@@ -21,7 +23,8 @@ export default async function ConnectTiktokPage({ searchParams }: PageProps<"/mo
   const tr = t(locale);
   const admin = session.profile.role === "admin";
   const db = createAdminClient();
-  const [status, logs] = await Promise.all([loadTiktokStatus(db, session.profile.business_id), recentSyncLog(db, session.profile.business_id, 20)]);
+  const [status, logs, { data: app }] = await Promise.all([loadTiktokStatus(db, session.profile.business_id), recentSyncLog(db, session.profile.business_id, 20), session.supabase.from("tiktok_app_status").select("approval, ticket_date, note").eq("business_id", session.profile.business_id).maybeSingle()]);
+  const approved = app?.approval === "approved";
   const error = typeof sp.error === "string" ? sp.error : null;
   const tone = status.state === "connected" ? "success" : status.state === "expired" || status.state === "error" ? "berry" : "lavender";
 
@@ -31,7 +34,36 @@ export default async function ConnectTiktokPage({ searchParams }: PageProps<"/mo
       {sp.connected ? <p className="mb-4 rounded-xl bg-success-tint px-4 py-3 text-sm text-success">{tr("tiktok.justConnected")}</p> : null}
       {sp.disconnected ? <p className="mb-4 rounded-xl bg-warning-tint px-4 py-3 text-sm text-warning-ink">{tr("tiktok.justDisconnected")}</p> : null}
       {sp.synced ? <p className="mb-4 rounded-xl bg-lavender-tint px-4 py-3 text-sm text-plum">{tr(sp.synced === "ok" ? "tiktok.syncedOk" : sp.synced === "skipped" ? "tiktok.syncedSkipped" : "tiktok.syncedError")}</p> : null}
-      {error ? <p className="mb-4 rounded-xl bg-berry-tint px-4 py-3 text-sm text-berry">{tr(`tiktok.error.${error === "not_configured" || error === "bad_state" || error === "exchange_failed" || error === "admin_only" ? error : "other"}`)}</p> : null}
+      {sp.status_saved ? <p className="mb-4 rounded-xl bg-success-tint px-4 py-3 text-sm text-success">{tr("common.saved")}</p> : null}
+      {error ? <p className="mb-4 rounded-xl bg-berry-tint px-4 py-3 text-sm text-berry">{tr(`tiktok.error.${error === "not_configured" || error === "bad_state" || error === "exchange_failed" || error === "admin_only" || error === "not_approved" ? error : "other"}`)}</p> : null}
+
+      <Card tone={approved ? "success" : "warning"} className="mb-4 px-5 py-5">
+        <p className="eyebrow">{tr("tiktok.approvalTitle")}</p>
+        <p className="mt-1 text-lg font-medium text-plum">
+          {approved ? tr("tiktok.approvalReceived") : [tr("tiktok.approvalPending"), tr("tiktok.approvalCaveat"), app?.ticket_date ? tr("tiktok.ticketSent", { date: formatDate(app.ticket_date as string, locale) }) : tr("tiktok.ticketNone")].join(" · ")}
+        </p>
+        {app?.note ? <p className="mt-1 text-sm text-plum-soft [overflow-wrap:anywhere]">{app.note as string}</p> : null}
+        <p className="mt-1 text-xs text-plum-soft">{tr("tiktok.approvalHint")}</p>
+        {admin ? (
+          <form action={saveAppStatus} className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end">
+            <Field label={tr("tiktok.approvalField")} htmlFor="approval">
+              <Select id="approval" name="approval" defaultValue={approved ? "approved" : "pending"}>
+                <option value="pending">{tr("tiktok.approvalOptionPending")}</option>
+                <option value="approved">{tr("tiktok.approvalOptionApproved")}</option>
+              </Select>
+            </Field>
+            <Field label={tr("tiktok.ticketField")} htmlFor="ticket_date">
+              <Input id="ticket_date" name="ticket_date" type="date" defaultValue={(app?.ticket_date as string | null) ?? ""} />
+            </Field>
+            <Field label={tr("common.note")} htmlFor="app_note">
+              <Input id="app_note" name="note" maxLength={300} defaultValue={(app?.note as string | null) ?? ""} placeholder={tr("common.optional")} />
+            </Field>
+            <Button type="submit" variant="secondary">
+              {tr("common.save")}
+            </Button>
+          </form>
+        ) : null}
+      </Card>
 
       <Card tone={tone} className="px-5 py-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -57,10 +89,11 @@ export default async function ConnectTiktokPage({ searchParams }: PageProps<"/mo
         {admin ? (
           <div className="mt-4 flex flex-wrap gap-2">
             <form action={startTiktokAuth}>
-              <Button type="submit" disabled={!status.configured}>
+              <Button type="submit" disabled={!status.configured || !approved} title={!approved ? tr("tiktok.authorizeDisabled") : undefined}>
                 {status.connected ? tr("tiktok.reauthorize") : tr("tiktok.authorize")}
               </Button>
             </form>
+            {!approved ? <p className="basis-full text-xs text-plum-soft">{tr("tiktok.authorizeDisabled")}</p> : null}
             {status.connected ? (
               <>
                 <form action={syncTiktokNow}>
