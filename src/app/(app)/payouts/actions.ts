@@ -7,8 +7,7 @@ import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
 import { applyPayoutUpdate } from "@/lib/ledger/update";
 import { PEOPLE, PLATFORMS } from "@/lib/types";
-import { allocatePayout } from "@/lib/payouts/partial";
-import { num } from "@/lib/types";
+import { matchPayout } from "@/lib/payouts/confirm";
 
 const PayoutSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -45,59 +44,15 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
   const session = await requireSession();
   const { supabase, profile } = session;
   if (!UUID.test(payoutId)) redirect("/payouts");
-  const ids = Array.from(new Set((Array.isArray(settlementIds) ? settlementIds : []).filter((id) => typeof id === "string" && UUID.test(id)))).slice(0, 500);
-
-  const { data: payout } = await supabase.from("payouts").select("id, platform, amount_received").eq("id", payoutId).eq("business_id", profile.business_id).maybeSingle();
-  if (!payout) redirect("/payouts");
-
-  // Settlements deleted with their sale still point here until this re-confirm; let them go.
-  await supabase.from("settlements").update({ payout_id: null }).eq("payout_id", payoutId).not("deleted_at", "is", null);
-  const { data: linked } = await supabase.from("settlements").select("id").eq("payout_id", payoutId).is("deleted_at", null);
-  const previouslyLinked = (linked ?? []).map((s) => s.id);
-  const toUnlink = previouslyLinked.filter((id) => !ids.includes(id));
-  if (toUnlink.length) {
-    await supabase.from("settlements").update({ status: "pending", settled_at: null, payout_id: null, paid_amount: 0 }).in("id", toUnlink);
-  }
-
-  // Pending clawbacks on this platform come out of this payout: they are offset here and the orders get the full amount.
-  const { data: clawRows } = await supabase.from("clawbacks").select("id, amount, transactions!inner(platform)").eq("status", "pending").is("deleted_at", null).eq("transactions.platform", payout.platform);
-  const clawbackOffset = (clawRows ?? []).reduce((a, c) => a + num(c.amount), 0);
-  let eligibleIds: string[] = [];
-  if (ids.length) {
-    // Only settlements on the payout's platform that are not already claimed by another payout.
-    const { data: eligible } = await supabase
-      .from("settlements")
-      .select("id, payout_id, transactions!inner(platform, date, created_at, net_amount)")
-      .in("id", ids)
-      .is("deleted_at", null)
-      .eq("transactions.platform", payout.platform);
-    const rows = (eligible ?? [])
-      .filter((s) => !s.payout_id || s.payout_id === payoutId)
-      .map((s) => {
-        const tx = Array.isArray(s.transactions) ? s.transactions[0] : s.transactions;
-        return { settlement_id: s.id as string, date: tx?.date ?? "", created_at: tx?.created_at ?? "", net_amount: num(tx?.net_amount) };
-      })
-      .sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at));
-    eligibleIds = rows.map((r) => r.settlement_id);
-    // Oldest orders first; the payout covers what it covers, the rest stays pending on its own (70/30 early payouts).
-    const now = new Date().toISOString();
-    for (const a of allocatePayout(rows, num(payout.amount_received) + clawbackOffset)) {
-      await supabase
-        .from("settlements")
-        .update(a.full ? { status: "received_in_bank", settled_at: now, payout_id: payoutId, paid_amount: a.paid } : { status: "pending", settled_at: a.paid > 0 ? now : null, payout_id: a.paid > 0 ? payoutId : null, paid_amount: a.paid })
-        .eq("id", a.settlement_id);
-    }
-    if (clawRows?.length) {
-      await supabase.from("clawbacks").update({ status: "offset", offset_payout_id: payoutId }).in("id", clawRows.map((c) => c.id));
-    }
-  }
-
+  const ids = (Array.isArray(settlementIds) ? settlementIds : []).filter((id) => typeof id === "string" && UUID.test(id));
+  const result = await matchPayout(supabase, profile.business_id, payoutId, ids);
+  if (!result) redirect("/payouts");
   await recordAudit(session, {
     action: "confirm_payout",
     entity_type: "payout",
     entity_id: payoutId,
-    before: { settlement_ids: previouslyLinked },
-    after: { settlement_ids: eligibleIds, orders: eligibleIds.length, amount_received: payout.amount_received, clawbacks_offset: clawbackOffset },
+    before: { settlement_ids: result.previouslyLinked },
+    after: { settlement_ids: result.settlementIds, orders: result.orders, amount_received: result.amountReceived, clawbacks_offset: result.clawbackOffset },
   });
   ledgerChanged(profile.business_id);
   redirect("/payouts?matched=1");

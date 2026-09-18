@@ -22,6 +22,7 @@ import { PEOPLE, PLATFORMS, PRODUCT_LINES, type Person, type Platform, type Prod
 import { cn } from "@/lib/cn";
 import { useQuickEntry } from "./QuickEntryProvider";
 import { TransferSheet } from "./TransferSheet";
+import { QuickOrderSheet } from "./QuickOrderSheet";
 
 const STORAGE_KEY = "mikisai.quick-entry.v2";
 
@@ -54,16 +55,17 @@ function parseAmount(text: string): number | null {
 const NEW = "__new__";
 const MORE = "__more__";
 
-export function QuickEntrySheet({ initialType, retryInput }: { initialType: TransactionType | "transfer"; retryInput: TransactionInput | null }) {
+export function QuickEntrySheet({ initialType, retryInput }: { initialType: TransactionType | "transfer" | "order"; retryInput: TransactionInput | null }) {
   const t = useT();
   const locale = useLocale();
   const { close, data, submit, notify } = useQuickEntry();
   const transferMode = initialType === "transfer";
+  const [orderMode, setOrderMode] = useState(initialType === "order");
   const remembered = useMemo(() => readRemembered(), []);
   const products = useMemo(() => data.products.filter((p) => p.active), [data.products]);
 
   const retryItem = retryInput?.items?.[0];
-  const [type, setType] = useState<TransactionType>(retryInput?.type ?? (initialType === "transfer" ? "income" : initialType));
+  const [type, setType] = useState<TransactionType>(retryInput?.type ?? (initialType === "transfer" || initialType === "order" ? "income" : initialType));
   const [amountText, setAmountText] = useState(() => (retryInput ? String(retryInput.type === "income" ? retryInput.gross_amount : retryInput.amount) : ""));
   const [amountTouched, setAmountTouched] = useState(Boolean(retryInput));
   const [netText, setNetText] = useState(() => (retryInput?.type === "income" && retryInput.net_amount != null ? String(retryInput.net_amount) : ""));
@@ -254,9 +256,9 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
           <div>
             <p className="eyebrow">{transferMode ? t("transfer.eyebrow") : t("nav.add")}</p>
             <h2 id="quick-entry-title" className="text-2xl text-plum">
-              {transferMode ? t("transfer.title") : t("quick.title")}
+              {transferMode ? t("transfer.title") : orderMode ? t("quick.orderTitle") : t("quick.title")}
             </h2>
-            <p className="text-xs text-plum-soft">{transferMode ? t("transfer.sheetSubtitle") : t("quick.subtitle")}</p>
+            <p className="text-xs text-plum-soft">{transferMode ? t("transfer.sheetSubtitle") : orderMode ? t("quick.orderSubtitle") : t("quick.subtitle")}</p>
           </div>
           <button type="button" onClick={close} aria-label={t("quick.close")} className="-mr-2 flex h-11 w-11 items-center justify-center rounded-full text-plum-soft hover:bg-lavender-tint hover:text-plum">
             <CloseIcon />
@@ -273,27 +275,47 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
             onError={(message) => notify({ message })}
           />
         ) : null}
+        {!transferMode ? (
+          <div className="grid grid-cols-3 gap-2 px-5 pb-2" role="radiogroup" aria-label={t("common.type")}>
+            {(["income", "expense", "order"] as const).map((v) => {
+              const active = v === "order" ? orderMode : !orderMode && type === v;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => {
+                    if (v === "order") setOrderMode(true);
+                    else {
+                      setOrderMode(false);
+                      setType(v);
+                    }
+                  }}
+                  className={cn("min-h-14 rounded-2xl border text-base font-medium transition-colors", active ? "border-berry bg-berry text-ivory shadow-[0_2px_10px_rgba(143,49,95,0.3)]" : "border-line bg-card text-plum hover:bg-lavender-tint")}
+                >
+                  {v === "income" ? t("quick.income") : v === "expense" ? t("quick.expense") : t("quick.order")}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        {orderMode && !transferMode ? (
+          <QuickOrderSheet
+            onSaved={(message) => {
+              close();
+              notify({ message });
+            }}
+            onError={(message) => notify({ message })}
+          />
+        ) : null}
         <form
-          className={cn("min-h-0 flex-1 overflow-y-auto px-5 pb-4", transferMode && "hidden")}
+          className={cn("min-h-0 flex-1 overflow-y-auto px-5 pb-4", (transferMode || orderMode) && "hidden")}
           onSubmit={(e) => {
             e.preventDefault();
             void save(false);
           }}
         >
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("common.type")}>
-            {(["income", "expense"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                role="radio"
-                aria-checked={type === v}
-                onClick={() => setType(v)}
-                className={cn("min-h-14 rounded-2xl border text-base font-medium transition-colors", type === v ? "border-berry bg-berry text-ivory shadow-[0_2px_10px_rgba(143,49,95,0.3)]" : "border-line bg-card text-plum hover:bg-lavender-tint")}
-              >
-                {v === "income" ? t("quick.income") : t("quick.expense")}
-              </button>
-            ))}
-          </div>
 
           <div className="mt-4">
             <Field label={isIncome ? t("quick.amountIncome") : t("quick.amountExpense")} htmlFor="qe-amount" hint={isIncome ? t("quick.amountIncomeHint") : t("quick.amountExpenseHint")}>

@@ -23,7 +23,7 @@ export default async function ImportPage() {
   return (
     <div>
       <PageHeader title={tr("import.title")} subtitle={tr("import.subtitle")} />
-      <ImportWorkbench settings={settings} defaultReceivedBy={profile.display_name === "Sai" ? "sai" : "mike"} products={snapshot.products.filter((p) => p.active)} />
+      <ImportWorkbench settings={settings} defaultReceivedBy={profile.display_name === "Sai" ? "sai" : "mike"} products={snapshot.products.filter((p) => p.active)} admin={profile.role === "admin"} />
     </div>
   );
 }

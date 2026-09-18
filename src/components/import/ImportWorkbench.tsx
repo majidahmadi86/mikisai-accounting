@@ -1,36 +1,77 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { commitImport, type CommitResult } from "@/app/(app)/import/actions";
+import { MappingPanel } from "./MappingPanel";
+import { PayoutRows } from "./PayoutRows";
 import { ReviewTable } from "./ReviewTable";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useT } from "@/lib/i18n/client";
 import { platformName } from "@/lib/labels";
-import type { ParseResponse, ReviewRow } from "@/lib/parse/schema";
+import type { ColumnMapping } from "@/lib/import/tiktok";
+import type { ParseResponse, PayoutRow, ReviewRow } from "@/lib/parse/schema";
+import { takeSharedFiles } from "@/lib/pwa/shared-files";
 import { PEOPLE, PLATFORMS, type Person, type Platform, type PlatformSetting } from "@/lib/types";
 import type { Product } from "@/lib/inventory/valuation";
 
-type Phase = { name: "idle" } | { name: "parsing" } | { name: "review"; result: ParseResponse } | { name: "done"; inserted: number };
+type Phase = { name: "idle" } | { name: "parsing"; what: "table" | "screens" } | { name: "review"; result: ParseResponse; source: "csv" | "screenshots" } | { name: "done"; result: Extract<CommitResult, { ok: true }> };
 
 export const MAX_FILES = 12;
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const TABLE_TYPES = /\.(csv|xlsx|xls|tsv)$/i;
 
-export function ImportWorkbench({ settings, defaultReceivedBy, products }: { settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[]; defaultReceivedBy: Person; products: Product[] }) {
+/**
+ * Three ways in, one review, one confirm: a Seller Center export (the
+ * nightly desktop path), screenshots shared or picked from the phone, or
+ * pasted text. Every row shows what the import assumed in gold.
+ */
+export function ImportWorkbench({ settings, defaultReceivedBy, products, admin }: { settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[]; defaultReceivedBy: Person; products: Product[]; admin: boolean }) {
   const t = useT();
+  const params = useSearchParams();
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
   const [error, setError] = useState<string | null>(null);
   const [platform, setPlatform] = useState<Platform>("tiktok");
   const [receivedBy, setReceivedBy] = useState<Person>(defaultReceivedBy);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [table, setTable] = useState<File | null>(null);
   const [rows, setRows] = useState<ReviewRow[]>([]);
+  const [payouts, setPayouts] = useState<PayoutRow[]>([]);
+  const [sharedNote, setSharedNote] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
+  const autoRan = useRef(false);
 
-  async function parse() {
+  // Screenshots shared from the TikTok Seller app land here with ?shared=1: take them from the worker's cache and read them at once.
+  const shared = params.get("shared");
+  useEffect(() => {
+    if (!shared || autoRan.current) return;
+    autoRan.current = true;
+    void receiveShared(shared);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shared]);
+
+  async function receiveShared(kind: string) {
+    if (kind === "missed") {
+      setSharedNote(t("import.sharedMissed"));
+      return;
+    }
+    const list = await takeSharedFiles();
+    if (!list.length) {
+      setSharedNote(t("import.sharedNone"));
+      return;
+    }
+    const usable = list.filter((f) => f.size <= MAX_FILE_BYTES).slice(0, MAX_FILES);
+    setFiles(usable);
+    setSharedNote(t("import.sharedReceived", { n: usable.length }));
+    await parseScreens(usable);
+  }
+
+  async function parseScreens(list: File[] = files) {
     setError(null);
-    if (!text.trim() && files.length === 0) {
+    if (!text.trim() && list.length === 0) {
       setError(t("import.needInput"));
       return;
     }
@@ -38,37 +79,61 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
     fd.set("platform", platform);
     fd.set("received_by", receivedBy);
     fd.set("text", text);
-    files.forEach((f) => fd.append("files", f));
-
-    setPhase({ name: "parsing" });
+    list.forEach((f) => fd.append("files", f));
+    setPhase({ name: "parsing", what: "screens" });
     try {
       const res = await fetch("/api/parse-report", { method: "POST", body: fd });
       if (!res.ok) throw new Error(`status ${res.status}`);
       const result = (await res.json()) as ParseResponse;
       setRows(result.rows);
-      setPhase({ name: "review", result });
+      setPayouts(result.payouts ?? []);
+      setPhase({ name: "review", result, source: "screenshots" });
     } catch {
       setError(t("import.errorParse"));
       setPhase({ name: "idle" });
     }
   }
 
-  function confirm(uploadIds: string[]) {
+  async function parseTable(file: File, mapping?: ColumnMapping) {
+    setError(null);
+    const fd = new FormData();
+    fd.set("platform", platform);
+    fd.set("received_by", receivedBy);
+    fd.set("file", file);
+    if (mapping) fd.set("mapping", JSON.stringify(mapping));
+    setPhase({ name: "parsing", what: "table" });
+    try {
+      const res = await fetch("/api/import-table", { method: "POST", body: fd });
+      const body = (await res.json()) as ParseResponse & { error?: string; missing?: string[] };
+      if (!res.ok) {
+        setError(body.error === "unknown-file" ? t("import.unknownFile") : body.error === "columns-missing" ? t("import.columnsMissing", { fields: (body.missing ?? []).join(", ") }) : t("import.errorTable"));
+        setPhase({ name: "idle" });
+        return;
+      }
+      setRows(body.rows);
+      setPayouts(body.payouts ?? []);
+      setPhase({ name: "review", result: body, source: "csv" });
+    } catch {
+      setError(t("import.errorTable"));
+      setPhase({ name: "idle" });
+    }
+  }
+
+  function confirm(result: ParseResponse, source: "csv" | "screenshots") {
     const selected = rows.filter((r) => r.include);
-    if (!selected.length) return;
-    if (selected.some((r) => !r.quantity || r.quantity < 1)) {
-      setError(t("import.needQty"));
-      return;
-    }
-    if (selected.some((r) => !r.product_id)) {
-      setError(t("import.needProducts"));
-      return;
-    }
+    const fresh = selected.filter((r) => !r.existing);
+    const changes = selected.filter((r) => r.existing && r.tags.includes("status_change"));
+    const chosenPayouts = payouts.filter((p) => p.include);
+    if (!fresh.length && !changes.length && !chosenPayouts.length) return;
+    if (fresh.some((r) => !r.quantity || r.quantity < 1)) return setError(t("import.needQty"));
+    if (fresh.some((r) => !r.product_id)) return setError(t("import.needProducts"));
     setError(null);
     startSaving(async () => {
-      const result: CommitResult = await commitImport({
-        upload_ids: uploadIds,
-        rows: selected.map((r) => ({
+      const outcome: CommitResult = await commitImport({
+        source,
+        upload_ids: result.upload_ids,
+        skipped: rows.filter((r) => r.tags.includes("already_recorded")).length,
+        rows: fresh.map((r) => ({
           date: r.date,
           platform: r.platform,
           product_line: r.product_line,
@@ -81,9 +146,13 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
           note: r.note,
           product_id: r.product_id as string,
           quantity: r.quantity ?? 1,
+          tags: r.tags.filter((tag): tag is "date_assumed" | "qty_inferred" => tag === "date_assumed" || tag === "qty_inferred"),
+          order_status: r.order_status ?? "active",
         })),
+        status_changes: changes.map((r) => ({ transaction_id: r.existing!.id, order_status: r.order_status === "refunded" ? "refunded" : "cancelled", date: r.date ?? new Date().toISOString().slice(0, 10), refund_amount: r.order_status === "refunded" ? r.net_amount : null })),
+        payouts: chosenPayouts.map((p) => ({ date: p.date, platform: p.platform, amount: p.amount, received_by: p.received_by, note: p.note })),
       });
-      if (result.ok) setPhase({ name: "done", inserted: result.inserted });
+      if (outcome.ok) setPhase({ name: "done", result: outcome });
       else setError(t("common.error"));
     });
   }
@@ -91,15 +160,19 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
   function reset() {
     setPhase({ name: "idle" });
     setRows([]);
+    setPayouts([]);
     setText("");
     setFiles([]);
+    setTable(null);
     setError(null);
   }
 
   if (phase.name === "done") {
+    const r = phase.result;
     return (
       <Card tone="success" className="p-6">
-        <p className="font-display text-2xl text-berry">{t("import.confirmed", { n: phase.inserted })}</p>
+        <p className="font-display text-2xl text-berry">{t("import.doneTitle")}</p>
+        <p className="mt-2 text-sm text-plum">{t("import.doneSummary", { orders: r.inserted, cancellations: r.cancellations, payouts: r.payouts, skipped: r.skipped })}</p>
         <div className="mt-4 flex gap-2">
           <Button type="button" variant="secondary" onClick={reset}>
             {t("import.startOver")}
@@ -110,7 +183,12 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
   }
 
   if (phase.name === "review") {
-    const includedCount = rows.filter((r) => r.include).length;
+    const included = rows.filter((r) => r.include);
+    const fresh = included.filter((r) => !r.existing).length;
+    const changes = included.filter((r) => r.existing && r.tags.includes("status_change")).length;
+    const dupes = rows.filter((r) => r.tags.includes("already_recorded")).length;
+    const chosenPayouts = payouts.filter((p) => p.include).length;
+    const nothing = fresh + changes + chosenPayouts === 0;
     return (
       <div className="space-y-4">
         <Card className="px-6 py-4">
@@ -118,15 +196,15 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
             <div>
               <p className="font-display text-xl text-plum">{t("import.reviewTitle")}</p>
               <p className="text-sm text-plum-soft">{t("import.reviewSubtitle")}</p>
-              <p className="mt-1 text-xs text-plum-faint">{t("import.batches", { orders: rows.length, batches: phase.result.batches })}</p>
+              <p className="mt-1 text-xs text-plum-faint">{t("import.reviewCounts", { fresh, changes, dupes, payouts: chosenPayouts })}</p>
               <p className="mt-1 text-xs text-plum-soft">{t("import.reviewHint")}</p>
             </div>
             <div className="flex w-full gap-2 sm:w-auto">
               <Button type="button" variant="ghost" onClick={reset}>
                 {t("import.startOver")}
               </Button>
-              <Button type="button" className="flex-1 sm:flex-none" disabled={saving || includedCount === 0} onClick={() => confirm(phase.result.upload_ids)}>
-                {t("import.confirm", { n: includedCount })}
+              <Button type="button" className="flex-1 sm:flex-none" disabled={saving || nothing} onClick={() => confirm(phase.result, phase.source)}>
+                {t("import.confirmAll", { n: fresh + changes + chosenPayouts })}
               </Button>
             </div>
           </div>
@@ -142,70 +220,106 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
           ) : null}
           {error ? <p className="mt-3 text-sm text-berry">{error}</p> : null}
         </Card>
-        {rows.length === 0 ? <Card className="p-6 text-sm text-plum-soft">{t("import.noRows")}</Card> : <ReviewTable rows={rows} onChange={setRows} settings={settings} products={products} />}
+        {phase.result.table && table ? <MappingPanel fileType={phase.result.table.file_type} headers={phase.result.table.headers} mapping={phase.result.table.mapping} admin={admin} onReread={(m) => void parseTable(table, m)} /> : null}
+        <PayoutRows rows={payouts} onChange={setPayouts} />
+        {rows.length === 0 && payouts.length === 0 ? <Card className="p-6 text-sm text-plum-soft">{t("import.noRows")}</Card> : null}
+        {rows.length ? <ReviewTable rows={rows} onChange={setRows} settings={settings} products={products} /> : null}
       </div>
     );
   }
 
   const parsing = phase.name === "parsing";
   return (
-    <Card className="p-5 sm:p-6">
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t("import.platformLabel")} htmlFor="platform">
-              <Select id="platform" value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} disabled={parsing}>
-                {PLATFORMS.map((p) => (
-                  <option key={p} value={p}>
-                    {platformName(t, p)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label={t("import.defaultReceivedBy")} htmlFor="received_by">
-              <Select id="received_by" value={receivedBy} onChange={(e) => setReceivedBy(e.target.value as Person)} disabled={parsing}>
-                {PEOPLE.map((p) => (
-                  <option key={p} value={p}>
-                    {t(`common.${p}`)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <Field label={t("import.filesLabel")} htmlFor="files" hint={t("import.filesHint")}>
+    <div className="space-y-4">
+      {sharedNote ? <p className="rounded-xl bg-lavender-tint px-4 py-3 text-sm text-plum">{sharedNote}</p> : null}
+      <Card className="p-5 sm:p-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t("import.platformLabel")} htmlFor="platform">
+            <Select id="platform" value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} disabled={parsing}>
+              {PLATFORMS.map((p) => (
+                <option key={p} value={p}>
+                  {platformName(t, p)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("import.defaultReceivedBy")} htmlFor="received_by">
+            <Select id="received_by" value={receivedBy} onChange={(e) => setReceivedBy(e.target.value as Person)} disabled={parsing}>
+              {PEOPLE.map((p) => (
+                <option key={p} value={p}>
+                  {t(`common.${p}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </Card>
+
+      <Card className="p-5 sm:p-6">
+        <p className="eyebrow">{t("import.tableEyebrow")}</p>
+        <p className="mt-1 font-display text-xl text-plum">{t("import.tableTitle")}</p>
+        <p className="text-sm text-plum-soft">{t("import.tableHint")}</p>
+        <div className="mt-3">
+          <Field label={t("import.tableLabel")} htmlFor="table-file">
             <Input
-              id="files"
+              id="table-file"
               type="file"
-              multiple
-              accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+              accept=".csv,.xlsx,.xls,.tsv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               disabled={parsing}
               onChange={(e) => {
-                const list = Array.from(e.target.files ?? []).filter((f) => f.size <= MAX_FILE_BYTES).slice(0, MAX_FILES);
-                setFiles(list);
+                const f = e.target.files?.[0] ?? null;
+                if (!f) return;
+                if (!TABLE_TYPES.test(f.name)) return setError(t("import.unknownFile"));
+                setTable(f);
+                void parseTable(f);
               }}
             />
           </Field>
-          {files.length ? (
-            <ul className="text-xs text-plum-soft space-y-0.5">
-              {files.map((f) => (
-                <li key={`${f.name}-${f.size}`}>
-                  {f.name} · {(f.size / 1024).toFixed(0)} KB
-                </li>
-              ))}
-            </ul>
-          ) : null}
         </div>
-        <Field label={t("import.pasteLabel")} htmlFor="text">
-          <Textarea id="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("import.pastePlaceholder")} className="min-h-56 font-mono text-xs" disabled={parsing} />
-        </Field>
-      </div>
-      {error ? <p className="mt-4 text-sm text-berry">{error}</p> : null}
-      <div className="mt-5 flex items-center gap-3">
-        <Button type="button" onClick={parse} disabled={parsing}>
-          {parsing ? `${t("import.parsing")}…` : t("import.parse")}
-        </Button>
-        {parsing ? <span className="h-2 w-2 animate-pulse rounded-full bg-berry" aria-hidden="true" /> : null}
-      </div>
-    </Card>
+        {parsing && phase.what === "table" ? <p className="mt-2 text-sm text-plum-soft">{t("import.readingTable")}…</p> : null}
+      </Card>
+
+      <Card className="p-5 sm:p-6">
+        <p className="eyebrow">{t("import.screensEyebrow")}</p>
+        <p className="mt-1 font-display text-xl text-plum">{t("import.screensTitle")}</p>
+        <p className="text-sm text-plum-soft">{t("import.screensHint")}</p>
+        <div className="mt-3 grid gap-5 lg:grid-cols-2">
+          <div className="space-y-3">
+            <Field label={t("import.filesLabel")} htmlFor="files" hint={t("import.filesHint")}>
+              <Input
+                id="files"
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+                disabled={parsing}
+                onChange={(e) => {
+                  const list = Array.from(e.target.files ?? []).filter((f) => f.size <= MAX_FILE_BYTES).slice(0, MAX_FILES);
+                  setFiles(list);
+                }}
+              />
+            </Field>
+            {files.length ? (
+              <ul className="text-xs text-plum-soft space-y-0.5">
+                {files.map((f) => (
+                  <li key={`${f.name}-${f.size}`}>
+                    {f.name} · {(f.size / 1024).toFixed(0)} KB
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <Field label={t("import.pasteLabel")} htmlFor="text">
+            <Textarea id="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("import.pastePlaceholder")} className="min-h-40 font-mono text-xs" disabled={parsing} />
+          </Field>
+        </div>
+        {error ? <p className="mt-4 text-sm text-berry">{error}</p> : null}
+        <div className="mt-5 flex items-center gap-3">
+          <Button type="button" onClick={() => void parseScreens()} disabled={parsing}>
+            {parsing && phase.what === "screens" ? `${t("import.parsing")}…` : t("import.parse")}
+          </Button>
+          {parsing ? <span className="h-2 w-2 animate-pulse rounded-full bg-berry" aria-hidden="true" /> : null}
+        </div>
+      </Card>
+    </div>
   );
 }

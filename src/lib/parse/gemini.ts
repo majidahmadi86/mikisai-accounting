@@ -51,7 +51,9 @@ Field rules:
 
 8. product_name is the product as printed without the size or count; variant is the size or option label printed with it (10 kg, 500 g, 30 ml, สีขาว); quantity is the unit count from wording like "x1", "x 2", "จำนวน 2" or "2 ชิ้น". Use 1 when a single item is clearly shown and null when nothing indicates the count.
 
-9. Skip cancelled, refunded or returned orders entirely and mention each skipped order id in warnings. Also add a warning for any order whose amounts were unreadable. Warnings are short English sentences. If there are no warnings return an empty array.
+9. Cancelled, refunded or returned orders are emitted like any other order with order_status set to "cancelled" (ยกเลิก, Cancelled, Canceled) or "refunded" (คืนเงิน, คืนสินค้า, Refund, Returned); every other order has order_status "active". A cancellation screen for one order is that order with order_status cancelled. Add a warning for any order whose amounts were unreadable. Warnings are short English sentences. If there are no warnings return an empty array.
+
+10. Wallet, balance or withdrawal screens (ยอดเงินที่โอน, ถอนเงิน, เงินเข้าบัญชี, Withdrawal, Paid out, Payout, Transferred to bank) list money paid out to the seller. Emit each payout in payouts with its date and amount and the wording as note; never turn a payout into an order. A screen that shows only a wallet balance and no payout lines has an empty payouts array.
 
 Read Thai carefully. Digits printed with Thai numerals (๐-๙) are converted to Arabic numerals.`;
 
@@ -125,19 +127,19 @@ export async function extractBatch(input: BatchInput, platform: Platform): Promi
   const text = response.text;
   if (!text) {
     const reason = response.candidates?.[0]?.finishReason ?? "no candidates";
-    return { orders: [], warnings: [`The model returned no result for this section (${reason}).`] };
+    return { orders: [], payouts: [], warnings: [`The model returned no result for this section (${reason}).`] };
   }
 
   let raw: unknown;
   try {
     raw = parseModelJson(text);
   } catch {
-    return { orders: [], warnings: ["The model returned malformed JSON for this section."] };
+    return { orders: [], payouts: [], warnings: ["The model returned malformed JSON for this section."] };
   }
 
   const parsed = ParsedBatchSchema.safeParse(raw);
   if (!parsed.success) {
-    return { orders: [], warnings: ["The model returned a result that did not match the expected shape for this section."] };
+    return { orders: [], payouts: [], warnings: ["The model returned a result that did not match the expected shape for this section."] };
   }
   return parsed.data;
 }

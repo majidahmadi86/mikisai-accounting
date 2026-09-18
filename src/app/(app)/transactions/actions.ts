@@ -15,9 +15,14 @@ export async function createTransaction(formData: FormData) {
   redirect("/transactions?saved=1");
 }
 
-/** Quick-entry sheet: validates the client payload and inserts without a redirect. */
-export async function quickAddTransaction(input: unknown): Promise<SaveResult> {
-  return insertTransaction(input);
+/** Quick-entry sheet: validates the client payload and inserts without a redirect. A quick order logs itself as the path that last fed the ledger. */
+export async function quickAddTransaction(input: unknown, source?: "quick"): Promise<SaveResult> {
+  const result = await insertTransaction(input);
+  if (result.ok && source === "quick") {
+    const { supabase, profile } = await requireSession();
+    await supabase.from("import_runs").insert({ business_id: profile.business_id, source: "quick", orders: 1 });
+  }
+  return result;
 }
 
 export async function updateTransaction(id: string, formData: FormData) {

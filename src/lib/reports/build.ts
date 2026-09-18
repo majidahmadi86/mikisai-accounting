@@ -29,6 +29,7 @@ export type ReportTx = {
   status?: OrderStatus;
   status_date?: string | null;
   refund_amount?: number | null;
+  tags?: string[];
   /** A cash adjustment row built by truth.normalizeLedger, never a real order. */
   synthetic?: boolean;
   created_at: string;

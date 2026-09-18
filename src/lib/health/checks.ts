@@ -14,7 +14,7 @@ import { inventoryValue, stockPositions, whoOwesWhom, type ClawbackLite, type Tr
 import type { ReportTx } from "@/lib/reports/build";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
@@ -150,7 +150,15 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     if (Math.min(cash, refund) > 0 && !clawbackFor.has(t.id)) cancelledCounted.push({ id: t.id, label: txLabel(t), href: txHref(t.id), detail: "paid out but no clawback" });
   }
 
-  // 13. Consistency: every page must show the same who-owes-whom and the same stock.
+  // 13. Imported rows whose date (or quantity) was assumed and nobody has confirmed yet.
+  const assumed: HealthIssue[] = [];
+  for (const t of input.transactions) {
+    const tags = t.tags ?? [];
+    if (tags.includes("date_assumed")) assumed.push({ id: t.id, label: txLabel(t), href: txHref(t.id), detail: "date assumed" });
+    if (tags.includes("qty_inferred")) assumed.push({ id: `${t.id}:qty`, label: txLabel(t), href: txHref(t.id), detail: "qty inferred" });
+  }
+
+  // 14. Consistency: every page must show the same who-owes-whom and the same stock.
   const consistency = consistencyMismatches(input, today);
 
   // 13. Every report total equals the ledger sum for this month, and the books balance.
@@ -169,6 +177,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("no_expected_net", noExpectedNet),
     check("orphan_movements", orphanMovements),
     check("cancelled_counted", cancelledCounted),
+    check("date_assumed", assumed),
     check("consistency", consistency),
     check("report_totals", totals),
   ];

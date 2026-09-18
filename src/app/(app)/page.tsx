@@ -6,6 +6,8 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
 import { RecordTransferButton } from "@/components/transfers/RecordTransferButton";
+import { QuickOrderButton } from "@/components/quick-entry/QuickOrderButton";
+import { InstallCard } from "@/components/pwa/InstallCard";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Pill } from "@/components/ui/Pill";
 import { StatCard } from "@/components/ui/StatCard";
@@ -52,7 +54,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   return (
     <div>
       <Tour autoOpen />
+      {!admin ? <InstallCard /> : null}
       <BalanceBanner balance={balance} tr={tr} />
+      <p className="-mt-3 mb-6 text-xs text-plum-faint">
+        <Link href="/import" className="hover:underline">
+          {snapshot.lastImport
+            ? tr("dashboard.lastImport", { source: tr(`dashboard.source.${snapshot.lastImport.source}`), time: formatDateTime(snapshot.lastImport.ran_at, locale), orders: snapshot.lastImport.orders, cancellations: snapshot.lastImport.cancellations, payouts: snapshot.lastImport.payouts })
+            : tr("dashboard.lastImportNone")}{" "}
+          →
+        </Link>
+      </p>
 
       {reminder ? (
         <Link href="/payouts/new" className="mb-6 block rounded-card border border-lavender bg-lavender-tint px-5 py-4 transition-colors hover:bg-lavender-soft">
@@ -215,7 +226,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
 
       {empty ? null : (
         <div className="mt-6 flex flex-wrap gap-2">
-          <AddButton label={tr("transactions.addIncome")} type="income" />
+          <QuickOrderButton variant="primary" />
+          <AddButton label={tr("transactions.addIncome")} type="income" variant="secondary" />
           <AddButton label={tr("transactions.addExpense")} type="expense" variant="secondary" />
           <ButtonLink href="/payouts/new" variant="secondary">
             {tr("payouts.new")}

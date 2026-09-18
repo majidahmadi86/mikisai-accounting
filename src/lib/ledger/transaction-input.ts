@@ -70,7 +70,7 @@ export function formToObject(formData: FormData): Record<string, unknown> {
 }
 
 /** Columns a form may write. The order status has its own path (mark_order_status) so an edit never resets it. */
-export type TransactionInsert = Omit<Transaction, "id" | "created_at" | "created_by" | "deleted_at" | "deleted_by" | "status" | "status_date" | "status_reason" | "refund_amount">;
+export type TransactionInsert = Omit<Transaction, "id" | "created_at" | "created_by" | "deleted_at" | "deleted_by" | "status" | "status_date" | "status_reason" | "refund_amount" | "tags">;
 
 /** Maps validated form input onto a transactions row. Expenses store the amount in both gross and net. */
 export function toRow(input: TransactionInput, businessId: string): TransactionInsert {

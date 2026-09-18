@@ -71,8 +71,13 @@ export type Transaction = {
   status_reason: string;
   /** What the platform takes back from the seller, in you-receive terms. */
   refund_amount: number | null;
+  /** What an import had to assume: date_assumed, qty_inferred. Cleared when a person confirms. */
+  tags: string[];
   created_at: string;
 } & Ownership;
+
+/** One run of an entry path, so Home can say what last fed the ledger. */
+export type ImportRun = { id: string; business_id: string; source: "csv" | "screenshots" | "quick"; ran_at: string; orders: number; cancellations: number; payouts: number; skipped: number; note: string; created_by: string | null };
 
 /** Money already paid out for a sale that was then cancelled or refunded: a negative settlement the next payout offsets. */
 export type Clawback = {

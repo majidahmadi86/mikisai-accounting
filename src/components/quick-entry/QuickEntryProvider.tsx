@@ -29,7 +29,7 @@ export type QuickEntryContextData = {
 export type Notice = { message: string; actionLabel?: string; onAction?: () => void | Promise<void>; durationMs?: number };
 
 type Ctx = {
-  open: (type?: TransactionType | "transfer") => void;
+  open: (type?: TransactionType | "transfer" | "order") => void;
   close: () => void;
   isOpen: boolean;
   data: QuickEntryContextData;
@@ -48,7 +48,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
   const t = useT();
   const router = useRouter();
   const [isOpen, setOpen] = useState(false);
-  const [initialType, setInitialType] = useState<TransactionType | "transfer">("income");
+  const [initialType, setInitialType] = useState<TransactionType | "transfer" | "order">("income");
   const [toast, setToast] = useState<ToastState | null>(null);
   const [retryInput, setRetryInput] = useState<TransactionInput | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,7 +59,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
     timer.current = null;
   };
 
-  const open = useCallback((type: TransactionType | "transfer" = "income") => {
+  const open = useCallback((type: TransactionType | "transfer" | "order" = "income") => {
     setInitialType(type);
     setRetryInput(null);
     setOpen(true);

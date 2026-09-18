@@ -63,6 +63,18 @@ export function ReviewTable({
       onChange={(e) => patch(r.key, { quantity: e.target.value === "" ? null : Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
     />
   );
+  const tagPills = (r: ReviewRow) =>
+    r.tags.length ? (
+      <span className="flex flex-wrap gap-1">
+        {r.tags.map((tag) => (
+          <Pill key={tag} tone={tag === "already_recorded" ? "neutral" : tag === "cancelled" || tag === "refunded" ? "berry-soft" : "warning"}>
+            {t(`import.tag.${tag}`)}
+          </Pill>
+        ))}
+        {r.existing ? <span className="text-[11px] text-plum-faint">{r.tags.includes("status_change") ? t("import.willCancel", { date: r.existing.date }) : t("import.alreadyRecorded", { date: r.existing.date, amount: thb(r.existing.net_amount) })}</span> : null}
+      </span>
+    ) : null;
+  const locked = (r: ReviewRow) => Boolean(r.existing) && !r.tags.includes("status_change");
   const included = rows.filter((r) => r.include);
   const totalNet = round2(included.reduce((s, r) => s + (r.net_amount ?? 0), 0));
   const totalGross = round2(included.reduce((s, r) => s + (r.gross_amount ?? 0), 0));
@@ -91,11 +103,11 @@ export function ReviewTable({
             <li key={r.key} className={cn("rounded-card border border-line bg-card px-4 py-3", !r.include && "opacity-60")}>
               <div className="flex items-center justify-between gap-3">
                 <label className="flex min-h-9 items-center gap-2 text-sm font-medium text-plum">
-                  <input type="checkbox" checked={r.include} onChange={(e) => patch(r.key, { include: e.target.checked })} className="h-5 w-5 accent-[#8f315f]" aria-label={t("import.include")} />
+                  <input type="checkbox" checked={r.include} disabled={locked(r)} onChange={(e) => patch(r.key, { include: e.target.checked })} className="h-5 w-5 accent-[#8f315f]" aria-label={t("import.include")} />
                   {r.order_id ? `#${r.order_id}` : r.customer_name ?? t("import.orderId")}
                 </label>
-                {r.net_estimated ? <Pill tone="warning">{t("common.estimated")}</Pill> : null}
               </div>
+              <div className="mt-1">{tagPills(r)}</div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <label className="block col-span-2">
                   <span className="eyebrow mb-1 block">{t("import.product")}</span>
@@ -213,10 +225,11 @@ export function ReviewTable({
           {rows.map((r) => (
             <tr key={r.key} className={cn(!r.include && "opacity-50")}>
               <Td>
-                <input type="checkbox" checked={r.include} onChange={(e) => patch(r.key, { include: e.target.checked })} className="h-4 w-4 accent-[#8f315f]" aria-label={t("import.include")} />
+                <input type="checkbox" checked={r.include} disabled={locked(r)} onChange={(e) => patch(r.key, { include: e.target.checked })} className="h-4 w-4 accent-[#8f315f]" aria-label={t("import.include")} />
               </Td>
               <Td>
                 <input className={cn(cell, "min-w-28")} value={r.order_id ?? ""} onChange={(e) => patch(r.key, { order_id: e.target.value || null })} />
+                <div className="mt-1 max-w-48 whitespace-normal">{tagPills(r)}</div>
               </Td>
               <Td>
                 <input type="date" className={cn(cell, "min-w-36")} value={r.date ?? ""} onChange={(e) => patch(r.key, { date: e.target.value || null })} />

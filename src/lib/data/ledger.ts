@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { ExpenseCategory } from "@/lib/categories";
 import type { Product, StockMovement } from "@/lib/inventory/valuation";
 import type { TransactionItemRow } from "@/lib/inventory/reports";
-import { num, type Business, type Clawback, type Customer, type InternalTransfer, type Payout, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
+import { num, type Business, type Clawback, type Customer, type ImportRun, type InternalTransfer, type Payout, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
 import { normalizeLedger, type ClawbackLite } from "@/lib/truth";
 
 export type LedgerTransaction = Transaction & {
@@ -28,6 +28,8 @@ export type LedgerSnapshot = {
   movements: StockMovement[];
   items: (TransactionItemRow & { id: string })[];
   business: Business;
+  /** What last fed the ledger: a Seller Center file, shared screenshots or a quick order. */
+  lastImport: ImportRun | null;
   fetchedAt: string;
 };
 
@@ -46,7 +48,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
     async () => {
       const admin = createAdminClient();
       // Soft-deleted rows are hidden everywhere; only the Recently deleted list reads them.
-      const [tx, tr, po, ps, cu, bz, ec, pr, mv, it, cb] = await Promise.all([
+      const [tx, tr, po, ps, cu, bz, ec, pr, mv, it, cb, ir] = await Promise.all([
         admin
           .from("transactions")
           .select("*, settlements(status, settled_at, payout_id, paid_amount, deleted_at)")
@@ -64,6 +66,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("stock_movements").select("id, product_id, qty, kind, unit_cost, transaction_id, date, created_at, created_by, note").eq("business_id", businessId).is("deleted_at", null).order("date").order("created_at"),
         admin.from("transaction_items").select("id, transaction_id, product_id, qty, unit_price, unit_cost").eq("business_id", businessId).is("deleted_at", null),
         admin.from("clawbacks").select("*").eq("business_id", businessId).is("deleted_at", null).order("created_at"),
+        admin.from("import_runs").select("*").eq("business_id", businessId).order("ran_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       const allTransactions: LedgerTransaction[] = (tx.data ?? []).map((row) => {
@@ -80,6 +83,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
           status: (row.status ?? "active") as Transaction["status"],
           status_reason: row.status_reason ?? "",
           refund_amount: row.refund_amount == null ? null : num(row.refund_amount),
+          tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
           settlement: s ? { status: s.status as SettlementStatus, settled_at: s.settled_at ?? null, payout_id: s.payout_id ?? null, paid_amount: num(s.paid_amount) } : null,
         };
       });
@@ -106,6 +110,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         movements: (mv.data ?? []).map((m) => ({ ...(m as StockMovement), qty: num(m.qty), unit_cost: m.unit_cost == null ? null : num(m.unit_cost) })),
         items: (it.data ?? []).map((i) => ({ id: i.id as string, transaction_id: i.transaction_id as string, product_id: i.product_id as string, qty: num(i.qty), unit_price: num(i.unit_price), unit_cost: i.unit_cost == null ? null : num(i.unit_cost) })),
         business: { id: businessId, name: bz.data?.name ?? "MikiSai", exposure_limit: bz.data ? num(bz.data.exposure_limit) : 3000 },
+        lastImport: ir.data ? (ir.data as ImportRun) : null,
         fetchedAt: new Date().toISOString(),
       };
     },

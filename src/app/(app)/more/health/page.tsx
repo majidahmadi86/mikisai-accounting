@@ -1,3 +1,4 @@
+import { ConfirmTagButton } from "@/components/health/ConfirmTagButton";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -53,6 +54,7 @@ export default async function DataHealthPage() {
                       {i.label}
                       {i.detail ? <span className="ml-2 text-xs text-plum-faint">{i.detail}</span> : null}
                     </span>
+                    {c.key === "date_assumed" ? <ConfirmTagButton id={i.id.replace(/:qty$/, "")} tag={i.id.endsWith(":qty") ? "qty_inferred" : "date_assumed"} /> : null}
                     {i.href ? (
                       <Link href={i.href} className="shrink-0 whitespace-nowrap text-xs font-medium text-berry hover:underline">
                         {tr("health.openRow")} →

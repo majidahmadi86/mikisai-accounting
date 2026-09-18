@@ -5,13 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractBatch, runWithConcurrency, type BatchInput, type ImageInput } from "@/lib/parse/gemini";
 import { chunk, MAX_IMAGES_PER_BATCH, splitTextIntoBatches } from "@/lib/parse/batch";
-import { estimateNet } from "@/lib/parse/estimate";
 import type { ParsedOrder, ParseResponse, ReviewRow } from "@/lib/parse/schema";
-import { todayIso } from "@/lib/money";
-import { num, PEOPLE, PLATFORMS, type Platform, type PlatformSetting } from "@/lib/types";
-import { matchProduct } from "@/lib/inventory/match";
-import { salePriceFor } from "@/lib/inventory/product-stats";
-import { resolveQuantity } from "@/lib/inventory/quantity";
+import { PEOPLE, PLATFORMS } from "@/lib/types";
+import { mergeParsedOrders } from "@/lib/import/review";
+import { existingOrders, importContext, payoutRowsFor, reviewRowsFor } from "@/lib/import/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -175,60 +172,18 @@ export async function POST(request: Request) {
   const succeeded = results.filter((r) => r !== null);
   if (succeeded.length === 0) return NextResponse.json({ error: "parse-failed" }, { status: 502 });
 
-  // 3. Merge, dedupe on order id, fill missing net from platform settings, match products.
-  const [{ data: settingsRows }, { data: productRows }] = await Promise.all([
-    supabase.from("platform_settings").select("platform, commission_pct, fixed_fee"),
-    supabase.from("products").select("id, name, variant, product_line, active, default_price, list_prices").eq("business_id", businessId).is("deleted_at", null),
-  ]);
-  const products = (productRows ?? []).filter((p) => p.active);
-  const settings: Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[] = (settingsRows ?? []).map((r) => ({
-    platform: r.platform as Platform,
-    commission_pct: num(r.commission_pct),
-    fixed_fee: num(r.fixed_fee),
-  }));
+  // 3. Merge (the same order in two screenshots is one row), match products, tag every assumption, check the ledger.
+  const ctx = await importContext(supabase, businessId);
+  const orders = mergeParsedOrders(succeeded.flatMap((b) => b.orders as ParsedOrder[]));
+  for (const b of succeeded) warnings.push(...b.warnings);
+  const existing = await existingOrders(supabase, businessId, platform, orders.map((o) => o.order_id ?? ""));
+  const rows: ReviewRow[] = reviewRowsFor(orders, platform, received_by, ctx, existing);
+  const payouts = await payoutRowsFor(supabase, succeeded.flatMap((b) => b.payouts ?? []), platform, received_by);
 
-  const seen = new Set<string>();
-  const rows: ReviewRow[] = [];
-  for (const batch of succeeded) {
-    warnings.push(...batch.warnings);
-    for (const order of batch.orders as ParsedOrder[]) {
-      const key = order.order_id?.trim();
-      if (key) {
-        if (seen.has(key)) continue;
-        seen.add(key);
-      }
-      const netEstimated = order.net_amount == null;
-      // "20 kg" or "2 กล่อง" is the base box times two; "x2" or "จำนวน 2" is a count. Nothing found means the reviewer must fill it in.
-      const resolved = resolveQuantity(order);
-      const qty = resolved.quantity;
-      const match = matchProduct(products, order.product_name, resolved.variant, order.note, order.product_line);
-      // A matched product's list price fills a missing customer-paid total.
-      const listPrice = match ? salePriceFor({ default_price: num(match.default_price), list_prices: (match.list_prices ?? {}) as Record<string, number> }, platform) : 0;
-      const gross = order.gross_amount == null ? (listPrice > 0 && qty ? Math.round(listPrice * qty * 100) / 100 : null) : Math.round(order.gross_amount * 100) / 100;
-      rows.push({
-        ...order,
-        order_id: key || null,
-        date: order.date && /^\d{4}-\d{2}-\d{2}$/.test(order.date) ? order.date : todayIso(),
-        gross_amount: gross,
-        net_amount: order.net_amount == null ? (gross != null ? estimateNet(gross, platform, settings) : null) : Math.round(order.net_amount * 100) / 100,
-        net_estimated: netEstimated,
-        key: crypto.randomUUID(),
-        include: true,
-        platform,
-        received_by,
-        quantity: qty,
-        variant: resolved.variant,
-        product_line: match?.product_line ?? order.product_line,
-        product_id: match?.id ?? null,
-        product_matched: Boolean(match),
-      });
-    }
-  }
-
-  const body: ParseResponse = { upload_ids: uploadIds, rows, batches: batches.length, warnings: Array.from(new Set(warnings)) };
+  const body: ParseResponse = { upload_ids: uploadIds, rows, payouts, batches: batches.length, warnings: Array.from(new Set(warnings)) };
 
   if (uploadIds.length) {
-    await supabase.from("report_uploads").update({ parse_result: { rows, warnings: body.warnings, batches: batches.length } }).in("id", uploadIds);
+    await supabase.from("report_uploads").update({ parse_result: { rows, payouts, warnings: body.warnings, batches: batches.length } }).in("id", uploadIds);
   }
 
   return NextResponse.json(body);
