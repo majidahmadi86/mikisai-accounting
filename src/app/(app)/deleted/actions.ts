@@ -17,7 +17,7 @@ export async function softDelete(entity: SoftDeleteEntity, id: string): Promise<
 
   if (entity === "payout") {
     // Orders matched to this payout go back to waiting so the balance stays honest.
-    await supabase.from("settlements").update({ status: "pending", settled_at: null, payout_id: null }).eq("payout_id", id);
+    await supabase.from("settlements").update({ status: "pending", settled_at: null, payout_id: null, paid_amount: 0 }).eq("payout_id", id).is("deleted_at", null);
   }
 
   const { error, count } = await supabase

@@ -50,7 +50,9 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
   const { data: payout } = await supabase.from("payouts").select("id, platform, amount_received").eq("id", payoutId).eq("business_id", profile.business_id).maybeSingle();
   if (!payout) redirect("/payouts");
 
-  const { data: linked } = await supabase.from("settlements").select("id").eq("payout_id", payoutId);
+  // Settlements deleted with their sale still point here until this re-confirm; let them go.
+  await supabase.from("settlements").update({ payout_id: null }).eq("payout_id", payoutId).not("deleted_at", "is", null);
+  const { data: linked } = await supabase.from("settlements").select("id").eq("payout_id", payoutId).is("deleted_at", null);
   const previouslyLinked = (linked ?? []).map((s) => s.id);
   const toUnlink = previouslyLinked.filter((id) => !ids.includes(id));
   if (toUnlink.length) {
@@ -64,6 +66,7 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
       .from("settlements")
       .select("id, payout_id, transactions!inner(platform, date, created_at, net_amount)")
       .in("id", ids)
+      .is("deleted_at", null)
       .eq("transactions.platform", payout.platform);
     const rows = (eligible ?? [])
       .filter((s) => !s.payout_id || s.payout_id === payoutId)

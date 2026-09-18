@@ -23,6 +23,7 @@ export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]
     .from("settlements")
     .select("id, transaction_id, status, payout_id, transactions!inner(date, created_at, net_amount, gross_amount, customer_name, platform, product_line)")
     .eq("transactions.platform", payout.platform)
+    .is("deleted_at", null)
     .is("transactions.deleted_at", null)
     .or(`payout_id.eq.${id},and(payout_id.is.null,status.in.(pending,settled_not_withdrawn))`);
 

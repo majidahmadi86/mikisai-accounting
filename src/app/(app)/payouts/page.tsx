@@ -13,6 +13,7 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone } from "@/lib/labels";
 import { formatDate, round2, thb } from "@/lib/money";
 import { num, type Payout } from "@/lib/types";
+import { summarisePayoutMatches } from "@/lib/payouts/flags";
 
 export default async function PayoutsPage() {
   const [session, locale] = await Promise.all([requireSession(), getLocale()]);
@@ -22,36 +23,40 @@ export default async function PayoutsPage() {
 
   const [{ data: payouts }, { data: matched }] = await Promise.all([
     supabase.from("payouts").select("*").is("deleted_at", null).order("date", { ascending: false }).order("created_at", { ascending: false }),
-    supabase.from("settlements").select("payout_id, transactions(net_amount, deleted_at)").not("payout_id", "is", null),
+    supabase.from("settlements").select("payout_id, deleted_at, transactions(net_amount)").not("payout_id", "is", null),
   ]);
 
-  const byPayout = new Map<string, { count: number; total: number }>();
-  for (const s of matched ?? []) {
-    if (!s.payout_id) continue;
-    const tx = Array.isArray(s.transactions) ? s.transactions[0] : s.transactions;
-    if (tx?.deleted_at) continue;
-    const cur = byPayout.get(s.payout_id) ?? { count: 0, total: 0 };
-    cur.count += 1;
-    cur.total = round2(cur.total + num(tx?.net_amount));
-    byPayout.set(s.payout_id, cur);
-  }
+  // A sale deleted after it was matched leaves its settlement pointing at the payout until someone re-confirms.
+  const byPayout = summarisePayoutMatches(
+    (matched ?? []).map((s) => {
+      const tx = Array.isArray(s.transactions) ? s.transactions[0] : s.transactions;
+      return { payout_id: s.payout_id, deleted_at: s.deleted_at ?? null, net_amount: num(tx?.net_amount) };
+    }),
+  );
 
-  const rows = ((payouts ?? []) as Payout[]).map((p) => ({ ...p, amount_received: num(p.amount_received), match: byPayout.get(p.id) }));
+  const rows = ((payouts ?? []) as Payout[]).map((p) => {
+    const m = byPayout.get(p.id);
+    return { ...p, amount_received: num(p.amount_received), match: m && m.count > 0 ? m : undefined, removed: m && m.removed > 0 ? m : undefined };
+  });
 
   function Status({ p }: { p: (typeof rows)[number] }) {
     const diff = p.match ? round2(p.match.total - p.amount_received) : null;
-    return p.match ? (
+    return (
       <span className="inline-flex flex-wrap items-center gap-2">
-        <Pill tone="success">{tr("payouts.reconciled", { n: p.match.count })}</Pill>
-        {diff !== null && Math.abs(diff) >= 0.01 ? (
+        {p.match ? <Pill tone="success">{tr("payouts.reconciled", { n: p.match.count })}</Pill> : <Pill tone="lavender">{tr("payouts.unreconciled")}</Pill>}
+        {p.match && diff !== null && Math.abs(diff) >= 0.01 ? (
           <span className="text-xs text-plum-faint tabular">
             {diff > 0 ? "+" : ""}
             {thb(diff)}
           </span>
         ) : null}
+        {p.removed ? (
+          <>
+            <Pill tone="warning">{tr("payouts.removed", { n: p.removed.removed, amount: thb(p.removed.unallocated) })}</Pill>
+            <Pill tone="berry-soft">{tr("payouts.reconfirm")}</Pill>
+          </>
+        ) : null}
       </span>
-    ) : (
-      <Pill tone="lavender">{tr("payouts.unreconciled")}</Pill>
     );
   }
 

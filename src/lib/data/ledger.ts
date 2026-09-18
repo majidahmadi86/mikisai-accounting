@@ -42,7 +42,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
       const [tx, tr, po, ps, cu, bz, ec, pr, mv, it] = await Promise.all([
         admin
           .from("transactions")
-          .select("*, settlements(status, settled_at, payout_id, paid_amount)")
+          .select("*, settlements(status, settled_at, payout_id, paid_amount, deleted_at)")
           .eq("business_id", businessId)
           .is("deleted_at", null)
           .order("date", { ascending: false })
@@ -54,12 +54,14 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("businesses").select("id, name, exposure_limit").eq("id", businessId).maybeSingle(),
         admin.from("expense_categories").select("id, name_en, name_th, sort, active, stock_effect").eq("business_id", businessId).order("sort"),
         admin.from("products").select("*").eq("business_id", businessId).is("deleted_at", null).order("name"),
-        admin.from("stock_movements").select("id, product_id, qty, kind, unit_cost, transaction_id, date, created_at, created_by, note").eq("business_id", businessId).order("date").order("created_at"),
-        admin.from("transaction_items").select("id, transaction_id, product_id, qty, unit_price, unit_cost").eq("business_id", businessId),
+        admin.from("stock_movements").select("id, product_id, qty, kind, unit_cost, transaction_id, date, created_at, created_by, note").eq("business_id", businessId).is("deleted_at", null).order("date").order("created_at"),
+        admin.from("transaction_items").select("id, transaction_id, product_id, qty, unit_price, unit_cost").eq("business_id", businessId).is("deleted_at", null),
       ]);
 
       const transactions: LedgerTransaction[] = (tx.data ?? []).map((row) => {
-        const s = Array.isArray(row.settlements) ? row.settlements[0] : row.settlements;
+        // A settlement soft-deleted with its sale stays out of every number until the sale is restored.
+        const list = Array.isArray(row.settlements) ? row.settlements : row.settlements ? [row.settlements] : [];
+        const s = list.find((x: { deleted_at: string | null }) => !x.deleted_at) ?? null;
         const { settlements: _drop, ...rest } = row;
         void _drop;
         return {
