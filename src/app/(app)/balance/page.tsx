@@ -38,6 +38,8 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
       settings: snapshot.settings.map((s) => ({ platform: s.platform, settlement_lag_days: s.settlement_lag_days, daily_payout_pct: s.daily_payout_pct })),
       exposureLimit: snapshot.business.exposure_limit,
       stockValue: valueStock(snapshot.products, snapshot.movements).totalValue,
+      cashAdjustments: snapshot.cashAdjustments,
+      clawbacks: snapshot.clawbacks,
     },
     me,
     today,
@@ -73,6 +75,7 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
           <p className="mt-1 text-sm text-plum-soft">
             {b.owedToMe > 0 ? tr("balance.owedToMe", { name: partnerName, amount: thb(b.owedToMe) }) : b.iOwe > 0 ? tr("balance.iOwe", { name: partnerName, amount: thb(b.iOwe) }) : tr("balance.even")}
           </p>
+          {b.clawbackPending > 0 ? <p className="mt-2 rounded-xl bg-warning-tint px-3 py-2 text-xs text-warning-ink">{tr("orders.clawbackPending", { amount: thb(b.clawbackPending) })} · {tr("orders.clawbackHint")}</p> : null}
         </Card>
 
         {/* b) Still coming */}

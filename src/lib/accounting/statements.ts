@@ -1,4 +1,4 @@
-import { whoOwesWhom, type TruthTransfer } from "@/lib/truth";
+import { cancellations, whoOwesWhom, type Cancellations, type TruthTransfer } from "@/lib/truth";
 import type { ExpenseCategory } from "@/lib/categories";
 import { valueStock, type Product, type StockMovement, type Valuation } from "@/lib/inventory/valuation";
 import { round2 } from "@/lib/money";
@@ -40,6 +40,8 @@ export type AccrualPL = {
   stockPurchasesCash: number;
   /** Cost of sample units that left stock in the period; already inside the Samples operating line. */
   samplesCost: number;
+  /** Sales cancelled or refunded in the period; already out of every line above. */
+  cancelled: Cancellations;
 };
 
 export type CashFlow = {
@@ -147,6 +149,7 @@ export function buildAccrualPL(input: StatementsInput, period: Period, valuation
     profit: round2(revenue - cogs - totalOperating),
     stockPurchasesCash,
     samplesCost,
+    cancelled: cancellations(input, period),
   };
 }
 
@@ -163,12 +166,14 @@ function partialOn(t: ReportTx): { date: string; amount: number } | null {
 
 export function buildCashFlow(input: StatementsInput, period: Period): CashFlow {
   const byPerson: CashFlow["byPerson"] = { mike: { in: 0, out: 0, net: 0 }, sai: { in: 0, out: 0, net: 0 } };
-  const landed = input.transactions.filter((t) => {
+  // Cash adjustments (money received for cancelled orders, clawbacks going back) move cash without being orders.
+  const cashRows = [...input.transactions, ...(input.cashAdjustments ?? [])];
+  const landed = cashRows.filter((t) => {
     const d = settledOn(t);
     return d !== null && inPeriod(d, period);
   });
   for (const t of landed) if (t.received_by) byPerson[t.received_by].in = round2(byPerson[t.received_by].in + t.net_amount);
-  const partials = input.transactions.map((t) => ({ t, p: partialOn(t) })).filter((x): x is { t: ReportTx; p: { date: string; amount: number } } => x.p !== null && inPeriod(x.p.date, period));
+  const partials = cashRows.map((t) => ({ t, p: partialOn(t) })).filter((x): x is { t: ReportTx; p: { date: string; amount: number } } => x.p !== null && inPeriod(x.p.date, period));
   for (const { t, p } of partials) if (t.received_by) byPerson[t.received_by].in = round2(byPerson[t.received_by].in + p.amount);
   const paid = input.transactions.filter((t) => t.type === "expense" && inPeriod(t.date, period));
   for (const t of paid) if (t.payer) byPerson[t.payer].out = round2(byPerson[t.payer].out + t.net_amount);
@@ -176,12 +181,12 @@ export function buildCashFlow(input: StatementsInput, period: Period): CashFlow 
   const stockOut = sum(paid.filter((t) => input.categories.find((c) => c.id === t.category_id)?.stock_effect === "purchase").map((t) => t.net_amount));
   const cashIn = round2(sum(landed.map((t) => t.net_amount)) + sum(partials.map((x) => x.p.amount)));
   const cashOut = sum(paid.map((t) => t.net_amount));
-  return { period, cashIn, cashInOrders: landed.length, cashOut, stockOut, operatingOut: round2(cashOut - stockOut), net: round2(cashIn - cashOut), byPerson };
+  return { period, cashIn, cashInOrders: landed.filter((t) => !t.synthetic).length, cashOut, stockOut, operatingOut: round2(cashOut - stockOut), net: round2(cashIn - cashOut), byPerson };
 }
 
 /** Everything the business owns and owes at the end of a day, from the first entry onwards. */
 export function buildBalanceSheet(input: StatementsInput, asOf: string): BalanceSheet {
-  const balance = whoOwesWhom({ transactions: input.transactions, transfers: input.transfers as TruthTransfer[] }, asOf);
+  const balance = whoOwesWhom({ transactions: input.transactions, transfers: input.transfers as TruthTransfer[], cashAdjustments: input.cashAdjustments }, asOf);
   const receivables = balance.pendingTotal;
   const valuation = valueStock(input.products, movementsUpTo(input.movements, asOf));
   const inventory = valuation.totalValue;

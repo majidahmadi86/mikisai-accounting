@@ -32,7 +32,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
     rows = (data ?? []).map((row) => {
       const list: { status: string; deleted_at: string | null }[] = Array.isArray(row.settlements) ? row.settlements : row.settlements ? [row.settlements] : [];
       const s = list.find((x) => !x.deleted_at) ?? null;
-      return { ...(row as unknown as Transaction), gross_amount: num(row.gross_amount), net_amount: num(row.net_amount), quantity: num(row.quantity) || 1, status: (s?.status ?? null) as SettlementStatus | null };
+      return { ...(row as unknown as Transaction), gross_amount: num(row.gross_amount), net_amount: num(row.net_amount), quantity: num(row.quantity) || 1, settlement_status: (s?.status ?? null) as SettlementStatus | null, status: (row.status ?? "active") as Transaction["status"], refund_amount: row.refund_amount == null ? null : num(row.refund_amount) };
     });
   }
   const { data: profiles } = await session.supabase.from("profiles").select("id, display_name");
@@ -58,7 +58,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
       </form>
       {q ? <p className="mb-3 text-xs text-plum-faint">{tr("search.results", { n: rows.length, q })}</p> : null}
       {q && rows.length === 0 ? <EmptyState title={tr("search.none")} body={tr("search.hint")} /> : null}
-      {rows.length ? <TransactionList rows={rows} tr={tr} locale={locale} categories={categories} itemsOf={itemsOf} byline={byline} /> : null}
+      {rows.length ? <TransactionList rows={rows} tr={tr} locale={locale} categories={categories} itemsOf={itemsOf} byline={byline} admin={session.profile.role === "admin"} /> : null}
     </div>
   );
 }

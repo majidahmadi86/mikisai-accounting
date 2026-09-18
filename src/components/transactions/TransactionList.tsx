@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyRef } from "@/components/transactions/CopyRef";
+import { OrderStatusButton } from "@/components/transactions/OrderStatusButton";
 import { ItemsSummary } from "@/components/transactions/ItemsSummary";
 import { Pill } from "@/components/ui/Pill";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
@@ -12,7 +13,7 @@ import { formatDate, thb } from "@/lib/money";
 import type { ItemsSummary as ItemsSummaryData } from "@/lib/inventory/units";
 import type { SettlementStatus, Transaction } from "@/lib/types";
 
-export type LedgerRow = Transaction & { status: SettlementStatus | null };
+export type LedgerRow = Transaction & { settlement_status: SettlementStatus | null };
 
 export type TransactionListProps = {
   rows: LedgerRow[];
@@ -21,10 +22,11 @@ export type TransactionListProps = {
   categories: Map<string, ExpenseCategory>;
   itemsOf: (id: string) => ItemsSummaryData | null;
   byline: (row: { created_by: string | null; updated_by?: string | null }) => string;
+  admin?: boolean;
 };
 
 /** The ledger rows, as cards on phones and a table from md up. Shared by the Ledger page and Search. */
-export function TransactionList({ rows, tr, locale, categories, itemsOf, byline }: TransactionListProps) {
+export function TransactionList({ rows, tr, locale, categories, itemsOf, byline, admin = false }: TransactionListProps) {
   const title = (row: LedgerRow) => (row.type === "income" ? row.customer_name || platformName(tr, row.platform) : categoryLabel(categories.get(row.category_id ?? ""), locale) || tr("common.expense"));
   const product = (row: LedgerRow) => {
     const s = itemsOf(row.id);
@@ -53,8 +55,13 @@ export function TransactionList({ rows, tr, locale, categories, itemsOf, byline 
                 <p className="mt-1.5 flex flex-wrap gap-1.5">
                   <Pill tone={typeTone(row.type)}>{row.type === "income" ? tr("common.income") : tr("common.expense")}</Pill>
                   <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
-                  {row.status ? <Pill tone={statusTone(row.status)}>{statusName(tr, row.status)}</Pill> : null}
+                  {row.settlement_status && row.status === "active" ? <Pill tone={statusTone(row.settlement_status)}>{statusName(tr, row.settlement_status)}</Pill> : null}
                 </p>
+                {row.type === "income" ? (
+                  <div className="mt-2">
+                    <OrderStatusButton id={row.id} status={row.status} refund={row.refund_amount} netAmount={row.net_amount} admin={admin} compact />
+                  </div>
+                ) : null}
               </div>
               <div className="shrink-0 text-right">
                 <p className={`tabular text-base font-medium ${row.type === "expense" ? "text-plum-soft" : "text-berry"}`}>
@@ -109,7 +116,14 @@ export function TransactionList({ rows, tr, locale, categories, itemsOf, byline 
               <Td align="right" className={row.type === "expense" ? "font-medium text-plum-soft" : "font-medium text-berry"}>
                 {row.type === "expense" ? `-${thb(row.net_amount)}` : thb(row.net_amount)}
               </Td>
-              <Td>{row.status ? <Pill tone={statusTone(row.status)}>{statusName(tr, row.status)}</Pill> : null}</Td>
+              <Td>
+                {row.type === "income" ? (
+                  <span className="flex flex-col items-start gap-1">
+                    {row.settlement_status && row.status === "active" ? <Pill tone={statusTone(row.settlement_status)}>{statusName(tr, row.settlement_status)}</Pill> : null}
+                    <OrderStatusButton id={row.id} status={row.status} refund={row.refund_amount} netAmount={row.net_amount} admin={admin} compact />
+                  </span>
+                ) : null}
+              </Td>
               <Td align="right">
                 <Link href={`/transactions/${row.id}/edit`} className="text-xs text-berry hover:underline whitespace-nowrap">
                   {tr("common.edit")} →

@@ -10,10 +10,11 @@ import type { Role } from "@/lib/types";
 import { buildInvestment } from "@/lib/investment";
 import { buildStockPage } from "@/lib/inventory/stock-page";
 import { buildMyBalance } from "@/lib/my-balance";
-import { inventoryValue, stockPositions, whoOwesWhom, type TruthInput, type TruthTransfer } from "@/lib/truth";
+import { inventoryValue, stockPositions, whoOwesWhom, type ClawbackLite, type TruthInput, type TruthTransfer } from "@/lib/truth";
+import type { ReportTx } from "@/lib/reports/build";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
@@ -27,6 +28,9 @@ export type HealthInput = Omit<StatementsInput, "transfers"> & {
   transfers: TruthTransfer[];
   /** Audit rows (updates) plus each actor's role; null when the caller cannot read the audit log. */
   audit: { rows: AuditRowLite[]; roles: Map<string, Role> } | null;
+  cancelled?: ReportTx[];
+  clawbacks?: ClawbackLite[];
+  cashAdjustments?: ReportTx[];
 };
 
 export const UNMATCHED_PAYOUT_DAYS = 20;
@@ -129,7 +133,24 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     if (!liveIds.has(it.transaction_id)) orphanMovements.push({ id: `item-${it.transaction_id}-${it.product_id}`, label: `${products.get(it.product_id)?.name ?? it.product_id} · line x${it.qty}`, href: "/more/deleted", detail: "no live transaction" });
   }
 
-  // 12. Consistency: every page must show the same who-owes-whom and the same stock.
+  // 12. Cancelled orders still counted: a cancelled or refunded sale must be out of the ledger, its units back and its cash clawed back.
+  const cancelledCounted: HealthIssue[] = [];
+  const returnedFor = new Map<string, number>();
+  for (const m of input.movements) if (m.kind === "return" && m.qty > 0 && m.transaction_id) returnedFor.set(m.transaction_id, (returnedFor.get(m.transaction_id) ?? 0) + m.qty);
+  const clawbackFor = new Set((input.clawbacks ?? []).map((c) => c.transaction_id));
+  for (const t of input.transactions) {
+    if (t.type === "income" && t.status && t.status !== "active" && t.status !== "refunded") cancelledCounted.push({ id: t.id, label: txLabel(t), href: txHref(t.id), detail: "still in the ledger" });
+  }
+  for (const t of input.cancelled ?? []) {
+    const lines = itemsByTx.get(t.id) ?? [];
+    const refund = Math.min(t.net_amount, Math.max(0, t.refund_amount ?? 0));
+    const expectedUnits = lines.reduce((a, l) => a + (t.status === "cancelled" ? l.qty : Math.floor((l.qty * refund) / Math.max(t.net_amount, 0.01))), 0);
+    if (expectedUnits > 0 && (returnedFor.get(t.id) ?? 0) < expectedUnits) cancelledCounted.push({ id: t.id, label: txLabel(t), href: txHref(t.id), detail: "units not returned to stock" });
+    const cash = t.settlement ? (t.settlement.status === "received_in_bank" ? t.net_amount : Math.min(t.net_amount, Math.max(0, t.settlement.paid_amount ?? 0))) : 0;
+    if (Math.min(cash, refund) > 0 && !clawbackFor.has(t.id)) cancelledCounted.push({ id: t.id, label: txLabel(t), href: txHref(t.id), detail: "paid out but no clawback" });
+  }
+
+  // 13. Consistency: every page must show the same who-owes-whom and the same stock.
   const consistency = consistencyMismatches(input, today);
 
   // 13. Every report total equals the ledger sum for this month, and the books balance.
@@ -147,6 +168,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("late_contributor_edit", lateEdits, { adminOnly: true, skipped: !input.audit }),
     check("no_expected_net", noExpectedNet),
     check("orphan_movements", orphanMovements),
+    check("cancelled_counted", cancelledCounted),
     check("consistency", consistency),
     check("report_totals", totals),
   ];
@@ -160,7 +182,7 @@ export function consistencyMismatches(input: TruthInput, today: string): HealthI
   const truth = whoOwesWhom(input, today);
   const owesAmount = (o: { from: string; to: string; amount: number } | null) => (o ? `${o.from}->${o.to} ${o.amount.toFixed(2)}` : "even");
   const home = owesAmount(truth.owes);
-  const mine = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0 }, "mike", today);
+  const mine = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0, cashAdjustments: input.cashAdjustments }, "mike", today);
   const myBalance = owesAmount(mine.owedToMe > 0 ? { from: "sai", to: "mike", amount: mine.owedToMe } : mine.iOwe > 0 ? { from: "mike", to: "sai", amount: mine.iOwe } : null);
   const investment = owesAmount(buildInvestment(input, today).settle);
   const period = thisMonth(today);

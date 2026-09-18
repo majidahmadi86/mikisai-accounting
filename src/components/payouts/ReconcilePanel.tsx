@@ -30,12 +30,15 @@ export type ReconcileCandidate = {
 export function ReconcilePanel({
   payoutId,
   amountReceived,
+  clawbackOffset = 0,
   candidates,
   initialSelected,
   locale,
 }: {
   payoutId: string;
   amountReceived: number;
+  /** Pending clawbacks this payout absorbs: the orders it covers add up to the amount plus this. */
+  clawbackOffset?: number;
   candidates: ReconcileCandidate[];
   initialSelected: string[];
   locale: Locale;
@@ -45,8 +48,9 @@ export function ReconcilePanel({
   const [pending, startTransition] = useTransition();
 
   const total = useMemo(() => round2(candidates.filter((c) => selected.has(c.settlement_id)).reduce((sum, c) => sum + c.net_amount, 0)), [candidates, selected]);
-  const difference = round2(total - amountReceived);
-  const within = isWithinTolerance(total, amountReceived);
+  const covered = round2(amountReceived + clawbackOffset);
+  const difference = round2(total - covered);
+  const within = isWithinTolerance(total, covered);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -74,7 +78,8 @@ export function ReconcilePanel({
     <div className="space-y-4">
       <Card tone={within ? "success" : "warning"} className="sticky top-[4.25rem] z-10 px-5 py-4 md:static">
         <p className={cn("text-sm font-medium", within ? "text-success" : "text-warning-ink")}>{within ? t("payouts.proposedMatch") : t("payouts.noMatch")}</p>
-        {!within && total > amountReceived && selected.size > 0 ? <p className="mt-1 text-xs text-plum-soft">{t("payouts.partialHint", { paid: thb(amountReceived), rest: thb(Math.round((total - amountReceived) * 100) / 100) })}</p> : null}
+        {clawbackOffset > 0 ? <p className="mt-1 text-xs text-plum-soft">{t("payouts.clawbackOffsets", { amount: thb(clawbackOffset), total: thb(covered) })}</p> : null}
+        {!within && total > covered && selected.size > 0 ? <p className="mt-1 text-xs text-plum-soft">{t("payouts.partialHint", { paid: thb(covered), rest: thb(Math.round((total - covered) * 100) / 100) })}</p> : null}
         <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
           <div>
             <dt className="eyebrow">{t("payouts.amountReceived")}</dt>

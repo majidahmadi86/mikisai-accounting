@@ -1,12 +1,13 @@
 import { buildAccrualPL, buildBalanceSheet, buildCashFlow, reconcileProfit, type AccrualPL, type BalanceSheet, type CashFlow, type Reconciliation } from "@/lib/accounting/statements";
 import type { Balance } from "@/lib/balance";
-import { whoOwesWhom } from "@/lib/truth";
+import { cancellations, whoOwesWhom } from "@/lib/truth";
 import { round2 } from "@/lib/money";
 import { addDays, checkpoints, daysBetween, inPeriod, type Period } from "./period";
 import type { ExpenseCategory } from "@/lib/categories";
 import { buildInventoryReports, type InventoryReports, type TransactionItemRow } from "@/lib/inventory/reports";
 import { valueStock, type Product, type StockMovement } from "@/lib/inventory/valuation";
-import { PLATFORMS, PRODUCT_LINES, type Person, type Platform, type ProductLine, type SettlementStatus } from "@/lib/types";
+import { PLATFORMS, PRODUCT_LINES, type OrderStatus, type Person, type Platform, type ProductLine, type SettlementStatus } from "@/lib/types";
+import type { ClawbackLite } from "@/lib/truth";
 import type { TruthTransfer } from "@/lib/truth";
 
 /** Structural subset of LedgerTransaction so reports can be built and tested without the server module. */
@@ -25,6 +26,11 @@ export type ReportTx = {
   customer_name: string | null;
   note: string;
   order_ref?: string | null;
+  status?: OrderStatus;
+  status_date?: string | null;
+  refund_amount?: number | null;
+  /** A cash adjustment row built by truth.normalizeLedger, never a real order. */
+  synthetic?: boolean;
   created_at: string;
   settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null; paid_amount?: number } | null;
   created_by?: string | null;
@@ -44,6 +50,11 @@ export type ReportInput = {
   products?: Product[];
   movements?: StockMovement[];
   items?: TransactionItemRow[];
+  /** From truth.normalizeLedger: cash that moved for cancelled orders and clawbacks. */
+  cashAdjustments?: ReportTx[];
+  /** Cancelled and refunded sales as recorded. */
+  cancelled?: ReportTx[];
+  clawbacks?: ClawbackLite[];
 };
 
 export type PLReport = {
@@ -56,6 +67,8 @@ export type PLReport = {
   totalExpenses: number;
   profit: number;
   byStatus: Record<SettlementStatus, number>;
+  /** Sales cancelled or refunded in the period and the money taken back; already out of the figures above. */
+  cancelled: { count: number; amount: number };
 };
 
 /** Per product line: what you received, the cost of the units sold (moving average) and the gross margin. */
@@ -103,7 +116,7 @@ function inCategory(t: ReportTx, c: ExpenseCategory, known: Set<string>): boolea
   return t.category_id === c.id;
 }
 
-export function buildProfitLoss(tx: ReportTx[], categories: ExpenseCategory[]): PLReport {
+export function buildProfitLoss(tx: ReportTx[], categories: ExpenseCategory[], cancelled: { count: number; amount: number } = { count: 0, amount: 0 }): PLReport {
   const income = tx.filter((t) => t.type === "income");
   const expense = tx.filter((t) => t.type === "expense");
   const gross = sum(income.map((t) => t.gross_amount));
@@ -128,6 +141,7 @@ export function buildProfitLoss(tx: ReportTx[], categories: ExpenseCategory[]): 
     totalExpenses,
     profit: round2(net - totalExpenses),
     byStatus,
+    cancelled,
   };
 }
 
@@ -219,7 +233,7 @@ export function buildSettlement(tx: ReportTx[]): StatusRow[] {
  */
 export function buildOwesHistory(input: ReportInput, period: Period): OwesRow[] {
   return checkpoints(period).map((asOf) => {
-    const b = whoOwesWhom({ transactions: input.transactions, transfers: input.transfers as TruthTransfer[] }, asOf);
+    const b = whoOwesWhom({ transactions: input.transactions, transfers: input.transfers as TruthTransfer[], cashAdjustments: input.cashAdjustments }, asOf);
     return { asOf, mikeHolds: b.holdings.mike, saiHolds: b.holdings.sai, received: b.received, putIn: b.putIn, netProfit: b.netProfit, owes: b.owes };
   });
 }
@@ -248,7 +262,7 @@ export function buildReports(input: ReportInput, period: Period, generatedAt = n
   return {
     period,
     generatedAt,
-    pl: buildProfitLoss(tx, input.categories),
+    pl: buildProfitLoss(tx, input.categories, (() => { const c = cancellations(input, period); return { count: c.count, amount: c.amount }; })()),
     accrual: buildAccrualPL(statements, period, valueStock(statements.products, statements.movements, { from: period.from, upTo: period.to })),
     cashFlow: buildCashFlow(statements, period),
     balanceSheet: buildBalanceSheet(statements, period.to),

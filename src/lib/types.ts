@@ -11,6 +11,9 @@ export const SETTLEMENT_STATUSES = ["pending", "settled_not_withdrawn", "receive
 export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number];
 
 export const TRANSACTION_TYPES = ["income", "expense"] as const;
+
+export const ORDER_STATUSES = ["active", "cancelled", "refunded"] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
 export const ROLES = ["admin", "contributor"] as const;
@@ -62,6 +65,25 @@ export type Transaction = {
   quantity: number;
   /** The platform order number, one per platform. */
   order_ref: string | null;
+  /** A sale can be cancelled or refunded after the fact; expenses are always active. */
+  status: OrderStatus;
+  status_date: string | null;
+  status_reason: string;
+  /** What the platform takes back from the seller, in you-receive terms. */
+  refund_amount: number | null;
+  created_at: string;
+} & Ownership;
+
+/** Money already paid out for a sale that was then cancelled or refunded: a negative settlement the next payout offsets. */
+export type Clawback = {
+  id: string;
+  business_id: string;
+  transaction_id: string;
+  payout_id: string | null;
+  amount: number;
+  status: "pending" | "offset";
+  offset_payout_id: string | null;
+  note: string;
   created_at: string;
 } & Ownership;
 
@@ -125,7 +147,7 @@ export type PlatformSetting = {
 export const AUDIT_ACTIONS = ["create", "update", "delete", "soft_delete", "restore", "denied", "confirm_import", "confirm_payout", "export"] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "business", "expense_category", "product", "stock_movement", "transaction_item", "report_upload", "report"] as const;
+export const AUDIT_ENTITIES = ["transaction", "settlement", "payout", "internal_transfer", "customer", "platform_setting", "business", "expense_category", "product", "stock_movement", "transaction_item", "clawback", "report_upload", "report"] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
 export type AuditLog = {

@@ -76,7 +76,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
       gross_amount: num(row.gross_amount),
       net_amount: num(row.net_amount),
       quantity: num(row.quantity) || 1,
-      status: (s?.status ?? null) as SettlementStatus | null,
+      settlement_status: (s?.status ?? null) as SettlementStatus | null, status: (row.status ?? "active") as Transaction["status"], refund_amount: row.refund_amount == null ? null : num(row.refund_amount),
     };
   });
 
@@ -123,7 +123,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
           <EmptyState title={tr("transactions.emptyAll")} body={tr("transactions.emptyAllBody")} action={<AddButton label={tr("dashboard.addFirst")} />} />
         )
       ) : (
-        <TransactionList rows={rows} tr={tr} locale={locale} categories={categories} itemsOf={itemsOf} byline={byline} />
+        <TransactionList rows={rows} tr={tr} locale={locale} categories={categories} itemsOf={itemsOf} byline={byline} admin={session.profile.role === "admin"} />
       )}
     </div>
   );

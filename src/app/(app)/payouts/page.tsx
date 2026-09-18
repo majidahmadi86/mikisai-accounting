@@ -14,6 +14,9 @@ import { platformName, platformTone } from "@/lib/labels";
 import { formatDate, round2, thb } from "@/lib/money";
 import { num, type Payout } from "@/lib/types";
 import { summarisePayoutMatches } from "@/lib/payouts/flags";
+import { getLedgerSnapshot } from "@/lib/data/ledger";
+import { clawbackPending } from "@/lib/truth";
+import { Card } from "@/components/ui/Card";
 
 export default async function PayoutsPage() {
   const [session, locale] = await Promise.all([requireSession(), getLocale()]);
@@ -21,6 +24,8 @@ export default async function PayoutsPage() {
   const admin = session.profile.role === "admin";
   const tr = t(locale);
 
+  const snapshot = await getLedgerSnapshot(session.profile.business_id);
+  const pendingClawbacks = clawbackPending(snapshot);
   const [{ data: payouts }, { data: matched }] = await Promise.all([
     supabase.from("payouts").select("*").is("deleted_at", null).order("date", { ascending: false }).order("created_at", { ascending: false }),
     supabase.from("settlements").select("payout_id, deleted_at, transactions(net_amount)").not("payout_id", "is", null),
@@ -63,6 +68,12 @@ export default async function PayoutsPage() {
   return (
     <div>
       <PageHeader title={tr("payouts.title")} subtitle={tr("payouts.subtitle")} action={<ButtonLink href="/payouts/new">{tr("payouts.new")}</ButtonLink>} />
+      {pendingClawbacks > 0 ? (
+        <Card tone="warning" className="mb-4 px-5 py-4">
+          <p className="text-sm font-medium text-warning-ink">{tr("orders.clawbackPending", { amount: thb(pendingClawbacks) })}</p>
+          <p className="mt-1 text-xs text-plum-soft">{tr("orders.clawbackHint")}</p>
+        </Card>
+      ) : null}
       {rows.length === 0 ? (
         <EmptyState title={tr("payouts.empty")} body={tr("payouts.emptyBody")} action={<ButtonLink href="/payouts/new">{tr("payouts.new")}</ButtonLink>} />
       ) : (

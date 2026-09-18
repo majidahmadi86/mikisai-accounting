@@ -8,15 +8,21 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone } from "@/lib/labels";
 import { formatDate, thb } from "@/lib/money";
 import { num, type Payout, type SettlementStatus } from "@/lib/types";
+import { getLedgerSnapshot } from "@/lib/data/ledger";
+import { clawbackPending } from "@/lib/truth";
 
 export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]/reconcile">) {
-  const [{ id }, { supabase }, locale] = await Promise.all([params, requireSession(), getLocale()]);
+  const [{ id }, session, locale] = await Promise.all([params, requireSession(), getLocale()]);
+  const { supabase } = session;
   const tr = t(locale);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
 
   const { data: payoutRow } = await supabase.from("payouts").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!payoutRow) notFound();
   const payout: Payout = { ...(payoutRow as Payout), amount_received: num(payoutRow.amount_received) };
+  // Pending clawbacks on this platform are taken out of this payout: the orders it covers add up to the amount plus the clawbacks.
+  const snapshot = await getLedgerSnapshot(session.profile.business_id);
+  const clawbackOffset = clawbackPending(snapshot, payout.platform, [...snapshot.transactions, ...snapshot.cancelled]);
 
   // Unpaid orders on this platform, plus anything already linked to this payout.
   const { data: rows } = await supabase
@@ -54,7 +60,7 @@ export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]
         matched: true,
         tolerance: 0.02,
       }
-    : proposeFifoMatch(candidates as MatchCandidate[], payout.amount_received);
+    : proposeFifoMatch(candidates as MatchCandidate[], payout.amount_received + clawbackOffset);
 
   return (
     <div className="max-w-4xl">
@@ -72,7 +78,7 @@ export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]
         }
       />
       <p className="mb-5 text-sm text-plum-soft">{tr("payouts.reconcileSubtitle", { platform: platformName(tr, payout.platform) })}</p>
-      <ReconcilePanel payoutId={payout.id} amountReceived={payout.amount_received} candidates={candidates} initialSelected={proposal.selectedIds} locale={locale} />
+      <ReconcilePanel payoutId={payout.id} amountReceived={payout.amount_received} clawbackOffset={clawbackOffset} candidates={candidates} initialSelected={proposal.selectedIds} locale={locale} />
     </div>
   );
 }

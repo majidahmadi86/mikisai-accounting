@@ -136,6 +136,13 @@ export function valueStock(products: Product[], movements: StockMovement[], opts
             purchasedValue += m.qty * cost;
           }
           if (m.transaction_id) purchaseByTransaction.set(m.transaction_id, round2((purchaseByTransaction.get(m.transaction_id) ?? 0) + m.qty * cost));
+        } else if (m.kind === "return" && m.transaction_id) {
+          // Units back from a cancelled or refunded sale: the sale's cost of goods comes back with them.
+          if (inPeriod) {
+            cogs -= m.qty * cost;
+            soldQty -= m.qty;
+          }
+          cogsByTransaction.set(m.transaction_id, round2((cogsByTransaction.get(m.transaction_id) ?? 0) - m.qty * cost));
         } else if (inPeriod) {
           correctionsCost -= m.qty * cost;
         }

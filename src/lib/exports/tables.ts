@@ -45,6 +45,7 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
     [tr("reports.plIncome"), pl.gross],
     [tr("reports.plFees"), neg(pl.fees)],
     [tr("reports.plNet"), pl.revenue],
+    ...(pl.cancelled.count > 0 ? [[`${tr("reports.cancelledLine")} (${pl.cancelled.count})`, neg(pl.cancelled.amount)] as Cell[]] : []),
     [tr("reports.cogs"), neg(pl.cogs)],
     [tr("reports.grossMargin"), pl.grossMargin],
     ...pl.operating.map((e): Cell[] => [`${tr("reports.plOperating")} · ${categoryLabel(e.category, locale)}`, neg(e.amount)]),
@@ -338,7 +339,7 @@ export function movementsTable(rows: import("@/lib/inventory/stock-page").Moveme
 /** Units per product per day, week or month, with subtotals and a per-product total. */
 export function unitsTable(report: UnitsReport, tr: Translator, locale: Locale): ExportTable {
   const label = (r: UnitsRow): string => shortPeriodLabel(r.from, r.to, r.kind, locale, tr("common.total"));
-  const toCells = (r: UnitsRow): Cell[] => [label(r), shortProductName(r.product, locale), r.orders, r.unitsSold, r.unitsBought, r.samplesOut, r.onHandEnd, r.backlogEnd, r.avgSalePrice, r.avgCostEnd];
+  const toCells = (r: UnitsRow): Cell[] => [label(r), shortProductName(r.product, locale), r.orders, r.unitsSold, r.unitsBought, r.samplesOut, r.unitsReturned, r.onHandEnd, r.backlogEnd, r.avgSalePrice, r.avgCostEnd];
   const all = [...report.rows, ...report.totals];
   return {
     id: "units",
@@ -351,6 +352,7 @@ export function unitsTable(report: UnitsReport, tr: Translator, locale: Locale):
       { key: "sold", label: tr("units.sold"), kind: "int" },
       { key: "bought", label: tr("units.bought"), kind: "int" },
       { key: "samples", label: tr("units.samples"), kind: "int" },
+      { key: "returns", label: tr("units.returns"), kind: "int" },
       { key: "onHand", label: tr("units.onHandEnd"), kind: "int" },
       { key: "backlog", label: tr("units.backlog"), kind: "int" },
       { key: "avgPrice", label: tr("units.avgPrice"), kind: "money" },

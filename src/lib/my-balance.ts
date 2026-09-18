@@ -1,4 +1,4 @@
-import { whoOwesWhom } from "./truth";
+import { clawbackPending, whoOwesWhom, type ClawbackLite } from "./truth";
 import { round2 } from "./money";
 import { addDays } from "./reports/period";
 import type { ReportTransfer, ReportTx } from "./reports/build";
@@ -14,6 +14,8 @@ export type MyBalanceInput = {
   exposureLimit: number;
   /** Total stock on hand at moving average cost. */
   stockValue?: number;
+  cashAdjustments?: ReportTx[];
+  clawbacks?: ClawbackLite[];
 };
 
 export type Arrival = { date: string; amount: number; early: boolean };
@@ -60,6 +62,8 @@ export type MyBalance = {
   /** My half of the stock on hand at cost. Money in unsold products, kept apart from cash exposure. */
   stockShare: number;
   stockValue: number;
+  /** Money paid out for cancelled or refunded orders the platform has not taken back yet. */
+  clawbackPending: number;
 };
 
 const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
@@ -175,5 +179,6 @@ export function buildMyBalance(input: MyBalanceInput, me: Person, today: string)
     series,
     stockValue: round2(input.stockValue ?? 0),
     stockShare: round2((input.stockValue ?? 0) / 2),
+    clawbackPending: clawbackPending(input),
   };
 }

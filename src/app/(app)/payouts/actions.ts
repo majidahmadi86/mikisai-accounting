@@ -59,6 +59,9 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
     await supabase.from("settlements").update({ status: "pending", settled_at: null, payout_id: null, paid_amount: 0 }).in("id", toUnlink);
   }
 
+  // Pending clawbacks on this platform come out of this payout: they are offset here and the orders get the full amount.
+  const { data: clawRows } = await supabase.from("clawbacks").select("id, amount, transactions!inner(platform)").eq("status", "pending").is("deleted_at", null).eq("transactions.platform", payout.platform);
+  const clawbackOffset = (clawRows ?? []).reduce((a, c) => a + num(c.amount), 0);
   let eligibleIds: string[] = [];
   if (ids.length) {
     // Only settlements on the payout's platform that are not already claimed by another payout.
@@ -78,11 +81,14 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
     eligibleIds = rows.map((r) => r.settlement_id);
     // Oldest orders first; the payout covers what it covers, the rest stays pending on its own (70/30 early payouts).
     const now = new Date().toISOString();
-    for (const a of allocatePayout(rows, num(payout.amount_received))) {
+    for (const a of allocatePayout(rows, num(payout.amount_received) + clawbackOffset)) {
       await supabase
         .from("settlements")
         .update(a.full ? { status: "received_in_bank", settled_at: now, payout_id: payoutId, paid_amount: a.paid } : { status: "pending", settled_at: a.paid > 0 ? now : null, payout_id: a.paid > 0 ? payoutId : null, paid_amount: a.paid })
         .eq("id", a.settlement_id);
+    }
+    if (clawRows?.length) {
+      await supabase.from("clawbacks").update({ status: "offset", offset_payout_id: payoutId }).in("id", clawRows.map((c) => c.id));
     }
   }
 
@@ -91,7 +97,7 @@ export async function confirmPayoutMatch(payoutId: string, settlementIds: string
     entity_type: "payout",
     entity_id: payoutId,
     before: { settlement_ids: previouslyLinked },
-    after: { settlement_ids: eligibleIds, orders: eligibleIds.length, amount_received: payout.amount_received },
+    after: { settlement_ids: eligibleIds, orders: eligibleIds.length, amount_received: payout.amount_received, clawbacks_offset: clawbackOffset },
   });
   ledgerChanged(profile.business_id);
   redirect("/payouts?matched=1");

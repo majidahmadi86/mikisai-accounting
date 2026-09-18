@@ -16,6 +16,8 @@ export type UnitsRow = {
   unitsSold: number;
   unitsBought: number;
   samplesOut: number;
+  /** Units back from cancelled or refunded orders. */
+  unitsReturned: number;
   /** Stock at the end of the bucket; negative stock is reported as backlog instead. */
   onHandEnd: number;
   backlogEnd: number;
@@ -61,8 +63,8 @@ function bucketRange(key: string, g: Granularity, period: Period): { from: strin
   return { from, to: rawTo > period.to ? period.to : rawTo };
 }
 
-type Acc = { orders: Set<string>; unitsSold: number; unitsBought: number; samplesOut: number; priceWeight: number; priceUnits: number };
-const fresh = (): Acc => ({ orders: new Set(), unitsSold: 0, unitsBought: 0, samplesOut: 0, priceWeight: 0, priceUnits: 0 });
+type Acc = { orders: Set<string>; unitsSold: number; unitsBought: number; samplesOut: number; unitsReturned: number; priceWeight: number; priceUnits: number };
+const fresh = (): Acc => ({ orders: new Set(), unitsSold: 0, unitsBought: 0, samplesOut: 0, unitsReturned: 0, priceWeight: 0, priceUnits: 0 });
 
 /**
  * Units per product per bucket: orders, units sold and bought, samples out,
@@ -92,6 +94,7 @@ export function buildUnitsReport(input: UnitsInput, period: Period, granularity:
       if (m.transaction_id) a.orders.add(m.transaction_id);
     } else if (m.kind === "purchase") a.unitsBought += m.qty;
     else if (m.kind === "sample") a.samplesOut += -m.qty;
+    else if (m.kind === "return" && m.qty > 0) a.unitsReturned += m.qty;
   }
   for (const it of input.items) {
     const d = saleDate.get(it.transaction_id);
@@ -117,6 +120,7 @@ export function buildUnitsReport(input: UnitsInput, period: Period, granularity:
       unitsSold: a.unitsSold,
       unitsBought: a.unitsBought,
       samplesOut: a.samplesOut,
+      unitsReturned: a.unitsReturned,
       onHandEnd: end.onHand,
       backlogEnd: end.backlog,
       avgSalePrice: a.priceUnits > 0 ? round2(a.priceWeight / a.priceUnits) : null,
@@ -128,6 +132,7 @@ export function buildUnitsReport(input: UnitsInput, period: Period, granularity:
     into.unitsSold += a.unitsSold;
     into.unitsBought += a.unitsBought;
     into.samplesOut += a.samplesOut;
+    into.unitsReturned += a.unitsReturned;
     into.priceWeight += a.priceWeight;
     into.priceUnits += a.priceUnits;
   };

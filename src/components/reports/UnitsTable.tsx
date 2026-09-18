@@ -37,6 +37,7 @@ export function UnitsTable({ rows, totals, granularity }: { rows: UnitsRow[]; to
     { key: "unitsSold", label: t("units.sold"), numeric: true },
     { key: "unitsBought", label: t("units.bought"), numeric: true },
     { key: "samplesOut", label: t("units.samples"), numeric: true },
+    { key: "unitsReturned", label: t("units.returns"), numeric: true },
     { key: "onHandEnd", label: t("units.onHandEnd"), numeric: true },
     { key: "backlogEnd", label: t("units.backlog"), numeric: true },
     { key: "avgSalePrice", label: t("units.avgPrice"), numeric: true },
