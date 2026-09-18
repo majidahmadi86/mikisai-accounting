@@ -60,6 +60,8 @@ export type Transaction = {
   customer_name: string | null;
   note: string;
   quantity: number;
+  /** The platform order number, one per platform. */
+  order_ref: string | null;
   created_at: string;
 } & Ownership;
 
@@ -73,6 +75,7 @@ export type Settlement = {
   settled_at: string | null;
   payout_id: string | null;
   created_at: string;
+  deleted_at?: string | null;
 };
 
 export type Payout = {

@@ -8,7 +8,19 @@ import { SETTLEMENT_STATUSES, type SettlementStatus } from "@/lib/types";
 import { reconcileLines } from "./reconcile";
 import type { TransactionInput } from "./transaction-input";
 
-export type SaveResult = { ok: true; id: string } | { ok: false; error: "invalid" | "save" | "items" | "reconcile" | "unspecified"; difference?: number };
+export type DuplicateOrder = { id: string; date: string; net_amount: number };
+export type SaveResult = { ok: true; id: string } | { ok: false; error: "invalid" | "save" | "items" | "reconcile" | "unspecified" | "duplicate"; difference?: number; duplicate?: DuplicateOrder };
+
+/** A live sale on the same platform with the same order number, if any. */
+export async function findDuplicateOrder(supabase: SupabaseClient, businessId: string, platform: string, orderRef: string | null | undefined, excludeId?: string): Promise<DuplicateOrder | null> {
+  const ref = orderRef?.trim();
+  if (!ref) return null;
+  let q = supabase.from("transactions").select("id, date, net_amount").eq("business_id", businessId).eq("type", "income").eq("platform", platform).eq("order_ref", ref).is("deleted_at", null).limit(2);
+  if (excludeId) q = q.neq("id", excludeId);
+  const { data } = await q;
+  const row = (data ?? [])[0];
+  return row ? { id: row.id as string, date: row.date as string, net_amount: Number(row.net_amount) } : null;
+}
 
 /** Lines must add up to the row: qty x sale price to gross for a sale, qty x cost to the amount for a stock purchase. */
 export function reconcileInput(input: TransactionInput, effect: StockEffect): { ok: boolean; difference: number } {
@@ -58,6 +70,14 @@ export async function insertTransaction(input: unknown, initialStatus?: Settleme
 
   const { supabase, profile, userId } = await requireSession();
   const row = toRow(parsed.data, profile.business_id);
+  if (parsed.data.type === "income") {
+    const dup = await findDuplicateOrder(supabase, profile.business_id, parsed.data.platform, parsed.data.order_ref);
+    if (dup) {
+      const reason = parsed.data.override_reason?.trim();
+      if (!reason || profile.role !== "admin") return { ok: false, error: "duplicate", duplicate: dup };
+      row.note = [row.note, `Duplicate override: ${reason}`].filter(Boolean).join(" · ");
+    }
+  }
   const effect = parsed.data.type === "expense" ? await stockEffectFor(supabase, parsed.data.category_id) : "none";
   const items = parsed.data.items ?? [];
   if (parsed.data.type === "expense" && effect !== "none" && items.length === 0) return { ok: false, error: "items" };

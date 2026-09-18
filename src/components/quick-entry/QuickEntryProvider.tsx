@@ -84,7 +84,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
         const result = await quickAddTransaction(input);
         if (!result.ok) {
           setRetryInput(input);
-          const message = result.error === "reconcile" ? t("inventory.reconcileBlocked", { diff: thb(Math.abs(result.difference ?? 0)) }) : result.error === "unspecified" ? t("inventory.unspecifiedBlocked") : t("quick.failed");
+          const message = result.error === "reconcile" ? t("inventory.reconcileBlocked", { diff: thb(Math.abs(result.difference ?? 0)) }) : result.error === "unspecified" ? t("inventory.unspecifiedBlocked") : result.error === "duplicate" ? t("transactions.duplicate", { date: result.duplicate?.date ?? "?", amount: thb(result.duplicate?.net_amount ?? 0) }) : t("quick.failed");
           setToast({ kind: "error", message, actionLabel: t("quick.retry") });
           return;
         }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { adjustStock } from "@/app/(app)/settings/products-actions";
@@ -83,6 +84,9 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
           {row.backlog > 0 ? <StockPill row={row} tr={tr} /> : null}
           {p.name_th && locale !== "th" ? <Pill tone="lavender">{p.name_th}</Pill> : null}
         </div>
+        <Link href={`/transactions?product_id=${p.id}`} className="ml-auto text-sm font-medium text-berry hover:underline">
+          {tr("products.ordersLink")} →
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

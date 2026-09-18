@@ -23,7 +23,8 @@ describe("data health", () => {
     // A sale with no product line at all.
     input.transactions.push({ ...o1, id: "bare", net_amount: 377, note: "" });
     // Same order id twice.
-    input.transactions.find((t) => t.id === "o2")!.note = "#586000000000 · dup";
+    o1.order_ref = "586000000000";
+    input.transactions.find((t) => t.id === "o2")!.order_ref = "586000000000";
     // Payout 25 days old that nothing was matched to.
     input.payouts.push({ id: "po", date: "2026-08-22", platform: "tiktok", amount_received: 1000, received_by: "sai", note: "" });
     // Contributor edited a row two days after it was created.

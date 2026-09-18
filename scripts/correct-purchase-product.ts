@@ -77,6 +77,7 @@ async function main() {
     received_by: null,
     category_id: row.category_id,
     customer_name: null,
+    order_ref: null,
     note: row.note ?? "",
   };
   const unitCost = Math.round((AMOUNT / QTY) * 100) / 100;

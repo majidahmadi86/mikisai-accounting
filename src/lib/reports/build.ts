@@ -24,6 +24,7 @@ export type ReportTx = {
   category_id: string | null;
   customer_name: string | null;
   note: string;
+  order_ref?: string | null;
   created_at: string;
   settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null; paid_amount?: number } | null;
   created_by?: string | null;

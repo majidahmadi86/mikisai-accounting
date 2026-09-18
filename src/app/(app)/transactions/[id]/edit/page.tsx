@@ -58,6 +58,7 @@ export default async function EditTransactionPage({ params, searchParams }: Page
           tr={tr}
           type={tx.type}
           action={update}
+          admin={admin}
           initial={tx}
           settlementStatus={tx.type === "income" ? settlementStatus : undefined}
           error={typeof sp.error === "string" ? sp.error : null}

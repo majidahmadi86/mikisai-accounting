@@ -3,6 +3,7 @@ import { LangToggle } from "./LangToggle";
 import { NavLinks } from "./NavLinks";
 import { AddButton } from "./AddButton";
 import { TabBar } from "./TabBar";
+import { SearchBox } from "./SearchBox";
 import Link from "next/link";
 import { BoxIcon } from "@/components/ui/Icons";
 import { signOut } from "@/app/login/actions";
@@ -42,6 +43,7 @@ export function AppShell({
               <NavLinks links={links} className="hidden min-w-0 overflow-x-auto md:flex" />
             </div>
             <div className="flex shrink-0 items-center gap-2 whitespace-nowrap sm:gap-3">
+              <SearchBox />
               <Link href="/products" aria-label={tr("nav.products")} className="flex h-11 w-11 items-center justify-center rounded-full text-plum-soft hover:bg-lavender-tint hover:text-berry md:hidden">
                 <BoxIcon />
               </Link>

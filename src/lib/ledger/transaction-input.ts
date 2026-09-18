@@ -22,6 +22,10 @@ const IncomeSchema = z.object({
   quantity,
   received_by: z.enum(PEOPLE),
   customer_name: z.string().trim().max(200).optional(),
+  /** The platform order number; one per platform, checked on save. */
+  order_ref: z.string().trim().max(100).optional(),
+  /** Admin only: why a duplicate order number is being saved anyway. */
+  override_reason: z.string().trim().max(300).optional(),
   note: z.string().trim().max(2000).optional(),
   settlement_status: z.enum(SETTLEMENT_STATUSES).optional(),
   /** A sale always names what was sold. */
@@ -52,6 +56,8 @@ export function formToObject(formData: FormData): Record<string, unknown> {
   }
   if (out.net_amount === "") delete out.net_amount;
   if (out.quantity === "") delete out.quantity;
+  if (out.order_ref === "") delete out.order_ref;
+  if (out.override_reason === "") delete out.override_reason;
   // The items editor posts its lines as JSON in one hidden field.
   if (typeof out.items === "string") {
     try {
@@ -81,6 +87,7 @@ export function toRow(input: TransactionInput, businessId: string): TransactionI
       payer: null,
       category_id: null,
       customer_name: input.customer_name ? input.customer_name : null,
+      order_ref: input.order_ref ? input.order_ref : null,
       note: input.note ?? "",
     };
   }
@@ -97,6 +104,7 @@ export function toRow(input: TransactionInput, businessId: string): TransactionI
     received_by: null,
     category_id: input.category_id,
     customer_name: null,
+    order_ref: null,
     note: input.note ?? "",
   };
 }

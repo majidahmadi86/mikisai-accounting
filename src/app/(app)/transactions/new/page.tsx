@@ -19,7 +19,7 @@ export default async function NewTransactionPage({ searchParams }: PageProps<"/t
     <div className="max-w-2xl">
       <PageHeader title={type === "income" ? tr("transactions.newIncome") : tr("transactions.newExpense")} subtitle={tr("quick.subtitle")} />
       <Card className="p-5 sm:p-6">
-        <TransactionForm tr={tr} type={type} action={createTransaction} error={error} defaultPerson={session.profile.display_name === "Sai" ? "sai" : "mike"} categories={selectableCategories(snapshot.categories)} products={snapshot.products.filter((p) => p.active)} avgCost={Object.fromEntries(valueStock(snapshot.products, snapshot.movements).products.map((r) => [r.product.id, r.avgCost]))} />
+        <TransactionForm tr={tr} type={type} action={createTransaction} error={error} admin={session.profile.role === "admin"} defaultPerson={session.profile.display_name === "Sai" ? "sai" : "mike"} categories={selectableCategories(snapshot.categories)} products={snapshot.products.filter((p) => p.active)} avgCost={Object.fromEntries(valueStock(snapshot.products, snapshot.movements).products.map((r) => [r.product.id, r.avgCost]))} />
       </Card>
     </div>
   );

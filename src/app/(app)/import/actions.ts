@@ -57,7 +57,8 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
     category_id: null,
     customer_name: r.customer_name || null,
     quantity: r.quantity,
-    note: [r.order_id ? `#${r.order_id}` : "", r.note ?? ""].filter(Boolean).join(" · "),
+    order_ref: r.order_id || null,
+    note: r.note ?? "",
   }));
 
   const { data: inserted, error } = await supabase.from("transactions").insert(rows).select("id");

@@ -45,7 +45,7 @@ export function liveLedger(): InvestmentInput {
   const orders = [...[1, 1, 1, 1, 1, 2, 2, 2, 2].map((q) => ({ q, d: "2026-09-15" })), ...[1, 1, 1, 2, 2].map((q) => ({ q, d: "2026-09-16" }))];
   orders.forEach(({ q, d }, i) => {
     const id = `o${i + 1}`;
-    transactions.push({ id, type: "income", date: d, platform: "tiktok", product_line: "sugar", gross_amount: UNIT_GROSS * q, net_amount: UNIT_NET * q, quantity: q, payer: null, received_by: "sai", category_id: null, customer_name: `Customer ${i + 1}`, note: `#5860000000${String(i).padStart(2, "0")} · x${q}`, created_at: at(d, 9 + (i % 10)), settlement: { status: "pending", settled_at: null, payout_id: null, paid_amount: 0 } });
+    transactions.push({ id, type: "income", date: d, platform: "tiktok", product_line: "sugar", gross_amount: UNIT_GROSS * q, net_amount: UNIT_NET * q, quantity: q, payer: null, received_by: "sai", category_id: null, customer_name: `Customer ${i + 1}`, note: `x${q}`, order_ref: `5860000000${String(i).padStart(2, "0")}`, created_at: at(d, 9 + (i % 10)), settlement: { status: "pending", settled_at: null, payout_id: null, paid_amount: 0 } });
     items.push({ transaction_id: id, product_id: BOX_1KG, qty: q, unit_price: UNIT_GROSS, unit_cost: null });
     movements.push({ id: `m-${id}`, product_id: BOX_1KG, qty: -q, kind: "sale", unit_cost: null, transaction_id: id, date: d, created_at: at(d, 9 + (i % 10)) });
   });

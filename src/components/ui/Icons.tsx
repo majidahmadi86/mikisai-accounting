@@ -137,3 +137,12 @@ export function RefreshIcon(p: IconProps) {
     </Svg>
   );
 }
+
+export function SearchIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m20 20-4.2-4.2" />
+    </Svg>
+  );
+}

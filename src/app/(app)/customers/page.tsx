@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AddButton } from "@/components/nav/AddButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { InfoTip } from "@/components/ui/InfoTip";
@@ -51,7 +52,9 @@ export default async function CustomersPage() {
               <StackedItem key={c.id}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-base font-medium text-plum">{c.name}</p>
+                    <Link href={`/transactions?customer=${encodeURIComponent(c.name)}`} className="block truncate text-base font-medium text-plum hover:text-berry hover:underline">
+                      {c.name}
+                    </Link>
                     <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-plum-faint">
                       <Pill tone={platformTone(c.platform)}>{platformName(tr, c.platform)}</Pill>
                       <span>
@@ -91,7 +94,11 @@ export default async function CustomersPage() {
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id} className="hover:bg-lavender-tint">
-                  <Td className="font-medium text-plum">{c.name}</Td>
+                  <Td className="font-medium text-plum">
+                    <Link href={`/transactions?customer=${encodeURIComponent(c.name)}`} className="hover:text-berry hover:underline">
+                      {c.name}
+                    </Link>
+                  </Td>
                   <Td>
                     <Pill tone={platformTone(c.platform)}>{platformName(tr, c.platform)}</Pill>
                   </Td>

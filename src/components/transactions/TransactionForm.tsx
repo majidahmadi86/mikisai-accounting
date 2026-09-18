@@ -31,6 +31,7 @@ export function TransactionForm({
   products = [],
   initialItems = [],
   avgCost = {},
+  admin = false,
 }: {
   tr: Translator;
   type: TransactionType;
@@ -43,8 +44,10 @@ export function TransactionForm({
   products?: Product[];
   initialItems?: ItemDraft[];
   avgCost?: Record<string, number>;
+  admin?: boolean;
 }) {
   const isIncome = type === "income";
+  const duplicate = error?.startsWith("duplicate:") ? error.split(":") : null;
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="type" value={type} />
@@ -89,6 +92,11 @@ export function TransactionForm({
             <Input id="customer_name" name="customer_name" defaultValue={initial?.customer_name ?? ""} placeholder={tr("common.optional")} />
           </Field>
         ) : null}
+        {isIncome ? (
+          <Field label={tr("transactions.orderRef")} htmlFor="order_ref" hint={tr("transactions.orderRefHint")}>
+            <Input id="order_ref" name="order_ref" inputMode="numeric" autoComplete="off" defaultValue={initial?.order_ref ?? ""} placeholder={tr("common.optional")} className="font-mono" />
+          </Field>
+        ) : null}
         {isIncome && settlementStatus !== undefined ? (
           <Field label={tr("transactions.settlement")} htmlFor="settlement_status" hint={tr("transactions.settlementHint")}>
             <Select id="settlement_status" name="settlement_status" defaultValue={settlementStatus ?? "pending"}>
@@ -104,7 +112,19 @@ export function TransactionForm({
       <Field label={tr("common.note")} htmlFor="note" hint={tr("transactions.noteHint")}>
         <Textarea id="note" name="note" defaultValue={initial?.note ?? ""} />
       </Field>
-      {error ? (
+      {duplicate ? (
+        <div className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">
+          <p>{tr("transactions.duplicate", { date: duplicate[1] || "?", amount: `฿${Number(duplicate[2] ?? 0).toFixed(2)}` })}</p>
+          {admin ? (
+            <label className="mt-2 block text-xs text-plum">
+              {tr("transactions.duplicateOverride")}
+              <Input name="override_reason" required maxLength={300} className="mt-1" />
+            </label>
+          ) : (
+            <p className="mt-1 text-xs">{tr("transactions.duplicateBlocked")}</p>
+          )}
+        </div>
+      ) : error ? (
         <p className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">
           {error === "denied" ? tr("roles.denied") : error === "items" ? tr("inventory.itemsRequired") : error.startsWith("reconcile") ? tr("inventory.reconcileBlocked", { diff: `฿${Math.abs(Number(error.split(":")[1] ?? 0)).toFixed(2)}` }) : error === "unspecified" ? tr("inventory.unspecifiedBlocked") : tr("common.error")}
         </p>

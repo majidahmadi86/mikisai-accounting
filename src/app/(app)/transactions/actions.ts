@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
-import { hasUnspecifiedProduct, insertTransaction, reconcileInput, stockEffectFor, type SaveResult } from "@/lib/ledger/insert";
+import { findDuplicateOrder, hasUnspecifiedProduct, insertTransaction, reconcileInput, stockEffectFor, type SaveResult } from "@/lib/ledger/insert";
 import { applyTransactionUpdate } from "@/lib/ledger/update";
 import { formToObject, toRow, TransactionSchema } from "@/lib/ledger/transaction-input";
 
@@ -11,7 +11,7 @@ export async function createTransaction(formData: FormData) {
   const parsed = TransactionSchema.safeParse(formToObject(formData));
   if (!parsed.success) redirect(`/transactions/new?type=${formData.get("type") ?? "income"}&error=invalid`);
   const result = await insertTransaction(parsed.data);
-  if (!result.ok) redirect(`/transactions/new?type=${parsed.data.type}&error=${result.error === "reconcile" ? `reconcile:${result.difference ?? 0}` : result.error}`);
+  if (!result.ok) redirect(`/transactions/new?type=${parsed.data.type}&error=${result.error === "reconcile" ? `reconcile:${result.difference ?? 0}` : result.error === "duplicate" ? `duplicate:${result.duplicate?.date ?? ""}:${result.duplicate?.net_amount ?? 0}` : result.error}`);
   redirect("/transactions?saved=1");
 }
 
@@ -33,6 +33,14 @@ export async function updateTransaction(id: string, formData: FormData) {
   const rec = reconcileInput(parsed.data, effect);
   if (!rec.ok) redirect(`/transactions/${id}/edit?error=reconcile:${rec.difference}`);
   if (await hasUnspecifiedProduct(supabase, items)) redirect(`/transactions/${id}/edit?error=unspecified`);
+  if (parsed.data.type === "income") {
+    const dup = await findDuplicateOrder(supabase, profile.business_id, parsed.data.platform, parsed.data.order_ref, id);
+    if (dup) {
+      const reason = parsed.data.override_reason?.trim();
+      if (!reason || profile.role !== "admin") redirect(`/transactions/${id}/edit?error=duplicate:${dup.date}:${dup.net_amount}`);
+      row.note = [row.note, `Duplicate override: ${reason}`].filter(Boolean).join(" · ");
+    }
+  }
   const outcome = await applyTransactionUpdate(supabase, profile.business_id, id, row, parsed.data.type === "income" ? parsed.data.settlement_status : undefined, { list: items, effect });
   if (!outcome.ok) {
     if (outcome.reason === "denied") {

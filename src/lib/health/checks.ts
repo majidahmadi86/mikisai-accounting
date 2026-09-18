@@ -13,7 +13,7 @@ import { buildMyBalance } from "@/lib/my-balance";
 import { inventoryValue, stockPositions, whoOwesWhom, type TruthInput, type TruthTransfer } from "@/lib/truth";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
@@ -30,7 +30,6 @@ export type HealthInput = Omit<StatementsInput, "transfers"> & {
 };
 
 export const UNMATCHED_PAYOUT_DAYS = 20;
-const ORDER_ID = /#(\d{6,})/g;
 const CENT = 0.011;
 
 function check(key: HealthKey, issues: HealthIssue[], opts: { adminOnly?: boolean; skipped?: boolean } = {}): HealthCheck {
@@ -83,15 +82,18 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
   // 7. Transfers without a reason.
   const noReason = input.transfers.filter((t) => !("reason" in t) || !(t as { reason?: string | null }).reason).map((t): HealthIssue => ({ id: t.id, label: `${t.date} · ฿${t.amount.toFixed(2)}`, href: `/transfers/${t.id}/edit` }));
 
-  // 8. The same platform order id on two sales.
+  // 8. The same platform order id on two sales of the same platform.
   const byOrder = new Map<string, string[]>();
   for (const t of income) {
-    for (const m of t.note.matchAll(ORDER_ID)) byOrder.set(m[1], [...(byOrder.get(m[1]) ?? []), t.id]);
+    const ref = t.order_ref?.trim();
+    if (!ref) continue;
+    const key = `${t.platform}:${ref}`;
+    byOrder.set(key, [...(byOrder.get(key) ?? []), t.id]);
   }
   const duplicates: HealthIssue[] = [];
-  for (const [orderId, ids] of byOrder) {
+  for (const [key, ids] of byOrder) {
     if (ids.length < 2) continue;
-    for (const id of ids) duplicates.push({ id, label: `#${orderId}`, href: txHref(id), detail: `${ids.length} rows` });
+    for (const id of ids) duplicates.push({ id, label: `#${key.split(":")[1]}`, href: txHref(id), detail: `${ids.length} rows` });
   }
 
   // 9. A contributor edited a row more than 24 hours after it was created. RLS forbids this; the count must be zero.
@@ -115,6 +117,18 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     .filter((p) => !p.deleted_at && (p.expected_net_per_unit == null || p.expected_net_per_unit <= 0) && (salesPerProduct.get(p.id) ?? 0) >= 5)
     .map((p): HealthIssue => ({ id: p.id, label: `${p.name}${p.variant ? ` · ${p.variant}` : ""}`, href: `/products/${p.id}/edit`, detail: `${salesPerProduct.get(p.id)} sales` }));
 
+  // 11. Stock moves without a live payment: a movement or line whose transaction is deleted or missing.
+  const liveIds = new Set(input.transactions.map((t) => t.id));
+  const orphanMovements: HealthIssue[] = input.movements
+    .filter((m) => m.transaction_id && !liveIds.has(m.transaction_id))
+    .map((m): HealthIssue => {
+      const p = products.get(m.product_id);
+      return { id: m.id, label: `${m.date} · ${p ? p.name : m.product_id} · ${m.kind} ${m.qty > 0 ? "+" : ""}${m.qty}`, href: "/more/deleted", detail: "no live transaction" };
+    });
+  for (const it of input.items) {
+    if (!liveIds.has(it.transaction_id)) orphanMovements.push({ id: `item-${it.transaction_id}-${it.product_id}`, label: `${products.get(it.product_id)?.name ?? it.product_id} · line x${it.qty}`, href: "/more/deleted", detail: "no live transaction" });
+  }
+
   // 12. Consistency: every page must show the same who-owes-whom and the same stock.
   const consistency = consistencyMismatches(input, today);
 
@@ -132,6 +146,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("duplicate_order_ids", duplicates),
     check("late_contributor_edit", lateEdits, { adminOnly: true, skipped: !input.audit }),
     check("no_expected_net", noExpectedNet),
+    check("orphan_movements", orphanMovements),
     check("consistency", consistency),
     check("report_totals", totals),
   ];
