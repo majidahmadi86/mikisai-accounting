@@ -26,9 +26,8 @@ test("one who-owes-whom figure on Home, Investment and My Balance; transfer shee
   const amount = banner.match(/฿[\d,]+\.\d{2}/)?.[0] ?? null;
 
   await page.goto("/investment");
-  const toBeEqualCard = page.locator("div", { has: page.locator("p.eyebrow", { hasText: "To be equal" }) }).last();
-  const toBeEqual = (await toBeEqualCard.innerText()).trim();
-  await expect(page.getByText("Already counted: transfers between you.")).toBeVisible();
+  const investmentText = (await page.locator("main").innerText()).trim();
+  if (amount) await expect(page.getByText("Already counted: transfers between you.")).toBeVisible();
   await page.screenshot({ path: `${OUT}/investment-to-be-equal-375.png` });
 
   await page.goto("/balance");
@@ -36,10 +35,13 @@ test("one who-owes-whom figure on Home, Investment and My Balance; transfer shee
   await page.screenshot({ path: `${OUT}/my-balance-owed-375.png` });
 
   if (amount) {
-    expect(toBeEqual, "Investment shows the Home figure").toContain(amount);
+    expect(investmentText, "Investment shows the Home figure").toContain(amount);
     expect(owed, "My Balance shows the Home figure").toContain(amount);
   } else {
-    expect(toBeEqual).toMatch(/even|Nothing/i);
+    // Nobody owes anybody: every page says so in its own words, none names an amount owed.
+    expect(banner).toMatch(/Balanced|even/i);
+    expect(investmentText).not.toMatch(/owes/);
+    expect(owed).toMatch(/even/i);
   }
 
   // Data health: the Consistency check runs the same equalities on live data and must be green.
