@@ -1,0 +1,88 @@
+{
+  "code": 0,
+  "message": "Success",
+  "request_id": "202609180001",
+  "data": {
+    "orders": [
+      {
+        "id": "576461413038220104",
+        "status": "DELIVERED",
+        "create_time": 1789372800,
+        "paid_time": 1789372860,
+        "update_time": 1789617600,
+        "recipient_address": {
+          "name": "Mali"
+        },
+        "payment": {
+          "currency": "THB",
+          "sub_total": "798.00",
+          "total_amount": "798.00"
+        },
+        "line_items": [
+          {
+            "id": "l5",
+            "sku_id": "sku-1kg",
+            "sku_name": "10 kg box (1 kg x 10 packs)",
+            "product_id": "1729500000000000001",
+            "product_name": "น้ำตาลมะพร้าว รุ่งนิรันดร์ อัมพวา",
+            "seller_sku": "",
+            "sale_price": "399.00",
+            "original_price": "399.00",
+            "seller_discount": "0",
+            "platform_discount": "0",
+            "display_status": "COMPLETED",
+            "currency": "THB"
+          },
+          {
+            "id": "l6",
+            "sku_id": "sku-500g",
+            "sku_name": "10 kg box (500 g x 20 packs)",
+            "product_id": "1729500000000000001",
+            "product_name": "น้ำตาลมะพร้าว รุ่งนิรันดร์ อัมพวา",
+            "seller_sku": "",
+            "sale_price": "399.00",
+            "original_price": "399.00",
+            "seller_discount": "0",
+            "platform_discount": "0",
+            "display_status": "COMPLETED",
+            "currency": "THB"
+          }
+        ]
+      },
+      {
+        "id": "576461413038220103",
+        "status": "CANCELLED",
+        "create_time": 1789534800,
+        "update_time": 1789549200,
+        "cancel_reason": "Buyer changed mind",
+        "cancellation_initiator": "BUYER",
+        "recipient_address": {
+          "name": "Ploy"
+        },
+        "payment": {
+          "currency": "THB",
+          "sub_total": "399.00",
+          "total_amount": "399.00"
+        },
+        "line_items": [
+          {
+            "id": "l4",
+            "sku_id": "sku-1kg",
+            "sku_name": "10 kg box (1 kg x 10 packs)",
+            "product_id": "1729500000000000001",
+            "product_name": "น้ำตาลมะพร้าว รุ่งนิรันดร์ อัมพวา",
+            "seller_sku": "",
+            "sale_price": "399.00",
+            "original_price": "399.00",
+            "seller_discount": "0",
+            "platform_discount": "0",
+            "display_status": "COMPLETED",
+            "currency": "THB"
+          }
+        ]
+      }
+    ],
+    "next_page_token": "page-2",
+    "total_count": 4
+  }
+}

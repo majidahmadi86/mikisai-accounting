@@ -1,0 +1,30 @@
+{
+  "code": 0,
+  "message": "Success",
+  "request_id": "202609180001",
+  "data": {
+    "payments": [
+      {
+        "id": "7500000000000000001",
+        "create_time": 1789610400,
+        "paid_time": 1789614000,
+        "status": "PAID",
+        "amount": {
+          "value": "734.16",
+          "currency": "THB"
+        },
+        "bank_account": "****1234"
+      },
+      {
+        "id": "7500000000000000002",
+        "create_time": 1789696800,
+        "status": "PROCESSING",
+        "amount": {
+          "value": "724.16",
+          "currency": "THB"
+        }
+      }
+    ],
+    "next_page_token": ""
+  }
+}

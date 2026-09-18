@@ -1,0 +1,15 @@
+{
+  "code": 0,
+  "message": "success",
+  "request_id": "202609180002",
+  "data": {
+    "access_token": "ROW_mock_access_1",
+    "access_token_expire_in": 1790294400,
+    "refresh_token": "ROW_mock_refresh_1",
+    "refresh_token_expire_in": 1821225600,
+    "open_id": "mock-open-id",
+    "seller_name": "MikiSai",
+    "seller_base_region": "TH",
+    "user_type": 0
+  }
+}

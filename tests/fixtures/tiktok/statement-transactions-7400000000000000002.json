@@ -1,0 +1,26 @@
+{
+  "code": 0,
+  "message": "Success",
+  "request_id": "202609180001",
+  "data": {
+    "statement_transactions": [
+      {
+        "id": "st2",
+        "order_id": "576461413038220104",
+        "type": "ORDER",
+        "statement_time": 1789693200,
+        "settlement_amount": "734.16",
+        "revenue_amount": "798.00",
+        "fee_amount": "-63.84",
+        "currency": "THB"
+      },
+      {
+        "id": "st3",
+        "type": "ADJUSTMENT",
+        "statement_time": 1789693200,
+        "settlement_amount": "-10.00",
+        "currency": "THB"
+      }
+    ]
+  }
+}

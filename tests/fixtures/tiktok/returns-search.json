@@ -1,0 +1,50 @@
+{
+  "code": 0,
+  "message": "Success",
+  "request_id": "202609180001",
+  "data": {
+    "return_orders": [
+      {
+        "return_id": "4035000000000000001",
+        "order_id": "576461413038220104",
+        "return_type": "REFUND",
+        "return_status": "RETURN_OR_REFUND_REQUEST_COMPLETE",
+        "refund_amount": {
+          "currency": "THB",
+          "refund_total": "377.00",
+          "refund_subtotal": "377.00",
+          "refund_shipping_fee": "0.00"
+        },
+        "return_line_items": [
+          {
+            "sku_id": "sku-500g",
+            "order_line_item_id": "l6"
+          }
+        ],
+        "create_time": 1789538400,
+        "update_time": 1789624800
+      },
+      {
+        "return_id": "4035000000000000002",
+        "order_id": "576461413038220101",
+        "return_type": "RETURN_AND_REFUND",
+        "return_status": "RETURN_OR_REFUND_REQUEST_PENDING",
+        "refund_amount": {
+          "currency": "THB",
+          "refund_total": "399.00"
+        },
+        "create_time": 1789628400,
+        "update_time": 1789628400
+      },
+      {
+        "return_id": "4035000000000000003",
+        "order_id": "576461413038220102",
+        "return_type": "REPLACEMENT",
+        "return_status": "REPLACEMENT_REQUEST_PENDING",
+        "create_time": 1789632000,
+        "update_time": 1789632000
+      }
+    ],
+    "next_page_token": ""
+  }
+}

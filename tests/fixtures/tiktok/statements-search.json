@@ -1,0 +1,33 @@
+{
+  "code": 0,
+  "message": "Success",
+  "request_id": "202609180001",
+  "data": {
+    "statements": [
+      {
+        "id": "7400000000000000001",
+        "statement_time": 1789606800,
+        "settlement_amount": "734.16",
+        "currency": "THB",
+        "payment_status": "PAID",
+        "payment_id": "7500000000000000001",
+        "revenue_amount": "798.00",
+        "fee_amount": "-63.84",
+        "adjustment_amount": "0.00",
+        "net_sales_amount": "798.00"
+      },
+      {
+        "id": "7400000000000000002",
+        "statement_time": 1789693200,
+        "settlement_amount": "724.16",
+        "currency": "THB",
+        "payment_status": "PROCESSING",
+        "payment_id": "",
+        "revenue_amount": "798.00",
+        "fee_amount": "-63.84",
+        "adjustment_amount": "-10.00"
+      }
+    ],
+    "next_page_token": ""
+  }
+}

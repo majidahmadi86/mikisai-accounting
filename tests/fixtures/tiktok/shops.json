@@ -1,0 +1,17 @@
+{
+  "code": 0,
+  "message": "Success",
+  "request_id": "202609180001",
+  "data": {
+    "shops": [
+      {
+        "id": "7495000000000000001",
+        "name": "MikiSai",
+        "region": "TH",
+        "seller_type": "LOCAL",
+        "cipher": "TTP_mock_cipher_mikisai",
+        "code": "THLCMIKISAI"
+      }
+    ]
+  }
+}
