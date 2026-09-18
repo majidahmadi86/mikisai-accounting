@@ -21,6 +21,9 @@ function buildCsp(nonce: string, secure: boolean): string {
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // Without an explicit worker-src the service worker would fall back to script-src, where strict-dynamic ignores 'self'.
+    "worker-src 'self'",
+    "manifest-src 'self'",
     `connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace("https://", "wss://")}`.trim(),
     // Only on https: over plain http (local production preview) the upgrade sends every subresource to a TLS port that is not there.
     ...(secure ? ["upgrade-insecure-requests"] : []),

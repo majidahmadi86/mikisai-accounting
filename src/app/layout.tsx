@@ -32,7 +32,9 @@ const bodyThai = Noto_Sans_Thai({
 export const metadata: Metadata = {
   title: "MikiSai Accounting",
   description: "Accounting for the MikiSai founders",
-  icons: { icon: "/brand/ms-monogram.svg" },
+  icons: { icon: "/brand/ms-monogram.svg", apple: "/icons/apple-touch-icon-180.png" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "MikiSai" },
 };
 
 export const viewport: Viewport = {

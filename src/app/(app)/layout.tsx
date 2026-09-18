@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/nav/AppShell";
+import { RegisterSw } from "@/components/pwa/RegisterSw";
 import { QuickEntryProvider, type QuickEntryContextData } from "@/components/quick-entry/QuickEntryProvider";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
@@ -35,6 +36,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <LocaleProvider locale={locale}>
+      <RegisterSw />
       <QuickEntryProvider data={quick}>
         <AppShell locale={locale} tr={tr} displayName={session.profile.display_name}>
           {children}
