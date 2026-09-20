@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
-import { Table, Td, Th } from "@/components/ui/Table";
+import { ExpandableRow } from "@/components/ui/ExpandableRow";
+import { RowDetail, Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
 import { formatDateTime } from "@/lib/money";
@@ -161,7 +162,7 @@ export default async function ConnectTiktokPage({ searchParams }: PageProps<"/mo
             <p className="text-sm text-plum-soft">{tr("tiktok.logEmpty")}</p>
           ) : (
             <>
-              <ul className="divide-y divide-line md:hidden">
+              <ul className="divide-y divide-line lg:hidden">
                 {logs.map((l) => (
                   <li key={l.id} className="py-3 text-sm">
                     <p className="flex flex-wrap items-center gap-2">
@@ -178,32 +179,62 @@ export default async function ConnectTiktokPage({ searchParams }: PageProps<"/mo
               <Table>
                 <thead>
                   <tr>
-                    <Th>{tr("tiktok.colWhen")}</Th>
-                    <Th>{tr("tiktok.colTrigger")}</Th>
-                    <Th>{tr("common.status")}</Th>
-                    <Th align="right">{tr("tiktok.colOrders")}</Th>
-                    <Th align="right">{tr("tiktok.colCancelled")}</Th>
-                    <Th align="right">{tr("tiktok.colRefunds")}</Th>
-                    <Th align="right">{tr("tiktok.colPayouts")}</Th>
-                    <Th align="right">{tr("tiktok.colQueued")}</Th>
-                    <Th>{tr("tiktok.colError")}</Th>
+                    <Th kind="datetime">{tr("tiktok.colWhen")}</Th>
+                    <Th kind="short" priority="secondary">
+                      {tr("tiktok.colTrigger")}
+                    </Th>
+                    <Th kind="pill">{tr("common.status")}</Th>
+                    <Th kind="num">{tr("tiktok.colOrders")}</Th>
+                    <Th kind="num" priority="secondary">
+                      {tr("tiktok.colCancelled")}
+                    </Th>
+                    <Th kind="num" priority="secondary">
+                      {tr("tiktok.colRefunds")}
+                    </Th>
+                    <Th kind="num">{tr("tiktok.colPayouts")}</Th>
+                    <Th kind="num">{tr("tiktok.colQueued")}</Th>
+                    <Th kind="long">{tr("tiktok.colError")}</Th>
+                    <Th kind="action">
+                      <span className="sr-only">{tr("table.showDetail")}</span>
+                    </Th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.map((l) => (
-                    <tr key={l.id}>
-                      <Td className="whitespace-nowrap">{formatDateTime(l.started_at, locale)}</Td>
-                      <Td>{tr(`tiktok.trigger.${l.trigger}`)}</Td>
-                      <Td>
+                    <ExpandableRow
+                      key={l.id}
+                      label={formatDateTime(l.started_at, locale)}
+                      detail={
+                        <RowDetail
+                          items={[
+                            { label: tr("tiktok.colTrigger"), value: tr(`tiktok.trigger.${l.trigger}`), priority: "secondary" },
+                            { label: tr("tiktok.colCancelled"), value: String(l.cancellations), priority: "secondary" },
+                            { label: tr("tiktok.colRefunds"), value: String(l.refunds), priority: "secondary" },
+                            { label: tr("tiktok.colError"), value: l.error, wide: true },
+                          ]}
+                        />
+                      }
+                    >
+                      <Td kind="datetime">{formatDateTime(l.started_at, locale)}</Td>
+                      <Td kind="short" priority="secondary">
+                        {tr(`tiktok.trigger.${l.trigger}`)}
+                      </Td>
+                      <Td kind="pill">
                         <Pill tone={l.status === "ok" ? "success" : l.status === "error" ? "berry-soft" : "neutral"}>{tr(`tiktok.log.${l.status}`)}</Pill>
                       </Td>
-                      <Td align="right">{l.orders_new}</Td>
-                      <Td align="right">{l.cancellations}</Td>
-                      <Td align="right">{l.refunds}</Td>
-                      <Td align="right">{l.payouts}</Td>
-                      <Td align="right">{l.queued}</Td>
-                      <Td className="max-w-64 text-xs text-berry [overflow-wrap:anywhere]">{l.error}</Td>
-                    </tr>
+                      <Td kind="num">{l.orders_new}</Td>
+                      <Td kind="num" priority="secondary">
+                        {l.cancellations}
+                      </Td>
+                      <Td kind="num" priority="secondary">
+                        {l.refunds}
+                      </Td>
+                      <Td kind="num">{l.payouts}</Td>
+                      <Td kind="num">{l.queued}</Td>
+                      <Td kind="long" className="text-xs text-berry">
+                        {l.error ?? ""}
+                      </Td>
+                    </ExpandableRow>
                   ))}
                 </tbody>
               </Table>

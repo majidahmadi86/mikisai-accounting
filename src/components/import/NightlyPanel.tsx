@@ -7,6 +7,7 @@ import { MappingPanel } from "./MappingPanel";
 import { ReviewTable } from "./ReviewTable";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Table, Td, Th } from "@/components/ui/Table";
 import { Pill } from "@/components/ui/Pill";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { NightlyPayout, NightlyReview } from "@/lib/import/nightly";
@@ -299,35 +300,59 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
             </div>
             <p className="text-xs text-plum-soft">{t("nightly.readyHint")}</p>
             {showReady ? (
-              <div className="mt-3 max-w-full overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
+              <div className="mt-3">
+                <ul className="space-y-2 lg:hidden">
+                  {ready.map((r) => (
+                    <li key={r.key} className={cn("flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2", !r.include && "opacity-50")}>
+                      <input type="checkbox" checked={r.include} onChange={(e) => setReady(ready.map((x) => (x.key === r.key ? { ...x, include: e.target.checked } : x)))} className="h-5 w-5 shrink-0 accent-[#8f315f]" aria-label={t("import.include")} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-mono text-xs text-plum">#{r.order_id}</span>
+                        <span className="block truncate text-xs text-plum-faint">
+                          {r.date ? formatDate(r.date, locale) : ""} · {productName(r.product_id)} × {r.quantity}
+                        </span>
+                      </span>
+                      <span className="shrink-0 whitespace-nowrap text-sm font-medium tabular text-berry">{thb(r.net_amount ?? 0)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Table>
                   <thead>
-                    <tr className="text-left text-xs text-plum-faint">
-                      <th className="py-1 pr-3"></th>
-                      <th className="py-1 pr-3">{t("transactions.orderRef")}</th>
-                      <th className="py-1 pr-3">{t("common.date")}</th>
-                      <th className="py-1 pr-3">{t("import.product")}</th>
-                      <th className="py-1 pr-3 text-right">{t("import.qty")}</th>
-                      <th className="py-1 pr-3 text-right">{t("common.gross")}</th>
-                      <th className="py-1 text-right">{t("common.net")}</th>
+                    <tr>
+                      <Th kind="action">
+                        <span className="sr-only">{t("import.include")}</span>
+                      </Th>
+                      <Th kind="id">{t("transactions.orderRef")}</Th>
+                      <Th kind="date">{t("common.date")}</Th>
+                      <Th kind="long">{t("import.product")}</Th>
+                      <Th kind="num">{t("import.qty")}</Th>
+                      <Th kind="money" priority="secondary">
+                        {t("common.gross")}
+                      </Th>
+                      <Th kind="money">{t("common.net")}</Th>
                     </tr>
                   </thead>
                   <tbody>
                     {ready.map((r) => (
-                      <tr key={r.key} className={cn("border-t border-line/60", !r.include && "opacity-50")}>
-                        <td className="py-1.5 pr-3">
-                          <input type="checkbox" checked={r.include} onChange={(e) => setReady(ready.map((x) => (x.key === r.key ? { ...x, include: e.target.checked } : x)))} className="h-4 w-4 accent-[#8f315f]" aria-label={t("import.include")} />
-                        </td>
-                        <td className="py-1.5 pr-3 font-mono text-xs">#{r.order_id}</td>
-                        <td className="py-1.5 pr-3 whitespace-nowrap">{r.date ? formatDate(r.date, locale) : ""}</td>
-                        <td className="py-1.5 pr-3">{productName(r.product_id)}</td>
-                        <td className="py-1.5 pr-3 text-right tabular">{r.quantity}</td>
-                        <td className="py-1.5 pr-3 text-right tabular text-plum-faint">{thb(r.gross_amount ?? 0)}</td>
-                        <td className="py-1.5 text-right tabular font-medium text-berry">{thb(r.net_amount ?? 0)}</td>
+                      <tr key={r.key} className={cn(!r.include && "opacity-50")}>
+                        <Td kind="action" align="center">
+                          <input type="checkbox" checked={r.include} onChange={(e) => setReady(ready.map((x) => (x.key === r.key ? { ...x, include: e.target.checked } : x)))} className="h-5 w-5 accent-[#8f315f]" aria-label={t("import.include")} />
+                        </Td>
+                        <Td kind="id" className="truncate font-mono text-xs" title={r.order_id ?? undefined}>
+                          #{r.order_id}
+                        </Td>
+                        <Td kind="date">{r.date ? formatDate(r.date, locale) : ""}</Td>
+                        <Td kind="long">{productName(r.product_id)}</Td>
+                        <Td kind="num">{r.quantity}</Td>
+                        <Td kind="money" priority="secondary" className="text-plum-faint">
+                          {thb(r.gross_amount ?? 0)}
+                        </Td>
+                        <Td kind="money" className="font-medium text-berry">
+                          {thb(r.net_amount ?? 0)}
+                        </Td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </Table>
               </div>
             ) : null}
           </Card>

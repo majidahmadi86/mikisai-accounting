@@ -100,7 +100,7 @@ export function ReconcilePanel({
         </dl>
       </Card>
 
-      <ul className="space-y-2 md:hidden">
+      <ul className="space-y-2 lg:hidden">
         {candidates.map((c) => {
           const checked = selected.has(c.settlement_id);
           return (
@@ -135,13 +135,15 @@ export function ReconcilePanel({
       <Table>
         <thead>
           <tr>
-            <Th className="w-10"></Th>
-            <Th>{t("common.date")}</Th>
-            <Th>{t("common.customer")}</Th>
-            <Th>{t("common.product")}</Th>
-            <Th>{t("common.status")}</Th>
-            <Th align="right">{t("common.gross")}</Th>
-            <Th align="right">{t("common.net")}</Th>
+            <Th kind="action">
+              <span className="sr-only">{t("payouts.confirmMatch")}</span>
+            </Th>
+            <Th kind="date">{t("common.date")}</Th>
+            <Th kind="long">{t("common.customer")}</Th>
+            <Th kind="short">{t("common.product")}</Th>
+            <Th kind="status">{t("common.status")}</Th>
+            <Th kind="money">{t("common.gross")}</Th>
+            <Th kind="money">{t("common.net")}</Th>
           </tr>
         </thead>
         <tbody>
@@ -149,19 +151,23 @@ export function ReconcilePanel({
             const checked = selected.has(c.settlement_id);
             return (
               <tr key={c.settlement_id} onClick={() => toggle(c.settlement_id)} className={cn("cursor-pointer", checked ? "bg-lavender-tint" : "hover:bg-ivory-deep/60")}>
-                <Td>
+                <Td kind="action" align="center">
                   <input type="checkbox" checked={checked} onChange={() => toggle(c.settlement_id)} onClick={(e) => e.stopPropagation()} className="h-5 w-5 accent-[#8f315f]" aria-label={c.customer_name ?? c.transaction_id} />
                 </Td>
-                <Td className="whitespace-nowrap">{formatDate(c.date, locale)}</Td>
-                <Td className="text-plum-soft">{c.customer_name ?? ""}</Td>
-                <Td className="text-plum-soft">{t(`product.${c.product_line}`)}</Td>
-                <Td>
+                <Td kind="date">{formatDate(c.date, locale)}</Td>
+                <Td kind="long" className="text-plum-soft">
+                  {c.customer_name ?? ""}
+                </Td>
+                <Td kind="short" className="text-plum-soft">
+                  {t(`product.${c.product_line}`)}
+                </Td>
+                <Td kind="status">
                   <Pill tone={statusTone(c.status)}>{statusName(t, c.status)}</Pill>
                 </Td>
-                <Td align="right" className="text-plum-faint">
+                <Td kind="money" className="text-plum-faint">
                   {thb(c.gross_amount)}
                 </Td>
-                <Td align="right" className="font-medium">
+                <Td kind="money" className="font-medium">
                   {thb(c.net_amount)}
                 </Td>
               </tr>
