@@ -1,6 +1,7 @@
-import type { ExportTable } from "@/lib/exports/tables";
+import type { Column, ExportTable } from "@/lib/exports/tables";
 import { formatCell } from "@/lib/exports/format";
-import { Table, Td, Th } from "@/components/ui/Table";
+import { ExpandableRow } from "@/components/ui/ExpandableRow";
+import { RowDetail, Table, Td, Th, type ColKind } from "@/components/ui/Table";
 import { cn } from "@/lib/cn";
 
 export function rowsWithTotal(table: ExportTable): { cells: string[]; total: boolean; emphasis: boolean }[] {
@@ -21,14 +22,27 @@ export function rowsWithTotal(table: ExportTable): { cells: string[]; total: boo
   return rows;
 }
 
-/** Renders one report table: a real table from md up, one card per row on phones. */
+/** Content class of a report column: the first text column takes the free width, later text columns are short. */
+export function colKind(c: Column, index: number, columns: Column[]): ColKind {
+  if (c.kind === "money") return "money";
+  if (c.kind === "int" || c.kind === "pct") return "num";
+  if (c.kind === "date") return "date";
+  return index === columns.findIndex((x) => x.kind === "text") ? "long" : "short";
+}
+
+/**
+ * Renders one report table: a real table from md up, one card per row on
+ * phones. Columns marked secondary or tertiary hide on narrower screens and
+ * reappear in the expandable row detail, so the table never scrolls sideways.
+ */
 export function ReportTableView({ table }: { table: ExportTable }) {
   const rows = rowsWithTotal(table);
-  const isNum = (i: number) => table.columns[i].kind !== "text" && table.columns[i].kind !== "date";
+  const kinds = table.columns.map((c, i, all) => colKind(c, i, all));
+  const expandable = table.columns.some((c) => c.priority && c.priority !== "primary");
 
   return (
     <>
-      <ul className="space-y-2 md:hidden">
+      <ul className="space-y-2 lg:hidden">
         {rows.map((r, ri) => (
           <li key={ri} className={cn("rounded-xl border px-4 py-3", r.total ? "border-berry/30 bg-berry-tint" : r.emphasis ? "border-lavender bg-lavender-tint" : "border-line bg-card")}>
             <p className={cn("text-sm font-medium", r.total ? "text-berry" : "text-plum")}>{r.cells[0]}</p>
@@ -49,22 +63,38 @@ export function ReportTableView({ table }: { table: ExportTable }) {
         <thead>
           <tr>
             {table.columns.map((c, i) => (
-              <Th key={c.key} align={isNum(i) ? "right" : "left"}>
+              <Th key={c.key} kind={kinds[i]} priority={c.priority}>
                 {c.label}
               </Th>
             ))}
+            {expandable ? (
+              <Th kind="action">
+                <span className="sr-only">{table.title}</span>
+              </Th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, ri) => (
-            <tr key={ri} className={cn(r.total ? "bg-berry-tint font-medium text-berry" : r.emphasis ? "bg-lavender-tint font-medium" : ri % 2 === 1 ? "bg-ivory-deep/50" : "")}>
-              {r.cells.map((v, i) => (
-                <Td key={i} align={isNum(i) ? "right" : "left"} className={cn(i === 0 && !r.total && "text-plum")}>
-                  {v}
-                </Td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((r, ri) => {
+            const tone = r.total ? "bg-berry-tint font-medium text-berry" : r.emphasis ? "bg-lavender-tint font-medium" : ri % 2 === 1 ? "bg-ivory-deep/50" : "";
+            const cells = r.cells.map((v, i) => (
+              <Td key={i} kind={kinds[i]} priority={table.columns[i].priority} className={cn(i === 0 && !r.total && "text-plum")}>
+                {v}
+              </Td>
+            ));
+            if (!expandable) {
+              return (
+                <tr key={ri} className={tone}>
+                  {cells}
+                </tr>
+              );
+            }
+            return (
+              <ExpandableRow key={ri} className={tone} label={r.cells[0]} detail={<RowDetail items={table.columns.map((c, i) => ({ label: c.label, value: r.cells[i], priority: c.priority, wide: i === 0 })).filter((x, i) => i === 0 || x.priority)} />}>
+                {cells}
+              </ExpandableRow>
+            );
+          })}
         </tbody>
       </Table>
     </>
