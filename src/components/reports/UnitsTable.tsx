@@ -1,22 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import { ExpandableRow } from "@/components/ui/ExpandableRow";
 import { Pill } from "@/components/ui/Pill";
+import { RowDetail, Table, Td, Th, type ColKind, type ColPriority } from "@/components/ui/Table";
+import { productLine } from "@/lib/search";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { shortProductName, type Granularity, type UnitsRow } from "@/lib/inventory/units";
 import { shortPeriodLabel } from "@/lib/inventory/units-labels";
 import { thb } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
-type Col = { key: keyof UnitsRow | "period" | "product"; label: string; numeric: boolean };
+type Col = { key: keyof UnitsRow | "period" | "product"; label: string; kind: ColKind; priority?: ColPriority };
 
 const num = (v: number | null) => (v === null ? "·" : String(v));
 
 /**
- * Units per product per period. Period and product columns stay put while
- * the numbers scroll inside the card; subtotals and totals are a distinct
- * band, hidden until asked for; products with nothing in the range are
- * hidden until asked for.
+ * Units per product per period. It never scrolls sideways: samples and
+ * returns appear from 1280px, the two averages from 1440px, and whatever is
+ * hidden shows in the row detail; below 1024px every row is a card. Subtotals
+ * and totals are a distinct band, hidden until asked for; products with
+ * nothing in the range are hidden until asked for.
  */
 export function UnitsTable({ rows, totals, granularity }: { rows: UnitsRow[]; totals: UnitsRow[]; granularity: Granularity }) {
   const t = useT();
@@ -31,22 +35,22 @@ export function UnitsTable({ rows, totals, granularity }: { rows: UnitsRow[]; to
   const totalRows = showSubtotals && buckets > 1 ? totals.filter((r) => showAll || active.has(r.product.id)) : [];
 
   const cols: Col[] = [
-    { key: "period", label: t("reports.period"), numeric: false },
-    { key: "product", label: t("common.product"), numeric: false },
-    { key: "orders", label: t("common.orders"), numeric: true },
-    { key: "unitsSold", label: t("units.sold"), numeric: true },
-    { key: "unitsBought", label: t("units.bought"), numeric: true },
-    { key: "samplesOut", label: t("units.samples"), numeric: true },
-    { key: "unitsReturned", label: t("units.returns"), numeric: true },
-    { key: "onHandEnd", label: t("units.onHandEnd"), numeric: true },
-    { key: "backlogEnd", label: t("units.backlog"), numeric: true },
-    { key: "avgSalePrice", label: t("units.avgPrice"), numeric: true },
-    { key: "avgCostEnd", label: t("units.avgCost"), numeric: true },
+    { key: "period", label: t("reports.period"), kind: "short" },
+    { key: "product", label: t("common.product"), kind: "long" },
+    { key: "orders", label: t("common.orders"), kind: "num" },
+    { key: "unitsSold", label: t("units.sold"), kind: "num" },
+    { key: "unitsBought", label: t("units.bought"), kind: "num" },
+    { key: "samplesOut", label: t("units.samples"), kind: "num", priority: "secondary" },
+    { key: "unitsReturned", label: t("units.returns"), kind: "num", priority: "secondary" },
+    { key: "onHandEnd", label: t("units.onHandEnd"), kind: "num" },
+    { key: "backlogEnd", label: t("units.backlog"), kind: "num" },
+    { key: "avgSalePrice", label: t("units.avgPrice"), kind: "money", priority: "tertiary" },
+    { key: "avgCostEnd", label: t("units.avgCost"), kind: "money", priority: "tertiary" },
   ];
 
   const cell = (r: UnitsRow, c: Col): string => {
     if (c.key === "period") return shortPeriodLabel(r.from, r.to, r.kind, locale, t("common.total"));
-    if (c.key === "product") return shortProductName(r.product, locale);
+    if (c.key === "product") return productLine(r.product, locale);
     if (c.key === "avgSalePrice") return r.avgSalePrice === null ? "·" : thb(r.avgSalePrice);
     if (c.key === "avgCostEnd") return thb(r.avgCostEnd);
     return num(r[c.key] as number);
@@ -67,50 +71,55 @@ export function UnitsTable({ rows, totals, granularity }: { rows: UnitsRow[]; to
           </button>
         ) : null}
       </div>
-      <div className="max-w-full overflow-x-auto rounded-card border border-line bg-card">
-        <table className="w-max min-w-full text-sm">
+      {visible.length === 0 ? <p className="rounded-card border border-line bg-card px-4 py-4 text-sm text-plum-soft">{t("units.empty")}</p> : null}
+      <ul className="space-y-2 lg:hidden">
+        {[...visible, ...totalRows].map((r, ri) => (
+          <li key={`${r.kind}-${r.from}-${r.product.id}-${ri}`} className={cn("rounded-xl border px-4 py-3", band(r) ? "border-lavender bg-lavender-tint" : "border-line bg-card")}>
+            <p className="text-sm font-medium text-plum">{cell(r, cols[1])}</p>
+            <p className="text-xs text-plum-faint">{cell(r, cols[0])}</p>
+            <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 min-[480px]:grid-cols-3">
+              {cols.slice(2).map((c) => (
+                <div key={c.key} className="flex items-baseline justify-between gap-2 text-xs">
+                  <dt className="eyebrow shrink-0 text-[0.6rem]">{c.label}</dt>
+                  <dd className={cn("tabular whitespace-nowrap text-plum", c.key === "backlogEnd" && r.backlogEnd > 0 && "font-medium text-berry")}>{cell(r, c)}</dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ul>
+      {visible.length ? (
+        <Table>
           <thead>
             <tr>
-              {cols.map((c, i) => (
-                <th
-                  key={c.key}
-                  className={cn("eyebrow whitespace-nowrap border-b border-line bg-ivory-deep px-3 py-2.5", c.numeric ? "text-right" : "text-left", i === 0 && "sticky left-0 z-10 w-36 min-w-36 max-w-36", i === 1 && "sticky left-36 z-10 min-w-32 shadow-[4px_0_6px_-4px_rgba(48,35,51,0.25)]")}
-                >
+              {cols.map((c) => (
+                <Th key={c.key} kind={c.kind} priority={c.priority}>
                   {c.label}
-                </th>
+                </Th>
               ))}
+              <Th kind="action">
+                <span className="sr-only">{t("table.showDetail")}</span>
+              </Th>
             </tr>
           </thead>
           <tbody>
-            {visible.length === 0 ? (
-              <tr>
-                <td colSpan={cols.length} className="px-3 py-4 text-sm text-plum-soft">
-                  {t("units.empty")}
-                </td>
-              </tr>
-            ) : null}
             {[...visible, ...totalRows].map((r, ri) => (
-              <tr key={`${r.kind}-${r.from}-${r.product.id}-${ri}`} className={cn(band(r) ? "bg-lavender-tint font-medium" : ri % 2 === 1 ? "bg-ivory-deep/40" : "bg-card")}>
-                {cols.map((c, i) => (
-                  <td
-                    key={c.key}
-                    className={cn(
-                      "whitespace-nowrap border-b border-line/70 px-3 py-2 align-middle",
-                      c.numeric ? "text-right tabular" : "text-left",
-                      i === 0 && "sticky left-0 z-[1] w-36 min-w-36 max-w-36 overflow-hidden text-ellipsis",
-                      i === 1 && "sticky left-36 z-[1] shadow-[4px_0_6px_-4px_rgba(48,35,51,0.25)]",
-                      (i === 0 || i === 1) && (band(r) ? "bg-lavender-tint" : ri % 2 === 1 ? "bg-[#F7F2EB]" : "bg-card"),
-                      c.key === "backlogEnd" && r.backlogEnd > 0 && "text-berry",
-                    )}
-                  >
+              <ExpandableRow
+                key={`${r.kind}-${r.from}-${r.product.id}-${ri}`}
+                className={cn(band(r) ? "bg-lavender-tint font-medium" : ri % 2 === 1 ? "bg-ivory-deep/40" : "")}
+                label={`${cell(r, cols[0])} ${cell(r, cols[1])}`}
+                detail={<RowDetail items={[{ label: t("table.fullName"), value: locale === "th" && r.product.name_th ? r.product.name_th : r.product.name, wide: true }, ...cols.filter((c) => c.priority).map((c) => ({ label: c.label, value: <span className="tabular">{cell(r, c)}</span>, priority: c.priority }))]} />}
+              >
+                {cols.map((c) => (
+                  <Td key={c.key} kind={c.kind} priority={c.priority} title={c.key === "product" ? r.product.name : undefined} className={cn(c.key === "period" && "text-plum-soft")}>
                     {c.key === "backlogEnd" && r.backlogEnd > 0 ? <Pill tone="berry">{r.backlogEnd}</Pill> : cell(r, c)}
-                  </td>
+                  </Td>
                 ))}
-              </tr>
+              </ExpandableRow>
             ))}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      ) : null}
     </div>
   );
 }
@@ -122,9 +131,9 @@ export function UnitsSummaryStrip({ totals }: { totals: UnitsRow[] }) {
   const shown = totals.filter((r) => r.orders || r.unitsSold || r.unitsBought || r.samplesOut || r.onHandEnd || r.backlogEnd);
   if (!shown.length) return null;
   return (
-    <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+    <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
       {shown.map((r) => (
-        <div key={r.product.id} className="min-w-44 shrink-0 rounded-xl border border-line bg-card px-4 py-3">
+        <div key={r.product.id} className="min-w-0 rounded-xl border border-line bg-card px-4 py-3">
           <p className="truncate text-sm font-medium text-plum">{shortProductName(r.product, locale)}</p>
           <dl className="mt-1.5 grid grid-cols-3 gap-2 text-xs">
             <div>
