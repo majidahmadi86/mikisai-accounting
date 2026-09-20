@@ -54,34 +54,43 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const transferError = typeof sp.transfer === "string" ? sp.transfer : null;
   const empty = snapshot.transactions.length === 0;
 
+  // Last import and the TikTok connection: inside the routine card for the admin, in a card of its own for Sai.
+  const importStatus = (
+    <p className="text-xs text-plum-faint">
+      <Link href="/import" className="hover:underline">
+        {snapshot.lastImport
+          ? tr("dashboard.lastImport", { source: tr(`dashboard.source.${snapshot.lastImport.source}`), time: formatDateTime(snapshot.lastImport.ran_at, locale), orders: snapshot.lastImport.orders, cancellations: snapshot.lastImport.cancellations, payouts: snapshot.lastImport.payouts })
+          : tr("dashboard.lastImportNone")}{" "}
+        →
+      </Link>
+      <br />
+      <Link href="/more/connect-tiktok" className={snapshot.tiktok.state === "expired" || snapshot.tiktok.state === "error" ? "font-medium text-berry hover:underline" : "hover:underline"}>
+        {snapshot.tiktok.connected
+          ? [
+              tr(`tiktok.home.${snapshot.tiktok.state === "connected" ? "connected" : "attention"}`),
+              snapshot.tiktok.last_sync_at ? tr("tiktok.lastSync", { time: relativeTime(snapshot.tiktok.last_sync_at, locale) }) : tr("tiktok.home.neverSynced"),
+              snapshot.tiktok.last_log ? tr("tiktok.newOrders", { n: snapshot.tiktok.last_log.orders_new }) : "",
+              snapshot.tiktok.queued ? tr("tiktok.toReview", { n: snapshot.tiktok.queued }) : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : tr("tiktok.home.notConnected")}{" "}
+        →
+      </Link>
+    </p>
+  );
+
   return (
     <div>
       <Tour autoOpen />
       {!admin ? <InstallCard /> : null}
-      {admin ? <NightlyRoutine last={snapshot.lastTiktokImport} tr={tr} locale={locale} /> : null}
+      {admin ? (
+        <NightlyRoutine last={snapshot.lastTiktokImport} tr={tr} locale={locale}>
+          {importStatus}
+        </NightlyRoutine>
+      ) : null}
       <BalanceBanner balance={balance} tr={tr} />
-      <p className="-mt-3 mb-6 text-xs text-plum-faint">
-        <Link href="/import" className="hover:underline">
-          {snapshot.lastImport
-            ? tr("dashboard.lastImport", { source: tr(`dashboard.source.${snapshot.lastImport.source}`), time: formatDateTime(snapshot.lastImport.ran_at, locale), orders: snapshot.lastImport.orders, cancellations: snapshot.lastImport.cancellations, payouts: snapshot.lastImport.payouts })
-            : tr("dashboard.lastImportNone")}{" "}
-          →
-        </Link>
-        <br />
-        <Link href="/more/connect-tiktok" className={snapshot.tiktok.state === "expired" || snapshot.tiktok.state === "error" ? "font-medium text-berry hover:underline" : "hover:underline"}>
-          {snapshot.tiktok.connected
-            ? [
-                tr(`tiktok.home.${snapshot.tiktok.state === "connected" ? "connected" : "attention"}`),
-                snapshot.tiktok.last_sync_at ? tr("tiktok.lastSync", { time: relativeTime(snapshot.tiktok.last_sync_at, locale) }) : tr("tiktok.home.neverSynced"),
-                snapshot.tiktok.last_log ? tr("tiktok.newOrders", { n: snapshot.tiktok.last_log.orders_new }) : "",
-                snapshot.tiktok.queued ? tr("tiktok.toReview", { n: snapshot.tiktok.queued }) : "",
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : tr("tiktok.home.notConnected")}{" "}
-          →
-        </Link>
-      </p>
+      {!admin ? <Card className="-mt-2 mb-6 px-5 py-3">{importStatus}</Card> : null}
 
       {reminder ? (
         <Link href="/payouts/new" className="mb-6 block rounded-card border border-lavender bg-lavender-tint px-5 py-4 transition-colors hover:bg-lavender-soft">
@@ -260,7 +269,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
 }
 
 /** The admin's nightly TikTok routine: export, drop, confirm, with when it last ran and what it brought. */
-function NightlyRoutine({ last, tr, locale }: { last: { ran_at: string; orders: number; cancellations: number; payouts: number } | null; tr: ReturnType<typeof t>; locale: "en" | "th" }) {
+function NightlyRoutine({ last, tr, locale, children }: { last: { ran_at: string; orders: number; cancellations: number; payouts: number } | null; tr: ReturnType<typeof t>; locale: "en" | "th"; children?: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/purity -- a server component rendered per request
   const stale = !last || Date.now() - Date.parse(last.ran_at) > NIGHTLY_STALE_HOURS * 3600 * 1000;
   return (
@@ -287,6 +296,7 @@ function NightlyRoutine({ last, tr, locale }: { last: { ran_at: string; orders: 
         <li className="rounded-xl bg-ivory-deep px-3 py-2">2. {tr("nightly.step2")}</li>
         <li className="rounded-xl bg-ivory-deep px-3 py-2">3. {tr("nightly.step3")}</li>
       </ol>
+      {children ? <div className="mt-3 border-t border-line pt-3">{children}</div> : null}
     </Card>
   );
 }
