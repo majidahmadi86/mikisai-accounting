@@ -1,7 +1,7 @@
 import "server-only";
 import { requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
-import { toRow, TransactionSchema, type ItemInput } from "./transaction-input";
+import { isOrderRefIssue, toRow, TransactionSchema, type ItemInput } from "./transaction-input";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StockEffect } from "@/lib/categories";
 import { SETTLEMENT_STATUSES, type SettlementStatus } from "@/lib/types";
@@ -9,7 +9,7 @@ import { reconcileLines } from "./reconcile";
 import type { TransactionInput } from "./transaction-input";
 
 export type DuplicateOrder = { id: string; date: string; net_amount: number };
-export type SaveResult = { ok: true; id: string } | { ok: false; error: "invalid" | "save" | "items" | "reconcile" | "unspecified" | "duplicate"; difference?: number; duplicate?: DuplicateOrder };
+export type SaveResult = { ok: true; id: string } | { ok: false; error: "invalid" | "order_ref" | "save" | "items" | "reconcile" | "unspecified" | "duplicate"; difference?: number; duplicate?: DuplicateOrder };
 
 /** A live sale on the same platform with the same order number, if any. */
 export async function findDuplicateOrder(supabase: SupabaseClient, businessId: string, platform: string, orderRef: string | null | undefined, excludeId?: string): Promise<DuplicateOrder | null> {
@@ -65,7 +65,7 @@ export async function writeItems(supabase: SupabaseClient, transactionId: string
  */
 export async function insertTransaction(input: unknown, initialStatus?: SettlementStatus): Promise<SaveResult> {
   const parsed = TransactionSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (!parsed.success) return { ok: false, error: isOrderRefIssue(parsed.error) ? "order_ref" : "invalid" };
   if (initialStatus !== undefined && !SETTLEMENT_STATUSES.includes(initialStatus)) return { ok: false, error: "invalid" };
 
   const { supabase, profile, userId } = await requireSession();

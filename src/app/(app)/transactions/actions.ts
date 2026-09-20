@@ -5,11 +5,11 @@ import { recordDenied, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
 import { findDuplicateOrder, hasUnspecifiedProduct, insertTransaction, reconcileInput, stockEffectFor, type SaveResult } from "@/lib/ledger/insert";
 import { applyTransactionUpdate } from "@/lib/ledger/update";
-import { formToObject, toRow, TransactionSchema } from "@/lib/ledger/transaction-input";
+import { formToObject, isOrderRefIssue, toRow, TransactionSchema } from "@/lib/ledger/transaction-input";
 
 export async function createTransaction(formData: FormData) {
   const parsed = TransactionSchema.safeParse(formToObject(formData));
-  if (!parsed.success) redirect(`/transactions/new?type=${formData.get("type") ?? "income"}&error=invalid`);
+  if (!parsed.success) redirect(`/transactions/new?type=${formData.get("type") ?? "income"}&error=${isOrderRefIssue(parsed.error) ? "order_ref" : "invalid"}`);
   const result = await insertTransaction(parsed.data);
   if (!result.ok) redirect(`/transactions/new?type=${parsed.data.type}&error=${result.error === "reconcile" ? `reconcile:${result.difference ?? 0}` : result.error === "duplicate" ? `duplicate:${result.duplicate?.date ?? ""}:${result.duplicate?.net_amount ?? 0}` : result.error}`);
   redirect("/transactions?saved=1");
@@ -29,7 +29,7 @@ export async function updateTransaction(id: string, formData: FormData) {
   const session = await requireSession();
   const { supabase, profile } = session;
   const parsed = TransactionSchema.safeParse(formToObject(formData));
-  if (!parsed.success) redirect(`/transactions/${id}/edit?error=invalid`);
+  if (!parsed.success) redirect(`/transactions/${id}/edit?error=${isOrderRefIssue(parsed.error) ? "order_ref" : "invalid"}`);
 
   const row = toRow(parsed.data, profile.business_id);
   const effect = parsed.data.type === "expense" ? await stockEffectFor(supabase, parsed.data.category_id) : "none";

@@ -7,6 +7,8 @@ import type { ItemDraft } from "./ItemsEditor";
 import { ExpenseMoneyAndItems, IncomeMoneyAndItems } from "./MoneyAndItems";
 import type { Product } from "@/lib/inventory/valuation";
 import { todayIso } from "@/lib/money";
+import { splitNoOrderRef } from "@/lib/ledger/order-ref";
+import { OrderRefField } from "./OrderRefField";
 import {
   PEOPLE,
   PLATFORMS,
@@ -47,6 +49,8 @@ export function TransactionForm({
   admin?: boolean;
 }) {
   const isIncome = type === "income";
+  // The reason a sale has no order ID is stored at the end of the note; the form shows the two apart.
+  const noRef = splitNoOrderRef(initial?.note);
   const duplicate = error?.startsWith("duplicate:") ? error.split(":") : null;
   return (
     <form action={action} className="space-y-5">
@@ -93,9 +97,7 @@ export function TransactionForm({
           </Field>
         ) : null}
         {isIncome ? (
-          <Field label={tr("transactions.orderRef")} htmlFor="order_ref" hint={tr("transactions.orderRefHint")}>
-            <Input id="order_ref" name="order_ref" inputMode="numeric" autoComplete="off" defaultValue={initial?.order_ref ?? ""} placeholder={tr("common.optional")} className="font-mono" />
-          </Field>
+          <OrderRefField id="order_ref" initial={{ orderRef: initial?.order_ref ?? "", none: Boolean(noRef.reason), reason: noRef.reason ?? "" }} hint={tr("transactions.orderRefHint")} showError={error === "order_ref"} />
         ) : null}
         {isIncome && settlementStatus !== undefined ? (
           <Field label={tr("transactions.settlement")} htmlFor="settlement_status" hint={tr("transactions.settlementHint")}>
@@ -110,7 +112,7 @@ export function TransactionForm({
         ) : null}
       </div>
       <Field label={tr("common.note")} htmlFor="note" hint={tr("transactions.noteHint")}>
-        <Textarea id="note" name="note" defaultValue={initial?.note ?? ""} />
+        <Textarea id="note" name="note" defaultValue={noRef.note} />
       </Field>
       {duplicate ? (
         <div className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">
@@ -126,7 +128,7 @@ export function TransactionForm({
         </div>
       ) : error ? (
         <p className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">
-          {error === "denied" ? tr("roles.denied") : error === "items" ? tr("inventory.itemsRequired") : error.startsWith("reconcile") ? tr("inventory.reconcileBlocked", { diff: `฿${Math.abs(Number(error.split(":")[1] ?? 0)).toFixed(2)}` }) : error === "unspecified" ? tr("inventory.unspecifiedBlocked") : tr("common.error")}
+          {error === "denied" ? tr("roles.denied") : error === "items" ? tr("inventory.itemsRequired") : error.startsWith("reconcile") ? tr("inventory.reconcileBlocked", { diff: `฿${Math.abs(Number(error.split(":")[1] ?? 0)).toFixed(2)}` }) : error === "unspecified" ? tr("inventory.unspecifiedBlocked") : error === "order_ref" ? tr("orderRef.required") : tr("common.error")}
         </p>
       ) : null}
       <div className="sticky bottom-20 z-10 -mx-5 flex gap-2 border-t border-line bg-ivory/95 px-5 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">

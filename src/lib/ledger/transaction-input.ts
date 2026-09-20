@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, SETTLEMENT_STATUSES, type Transaction } from "@/lib/types";
+import { noteWithNoOrderRef, orderRefProblem } from "./order-ref";
 
 const money = z.coerce.number().min(0).max(99_999_999);
 
@@ -24,6 +25,8 @@ const IncomeSchema = z.object({
   customer_name: z.string().trim().max(200).optional(),
   /** The platform order number; one per platform, checked on save. */
   order_ref: z.string().trim().max(100).optional(),
+  /** "No order ID" was switched on: why this sale has none. Required when order_ref is empty. */
+  no_order_ref_reason: z.string().trim().max(300).optional(),
   /** Admin only: why a duplicate order number is being saved anyway. */
   override_reason: z.string().trim().max(300).optional(),
   note: z.string().trim().max(2000).optional(),
@@ -46,7 +49,15 @@ const ExpenseSchema = z.object({
   items: z.array(ItemSchema).max(50).optional(),
 });
 
-export const TransactionSchema = z.discriminatedUnion("type", [IncomeSchema, ExpenseSchema]);
+export const TransactionSchema = z.discriminatedUnion("type", [IncomeSchema, ExpenseSchema]).superRefine((input, ctx) => {
+  // A sale needs its order ID, or an explicit "No order ID" with a reason.
+  if (input.type === "income" && orderRefProblem(input.order_ref, input.no_order_ref_reason)) ctx.addIssue({ code: "custom", path: ["order_ref"], message: "order_ref_required" });
+});
+
+/** True when validation failed only because the sale has neither an order ID nor a reason for having none. */
+export function isOrderRefIssue(error: z.ZodError): boolean {
+  return error.issues.some((i) => i.path[0] === "order_ref");
+}
 export type TransactionInput = z.infer<typeof TransactionSchema>;
 
 export function formToObject(formData: FormData): Record<string, unknown> {
@@ -57,6 +68,7 @@ export function formToObject(formData: FormData): Record<string, unknown> {
   if (out.net_amount === "") delete out.net_amount;
   if (out.quantity === "") delete out.quantity;
   if (out.order_ref === "") delete out.order_ref;
+  if (out.no_order_ref_reason === "") delete out.no_order_ref_reason;
   if (out.override_reason === "") delete out.override_reason;
   // The items editor posts its lines as JSON in one hidden field.
   if (typeof out.items === "string") {
@@ -89,7 +101,7 @@ export function toRow(input: TransactionInput, businessId: string): TransactionI
       category_id: null,
       customer_name: input.customer_name ? input.customer_name : null,
       order_ref: input.order_ref ? input.order_ref : null,
-      note: input.note ?? "",
+      note: noteWithNoOrderRef(input.note, input.order_ref ? null : input.no_order_ref_reason),
     };
   }
   return {

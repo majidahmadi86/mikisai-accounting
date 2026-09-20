@@ -20,6 +20,7 @@ import { round2, thb, todayIso } from "@/lib/money";
 import { estimateNet } from "@/lib/parse/estimate";
 import { PEOPLE, PLATFORMS, PRODUCT_LINES, type Person, type Platform, type ProductLine, type TransactionType } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { OrderRefField, orderRefReady, type OrderRefValue } from "@/components/transactions/OrderRefField";
 import { useQuickEntry } from "./QuickEntryProvider";
 import { TransferSheet } from "./TransferSheet";
 import { QuickOrderSheet } from "./QuickOrderSheet";
@@ -89,6 +90,8 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
     return wanted && data.categories.some((c) => c.id === wanted) ? wanted : data.categories[0]?.id ?? "";
   });
   const [customer, setCustomer] = useState(retryInput?.type === "income" ? (retryInput.customer_name ?? "") : "");
+  const [orderRef, setOrderRef] = useState<OrderRefValue>(retryInput?.type === "income" ? { orderRef: retryInput.order_ref ?? "", none: Boolean(retryInput.no_order_ref_reason), reason: retryInput.no_order_ref_reason ?? "" } : { orderRef: "", none: false, reason: "" });
+  const [refChecked, setRefChecked] = useState(false);
   const [note, setNote] = useState(retryInput?.note ?? "");
   const [showNote, setShowNote] = useState(Boolean(retryInput?.note));
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +165,11 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
       amountRef.current?.focus();
       return;
     }
+    if (isIncome && !orderRefReady(orderRef)) {
+      setRefChecked(true);
+      setError(orderRef.none ? t("orderRef.reasonRequired") : t("orderRef.required"));
+      return;
+    }
     if (needsItems && stockEffect === "purchase" && (unitCost == null || unitCost <= 0)) {
       setError(t("inventory.unitCostRequired"));
       return;
@@ -174,7 +182,7 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
 
     const items = needsItems && pid ? [{ product_id: pid, qty: quantity, unit_price: isIncome ? round2(amount / quantity) : undefined, unit_cost: !isIncome ? (unitCost ?? undefined) : undefined }] : undefined;
     const input: TransactionInput = isIncome
-      ? { type: "income", date, platform, product_line: productLine, gross_amount: amount, net_amount: netOverride ?? estimate ?? amount, quantity, received_by: person, customer_name: customer.trim() || undefined, note: note.trim() || undefined, items: items! }
+      ? { type: "income", date, platform, product_line: productLine, gross_amount: amount, net_amount: netOverride ?? estimate ?? amount, quantity, received_by: person, customer_name: customer.trim() || undefined, order_ref: orderRef.none ? undefined : orderRef.orderRef.trim(), no_order_ref_reason: orderRef.none ? orderRef.reason.trim() : undefined, note: note.trim() || undefined, items: items! }
       : { type: "expense", date, platform, product_line: productLine, amount, quantity, payer: person, category_id: category, note: note.trim() || undefined, items };
 
     remember({ platform, product: productLine, category, productId: pid ?? undefined });
@@ -187,6 +195,8 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
       setNetText("");
       setEditNet(false);
       setCustomer("");
+      setOrderRef({ orderRef: "", none: false, reason: "" });
+      setRefChecked(false);
       setNote("");
       setQuantity(1);
       window.setTimeout(() => amountRef.current?.focus(), 30);
@@ -437,6 +447,12 @@ export function QuickEntrySheet({ initialType, retryInput }: { initialType: Tran
               </Field>
             </div>
           )}
+
+          {isIncome ? (
+            <div className="mt-4">
+              <OrderRefField id="qe-ref" value={orderRef} onChange={setOrderRef} showError={refChecked} />
+            </div>
+          ) : null}
 
           {isIncome ? (
             <div className="mt-4">

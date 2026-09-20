@@ -5,7 +5,7 @@ import { quickAddTransaction } from "@/app/(app)/transactions/actions";
 import { ProductPicker } from "@/components/products/ProductPicker";
 import { Button } from "@/components/ui/Button";
 import { Chips } from "@/components/ui/Chips";
-import { Field, Input } from "@/components/ui/Field";
+import { Field } from "@/components/ui/Field";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { expectedNetPerUnit, salePriceFor } from "@/lib/inventory/product-stats";
 import { shortProductName } from "@/lib/inventory/units";
@@ -13,6 +13,7 @@ import type { TransactionInput } from "@/lib/ledger/transaction-input";
 import { round2, thb, todayIso } from "@/lib/money";
 import { SETTLEMENT_STATUSES, type Platform, type SettlementStatus } from "@/lib/types";
 import { statusName } from "@/lib/labels";
+import { OrderRefField, orderRefReady, type OrderRefValue } from "@/components/transactions/OrderRefField";
 import { useQuickEntry } from "./QuickEntryProvider";
 
 /**
@@ -27,7 +28,8 @@ export function QuickOrderSheet({ onSaved, onError }: { onSaved: (message: strin
   const products = useMemo(() => data.products.filter((p) => p.active), [data.products]);
   const [productId, setProductId] = useState<string>(() => (data.lastProductId && products.some((p) => p.id === data.lastProductId) ? data.lastProductId : (products[0]?.id ?? "")));
   const [platform] = useState<Platform>(data.lastPlatform);
-  const [orderRef, setOrderRef] = useState("");
+  const [orderRef, setOrderRef] = useState<OrderRefValue>({ orderRef: "", none: false, reason: "" });
+  const [refChecked, setRefChecked] = useState(false);
   const [qty, setQty] = useState(1);
   const [receiveText, setReceiveText] = useState("");
   const [touched, setTouched] = useState(false);
@@ -47,6 +49,7 @@ export function QuickOrderSheet({ onSaved, onError }: { onSaved: (message: strin
   async function save() {
     if (!product) return setError(t("import.needProducts"));
     if (!(receive > 0)) return setError(t("quick.amountRequired"));
+    if (!orderRefReady(orderRef)) return setRefChecked(true);
     setError(null);
     setBusy(true);
     const gross = listPrice > 0 ? round2(listPrice * qty) : receive;
@@ -59,7 +62,8 @@ export function QuickOrderSheet({ onSaved, onError }: { onSaved: (message: strin
       net_amount: receive,
       quantity: qty,
       received_by: data.person,
-      order_ref: orderRef.trim() || undefined,
+      order_ref: orderRef.none ? undefined : orderRef.orderRef.trim(),
+      no_order_ref_reason: orderRef.none ? orderRef.reason.trim() : undefined,
       settlement_status: status,
       items: [{ product_id: product.id, qty, unit_price: round2(gross / qty) }],
     };
@@ -92,9 +96,7 @@ export function QuickOrderSheet({ onSaved, onError }: { onSaved: (message: strin
       ) : null}
 
       <div className="mt-4">
-        <Field label={t("transactions.orderRef")} htmlFor="qo-ref" hint={t("quick.orderRefHint")}>
-          <Input id="qo-ref" inputMode="numeric" autoComplete="off" value={orderRef} onChange={(e) => setOrderRef(e.target.value)} placeholder="5860…" className="font-mono" />
-        </Field>
+        <OrderRefField id="qo-ref" value={orderRef} onChange={setOrderRef} hint={t("quick.orderRefHint")} showError={refChecked} />
       </div>
 
       <div className="mt-4">

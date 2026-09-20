@@ -33,7 +33,7 @@ describe("quantities are whole units", () => {
 
   it("a sale with qty 1 and one with qty 10 both validate as a whole", () => {
     for (const qty of [1, 10]) {
-      const r = TransactionSchema.safeParse({ type: "income", date: "2026-09-16", platform: "tiktok", product_line: "sugar", gross_amount: 399 * qty, quantity: qty, received_by: "sai", items: [{ product_id: "00000000-0000-4000-8000-0000000000b1", qty, unit_price: 399 }] });
+      const r = TransactionSchema.safeParse({ type: "income", date: "2026-09-16", platform: "tiktok", product_line: "sugar", gross_amount: 399 * qty, quantity: qty, received_by: "sai", order_ref: "586000000000000001", items: [{ product_id: "00000000-0000-4000-8000-0000000000b1", qty, unit_price: 399 }] });
       expect(r.success).toBe(true);
     }
   });
