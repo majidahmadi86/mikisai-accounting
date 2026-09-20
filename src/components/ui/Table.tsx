@@ -11,11 +11,12 @@ type Align = "left" | "right" | "center";
  * the expandable row detail. No table scrolls sideways; below 768px callers
  * render stacked cards instead.
  */
-export type ColKind = "date" | "id" | "money" | "num" | "short" | "long" | "pill" | "status" | "action";
+export type ColKind = "date" | "datetime" | "id" | "money" | "num" | "short" | "long" | "pill" | "status" | "action";
 export type ColPriority = "primary" | "secondary" | "tertiary";
 
 const KIND_WIDTH: Record<ColKind, string> = {
   date: "w-[7rem]",
+  datetime: "w-[10.5rem]",
   id: "w-[11.5rem]",
   money: "w-[7.25rem]",
   num: "w-[5.25rem]",
@@ -38,11 +39,11 @@ const isNumeric = (kind?: ColKind) => kind === "money" || kind === "num";
 
 /**
  * Desktop table. On phones callers render stacked cards instead, so the
- * table is hidden below the md breakpoint unless mobile="show" is passed.
+ * table is hidden below the lg breakpoint (1024px) unless mobile="show" is passed.
  */
 export function Table({ children, className, mobile = "hidden" }: { children: React.ReactNode; className?: string; mobile?: "hidden" | "show" }) {
   return (
-    <div className={cn("min-w-0 max-w-full rounded-card border border-line bg-card", mobile === "hidden" ? "hidden md:block" : "", className)}>
+    <div className={cn("min-w-0 max-w-full rounded-card border border-line bg-card", mobile === "hidden" ? "hidden lg:block" : "", className)}>
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm">{children}</table>
     </div>
   );
@@ -78,8 +79,8 @@ export function Td({ children, className, align, kind, priority = "primary", tit
         "border-b border-line/70 px-3 py-2.5 align-middle",
         a === "right" && "text-right tabular whitespace-nowrap",
         a === "center" && "text-center",
-        (kind === "date" || kind === "id") && "whitespace-nowrap",
-        kind === "date" && "tabular",
+        (kind === "date" || kind === "datetime" || kind === "id") && "whitespace-nowrap",
+        (kind === "date" || kind === "datetime") && "tabular",
         kind === "action" && "px-1.5",
         PRIORITY[priority],
         className,
