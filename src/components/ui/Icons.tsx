@@ -146,3 +146,47 @@ export function SearchIcon(p: IconProps) {
     </Svg>
   );
 }
+
+export function ChevronDownIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="m6 9 6 6 6-6" />
+    </Svg>
+  );
+}
+
+export function EditIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 20h4L19 9l-4-4L4 16z" />
+      <path d="m13.5 6.5 4 4" />
+    </Svg>
+  );
+}
+
+export function OpenIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M9 6h9v9" />
+      <path d="M18 6 7 17" />
+    </Svg>
+  );
+}
+
+export function MatchIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 7h11M4 12h7M4 17h5" />
+      <path d="m13 16 3 3 5-6" />
+    </Svg>
+  );
+}
+
+export function TrashIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" />
+      <path d="M10.5 11v5M13.5 11v5" />
+    </Svg>
+  );
+}

@@ -1252,6 +1252,10 @@ const en = {
   "search.keys": "Up and down arrows to move, Enter to open, Esc to close.",
   "nav.moreMenu": "More pages",
   "nav.allPages": "All pages",
+  "table.showDetail": "Show details",
+  "table.hideDetail": "Hide details",
+  "table.fullName": "Full product name",
+  "table.recorded": "Recorded",
 } as const;
 
 export type DictionaryKey = keyof typeof en;
@@ -2507,6 +2511,10 @@ const th: Record<DictionaryKey, string> = {
   "search.keys": "ใช้ลูกศรขึ้นลงเพื่อเลื่อน กด Enter เพื่อเปิด กด Esc เพื่อปิด",
   "nav.moreMenu": "หน้าอื่น ๆ",
   "nav.allPages": "ทุกหน้า",
+  "table.showDetail": "แสดงรายละเอียด",
+  "table.hideDetail": "ซ่อนรายละเอียด",
+  "table.fullName": "ชื่อสินค้าเต็ม",
+  "table.recorded": "ผู้บันทึก",
 };
 
 export const dictionaries: Record<Locale, Record<DictionaryKey, string>> = { en, th };
