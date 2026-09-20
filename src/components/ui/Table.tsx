@@ -7,8 +7,8 @@ type Align = "left" | "right" | "center";
  * The table layout rule. Every column declares a content class, which fixes
  * its width (so headers line up with cells and the browser's auto layout never
  * decides), and a priority: primary is always visible, secondary appears from
- * 1280px, tertiary from 1440px. What a narrower screen hides is repeated in
- * the expandable row detail. No table scrolls sideways; below 768px callers
+ * 1280px, tertiary lives only in the row detail. What a narrower screen hides
+ * is repeated in the expandable row detail. No table scrolls sideways; below 768px callers
  * render stacked cards instead.
  */
 export type ColKind = "date" | "datetime" | "id" | "money" | "num" | "short" | "long" | "pill" | "status" | "action";
@@ -30,10 +30,10 @@ const KIND_WIDTH: Record<ColKind, string> = {
 /** An action column is as wide as its 44px icons plus the cell padding. */
 const ACTION_WIDTH: Record<number, string> = { 1: "w-[3.5rem]", 2: "w-[6.25rem]", 3: "w-[9rem]", 4: "w-[11.75rem]" };
 
-const PRIORITY: Record<ColPriority, string> = { primary: "", secondary: "hidden xl:table-cell", tertiary: "hidden wide:table-cell" };
+const PRIORITY: Record<ColPriority, string> = { primary: "", secondary: "hidden xl:table-cell", tertiary: "hidden" };
 
 /** Shown only while the matching column is hidden; used inside row details. */
-export const WHILE_HIDDEN: Record<ColPriority, string> = { primary: "", secondary: "xl:hidden", tertiary: "wide:hidden" };
+export const WHILE_HIDDEN: Record<ColPriority, string> = { primary: "", secondary: "xl:hidden", tertiary: "" };
 
 const isNumeric = (kind?: ColKind) => kind === "money" || kind === "num";
 
