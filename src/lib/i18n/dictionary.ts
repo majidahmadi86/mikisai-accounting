@@ -1241,6 +1241,17 @@ const en = {
   "insights.marginPlanMeans": "Planned {expected}, actual {actual} ({pct}).",
   "insights.marginPlanActionWorse": "Check discounts, fees and the last purchase price for this product.",
   "insights.marginPlanActionOk": "Nothing to do. Margin is where you planned it.",
+  "common.close": "Close",
+  "search.open": "Search (Ctrl K)",
+  "search.group.order": "Order ID",
+  "search.group.customer": "Customer",
+  "search.group.amount": "Amount",
+  "search.group.note": "Note",
+  "search.group.product": "Product",
+  "search.seeAll": "See every result for {q}",
+  "search.keys": "Up and down arrows to move, Enter to open, Esc to close.",
+  "nav.moreMenu": "More pages",
+  "nav.allPages": "All pages",
 } as const;
 
 export type DictionaryKey = keyof typeof en;
@@ -2485,6 +2496,17 @@ const th: Record<DictionaryKey, string> = {
   "insights.marginPlanMeans": "แผน {expected} จริง {actual} ({pct})",
   "insights.marginPlanActionWorse": "ตรวจส่วนลด ค่าธรรมเนียม และราคาซื้อล่าสุดของสินค้านี้",
   "insights.marginPlanActionOk": "ไม่ต้องทำอะไร กำไรอยู่ตามแผน",
+  "common.close": "ปิด",
+  "search.open": "ค้นหา (Ctrl K)",
+  "search.group.order": "เลขออเดอร์",
+  "search.group.customer": "ลูกค้า",
+  "search.group.amount": "ยอดเงิน",
+  "search.group.note": "หมายเหตุ",
+  "search.group.product": "สินค้า",
+  "search.seeAll": "ดูผลลัพธ์ทั้งหมดของ {q}",
+  "search.keys": "ใช้ลูกศรขึ้นลงเพื่อเลื่อน กด Enter เพื่อเปิด กด Esc เพื่อปิด",
+  "nav.moreMenu": "หน้าอื่น ๆ",
+  "nav.allPages": "ทุกหน้า",
 };
 
 export const dictionaries: Record<Locale, Record<DictionaryKey, string>> = { en, th };
