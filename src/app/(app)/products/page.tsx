@@ -6,13 +6,16 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { StockPill } from "@/components/products/StockPill";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
-import { Table, Td, Th } from "@/components/ui/Table";
+import { ExpandableRow } from "@/components/ui/ExpandableRow";
+import { OpenIcon } from "@/components/ui/Icons";
+import { IconLink, RowDetail, Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { photoUrl } from "@/lib/inventory/photos";
 import { valueStock } from "@/lib/inventory/valuation";
 import { productName } from "@/lib/labels";
+import { productLine } from "@/lib/search";
 import { thb } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
@@ -58,7 +61,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                 <Link href={`/products/${r.product.id}`} className="flex items-center gap-3 px-4 py-3">
                   {r.product.photo_path ? <Image src={photoUrl(r.product.photo_path)} alt="" width={48} height={48} unoptimized className="h-12 w-12 shrink-0 rounded-xl object-cover" /> : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-lavender-tint font-display text-lg text-berry">{r.product.name.slice(0, 1)}</span>}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-plum">{displayName(r.product)}</span>
+                    <span className="block truncate text-sm font-medium text-plum">{productLine(r.product, locale)}</span>
                     <span className="block truncate text-xs text-plum-faint">
                       {r.product.variant || productName(tr, r.product.product_line)} · {thb(r.product.default_price)}
                     </span>
@@ -79,45 +82,70 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
           <Table>
             <thead>
               <tr>
-                <Th>{tr("common.product")}</Th>
-                <Th>{tr("products.variant")}</Th>
-                <Th align="right">{tr("reports.onHand")}</Th>
-                <Th align="right">{tr("reports.avgCost")}</Th>
-                <Th align="right">{tr("products.standardCost")}</Th>
-                <Th align="right">{tr("products.standardPrice")}</Th>
-                <Th align="right">{tr("reports.value")}</Th>
-                <Th></Th>
+                <Th kind="long">{tr("common.product")}</Th>
+                <Th kind="status" align="right">
+                  {tr("reports.onHand")}
+                </Th>
+                <Th kind="money" priority="secondary">
+                  {tr("reports.avgCost")}
+                </Th>
+                <Th kind="money" priority="tertiary">
+                  {tr("products.standardCost")}
+                </Th>
+                <Th kind="money" priority="secondary">
+                  {tr("products.standardPrice")}
+                </Th>
+                <Th kind="money">{tr("reports.value")}</Th>
+                <Th kind="action" icons={2}>
+                  <span className="sr-only">{tr("products.detail")}</span>
+                </Th>
               </tr>
             </thead>
             <tbody>
               {stock.map((r) => (
-                <tr key={r.product.id} className={cn("hover:bg-lavender-tint", !r.product.active && "opacity-60")}>
-                  <Td className="font-medium text-plum">
+                <ExpandableRow
+                  key={r.product.id}
+                  className={cn(!r.product.active && "opacity-60")}
+                  label={productLine(r.product, locale)}
+                  actions={
+                    <IconLink href={`/products/${r.product.id}`} label={tr("products.detail")}>
+                      <OpenIcon className="h-5 w-5" />
+                    </IconLink>
+                  }
+                  detail={
+                    <RowDetail
+                      items={[
+                        { label: tr("table.fullName"), value: displayName(r.product), wide: true },
+                        { label: tr("products.variant"), value: r.product.variant },
+                        { label: tr("reports.avgCost"), value: <span className="tabular">{thb(r.avgCost)}</span>, priority: "secondary" },
+                        { label: tr("products.standardPrice"), value: <span className="tabular">{thb(r.product.default_price)}</span>, priority: "secondary" },
+                        { label: tr("products.standardCost"), value: <span className="tabular">{thb(r.product.default_cost)}</span>, priority: "tertiary" },
+                      ]}
+                    />
+                  }
+                >
+                  <Td kind="long" className="font-medium text-plum" title={displayName(r.product)}>
                     <Link href={`/products/${r.product.id}`} className="hover:underline">
-                      {displayName(r.product)}
+                      {productLine(r.product, locale)}
                     </Link>
                     {!r.product.active ? <Pill tone="neutral" className="ml-2">{tr("settings.inactive")}</Pill> : null}
                   </Td>
-                  <Td className="text-plum-soft">{r.product.variant}</Td>
-                  <Td align="right">
+                  <Td kind="status" align="right">
                     <StockPill row={r} tr={tr} />
                   </Td>
-                  <Td align="right">{thb(r.avgCost)}</Td>
-                  <Td align="right" className="text-plum-soft">
+                  <Td kind="money" priority="secondary">
+                    {thb(r.avgCost)}
+                  </Td>
+                  <Td kind="money" priority="tertiary" className="text-plum-soft">
                     {thb(r.product.default_cost)}
                   </Td>
-                  <Td align="right" className="text-plum-soft">
+                  <Td kind="money" priority="secondary" className="text-plum-soft">
                     {thb(r.product.default_price)}
                   </Td>
-                  <Td align="right" className="font-medium">
+                  <Td kind="money" className="font-medium">
                     {thb(r.value)}
                   </Td>
-                  <Td align="right">
-                    <Link href={`/products/${r.product.id}`} className="text-xs text-berry hover:underline whitespace-nowrap">
-                      {tr("products.detail")} →
-                    </Link>
-                  </Td>
-                </tr>
+                </ExpandableRow>
               ))}
             </tbody>
           </Table>
