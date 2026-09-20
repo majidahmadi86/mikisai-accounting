@@ -4,15 +4,17 @@ import { StockPill } from "@/components/products/StockPill";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
-import { DownloadIcon } from "@/components/ui/Icons";
+import { DownloadIcon, OpenIcon } from "@/components/ui/Icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
-import { Table, Td, Th } from "@/components/ui/Table";
+import { ExpandableRow } from "@/components/ui/ExpandableRow";
+import { IconLink, RowDetail, Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { buildStockPage } from "@/lib/inventory/stock-page";
 import { shortProductName } from "@/lib/inventory/units";
+import { productLine } from "@/lib/search";
 import { formatDate, thb, todayIso } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
@@ -172,7 +174,7 @@ export default async function StockPage({ searchParams }: PageProps<"/stock">) {
             <p className="text-sm text-plum-soft">{tr("stock.historyEmpty")}</p>
           ) : (
             <>
-              <ul className="space-y-2 md:hidden">
+              <ul className="space-y-2 lg:hidden">
                 {history.slice(0, 200).map((m) => (
                   <li key={m.id} className="rounded-xl border border-line bg-card px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
@@ -199,39 +201,68 @@ export default async function StockPage({ searchParams }: PageProps<"/stock">) {
               <Table>
                 <thead>
                   <tr>
-                    <Th>{tr("common.date")}</Th>
-                    <Th>{tr("common.product")}</Th>
-                    <Th>{tr("stock.kind")}</Th>
-                    <Th align="right">{tr("inventory.qty")}</Th>
-                    <Th align="right">{tr("stock.perUnit")}</Th>
-                    <Th>{tr("stock.recordedBy")}</Th>
-                    <Th>{tr("common.note")}</Th>
-                    <Th></Th>
+                    <Th kind="date">{tr("common.date")}</Th>
+                    <Th kind="long">{tr("common.product")}</Th>
+                    <Th kind="pill">{tr("stock.kind")}</Th>
+                    <Th kind="num">{tr("inventory.qty")}</Th>
+                    <Th kind="money" priority="secondary">
+                      {tr("stock.perUnit")}
+                    </Th>
+                    <Th kind="short" priority="secondary">
+                      {tr("stock.recordedBy")}
+                    </Th>
+                    <Th kind="long" priority="tertiary">
+                      {tr("common.note")}
+                    </Th>
+                    <Th kind="action" icons={2}>
+                      <span className="sr-only">{tr("table.showDetail")}</span>
+                    </Th>
                   </tr>
                 </thead>
                 <tbody>
                   {history.slice(0, 500).map((m) => (
-                    <tr key={m.id} className="hover:bg-lavender-tint">
-                      <Td className="whitespace-nowrap">{formatDate(m.date, locale)}</Td>
-                      <Td className="text-plum">{shortProductName(m.product, locale)}</Td>
-                      <Td>
+                    <ExpandableRow
+                      key={m.id}
+                      label={`${formatDate(m.date, locale)} ${productLine(m.product, locale)}`}
+                      actions={
+                        m.transaction_id ? (
+                          <IconLink href={`/transactions/${m.transaction_id}/edit`} label={tr("stock.openRow")}>
+                            <OpenIcon className="h-5 w-5" />
+                          </IconLink>
+                        ) : null
+                      }
+                      detail={
+                        <RowDetail
+                          items={[
+                            { label: tr("table.fullName"), value: locale === "th" && m.product.name_th ? m.product.name_th : m.product.name, wide: true },
+                            { label: tr("stock.perUnit"), value: m.perUnit != null ? <span className="tabular">{thb(m.perUnit)}</span> : null, priority: "secondary" },
+                            { label: tr("stock.recordedBy"), value: m.who, priority: "secondary" },
+                            { label: tr("common.note"), value: m.note, wide: true },
+                          ]}
+                        />
+                      }
+                    >
+                      <Td kind="date">{formatDate(m.date, locale)}</Td>
+                      <Td kind="long" className="text-plum" title={m.product.name}>
+                        {productLine(m.product, locale)}
+                      </Td>
+                      <Td kind="pill">
                         <Pill tone={kindTone[m.kind]}>{kindName(m.kind)}</Pill>
                       </Td>
-                      <Td align="right" className={m.qty > 0 ? "text-success" : ""}>
+                      <Td kind="num" className={m.qty > 0 ? "text-success" : ""}>
                         {m.qty > 0 ? "+" : ""}
                         {m.qty}
                       </Td>
-                      <Td align="right">{m.perUnit != null ? thb(m.perUnit) : ""}</Td>
-                      <Td className="text-plum-soft">{m.who ?? ""}</Td>
-                      <Td className="max-w-56 truncate text-plum-faint">{m.note}</Td>
-                      <Td align="right">
-                        {m.transaction_id ? (
-                          <Link href={`/transactions/${m.transaction_id}/edit`} className="whitespace-nowrap text-xs text-berry hover:underline">
-                            {tr("stock.openRow")} →
-                          </Link>
-                        ) : null}
+                      <Td kind="money" priority="secondary">
+                        {m.perUnit != null ? thb(m.perUnit) : ""}
                       </Td>
-                    </tr>
+                      <Td kind="short" priority="secondary" className="text-plum-soft">
+                        {m.who ?? ""}
+                      </Td>
+                      <Td kind="long" priority="tertiary" className="text-plum-faint">
+                        {m.note ?? ""}
+                      </Td>
+                    </ExpandableRow>
                   ))}
                 </tbody>
               </Table>
