@@ -36,7 +36,8 @@ const shots = existsSync("qa-output/shots") ? readdirSync("qa-output/shots").sor
 
 let md = `# QA report · MikiSai Accounting v2.5 to v3.0\n\n`;
 md += `Generated ${new Date().toISOString()} from ${total} recorded checks across ${routes.length} routes. `;
-md += failed.length ? `**${failed.length} check(s) failing.**\n\n` : `**All checks pass; zero known defects.**\n\n`;
+const open = defects.filter((d) => d.status !== "fixed");
+md += failed.length ? `**${failed.length} check(s) failing.**\n\n` : open.length ? `**All checks pass; ${open.length} defect(s) still open, listed below.**\n\n` : `**All checks pass; zero known defects.**\n\n`;
 md += `Each cell is the number of checks that passed for that route as that role, at that viewport (phone = 375px, laptop = 1024px, desktop1280 = 1280px, desktop = 1440px), in that language. A check is one assertion group: page loads with the right heading, page invariants (document scrollWidth equals window.innerWidth, no element wider than the viewport, header scrollWidth equals clientWidth from 768px, no raw dictionary key, no unfilled placeholder, no em dash, a heading), no console errors, plus the form, export and role checks the flow specs record.\n\n`;
 
 md += `## Route × role × viewport × language\n\n| Route | ${combos.map(([r, v, l]) => `${r} · ${v} · ${l}`).join(" | ")} |\n|---|${combos.map(() => "---").join("|")}|\n`;

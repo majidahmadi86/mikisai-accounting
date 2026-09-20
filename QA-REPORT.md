@@ -1,6 +1,6 @@
 # QA report · MikiSai Accounting v2.5 to v3.0
 
-Generated 2026-09-20T10:09:48.148Z from 1424 recorded checks across 31 routes. **All checks pass; zero known defects.**
+Generated 2026-09-20T10:10:17.941Z from 1424 recorded checks across 31 routes. **All checks pass; 1 defect(s) still open, listed below.**
 
 Each cell is the number of checks that passed for that route as that role, at that viewport (phone = 375px, laptop = 1024px, desktop1280 = 1280px, desktop = 1440px), in that language. A check is one assertion group: page loads with the right heading, page invariants (document scrollWidth equals window.innerWidth, no element wider than the viewport, header scrollWidth equals clientWidth from 768px, no raw dictionary key, no unfilled placeholder, no em dash, a heading), no console errors, plus the form, export and role checks the flow specs record.
 
