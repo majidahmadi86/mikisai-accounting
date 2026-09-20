@@ -43,7 +43,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
             {toBuy.map((r) => (
               <li key={r.product.id}>
                 <Pill tone="berry">
-                  {r.product.variant || r.product.name} · {tr("units.backlogUnits", { n: r.backlog })}
+                  {productLine(r.product, locale)} · {tr("units.backlogUnits", { n: r.backlog })}
                 </Pill>
               </li>
             ))}
