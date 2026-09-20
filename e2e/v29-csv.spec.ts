@@ -71,11 +71,11 @@ test("Nightly panel: drop both exports, one review, one confirm; 70/30 payouts; 
   await expect(page.getByText("pays 2 of 2 order(s), ฿880.99")).toBeVisible();
   await expect(page.getByText("pays 1 of 1 order(s), ฿220.25")).toBeVisible();
   await page.getByRole("button", { name: "Show them" }).click();
-  await expect(page.getByText(`#${O1}`).first()).toBeVisible();
+  await expect(page.getByText(`#${O1}`).locator("visible=true").first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/nightly-review-mixed-1440.png`, fullPage: true });
 
   // The row that needs a look stays out tonight (no settlement yet); everything else in one confirm.
-  await page.locator("table thead input[type=checkbox]").first().uncheck();
+  await page.getByLabel(/rows will be saved/).uncheck();
   await page.getByRole("button", { name: /^Confirm 5$/ }).click();
   await expect(page.getByText(/2 new order\(s\), 1 cancellation\(s\), 2 payout\(s\)/)).toBeVisible({ timeout: 60_000 });
 

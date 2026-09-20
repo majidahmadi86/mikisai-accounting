@@ -13,9 +13,16 @@ config({ path: ".env.local" });
 
 export type Role = "admin" | "contributor";
 export type Lang = "en" | "th";
-export type Viewport = "phone" | "desktop";
+export type Viewport = "phone" | "phone390" | "tablet" | "laptop" | "desktop1280" | "desktop";
 
-export const VIEWPORTS: Record<Viewport, { width: number; height: number }> = { phone: { width: 375, height: 812 }, desktop: { width: 1440, height: 900 } };
+export const VIEWPORTS: Record<Viewport, { width: number; height: number }> = {
+  phone: { width: 375, height: 812 },
+  phone390: { width: 390, height: 844 },
+  tablet: { width: 768, height: 1024 },
+  laptop: { width: 1024, height: 768 },
+  desktop1280: { width: 1280, height: 800 },
+  desktop: { width: 1440, height: 900 },
+};
 export const CREDS: Record<Role, { email: string; password: string }> = {
   admin: { email: process.env.SEED_MIKE_EMAIL!, password: process.env.SEED_MIKE_PASSWORD! },
   contributor: { email: process.env.SEED_SAI_EMAIL!, password: process.env.SEED_SAI_PASSWORD! },
@@ -78,9 +85,53 @@ export async function pageInvariants(page: Page, width: number): Promise<void> {
   expect(text, "no em dash").not.toContain(String.fromCharCode(8212));
   expect(text, "no raw dictionary key").not.toMatch(/\b(?:reports|units|health|inventory|products|dashboard|transactions|common|nav|more|balance|insights|payouts|import|settings|audit|deleted|books|quick|tips|roles|transfer|customers|login)\.[a-zA-Z]+(?:\.[a-zA-Z_]+)?\b/);
   expect(text, "no unfilled placeholder").not.toMatch(/\{[a-z]+\}/);
-  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-  expect(scrollWidth, "page does not scroll sideways").toBeLessThanOrEqual(width + 1);
+  await widthInvariants(page, width);
   await expect(page.locator("h1").first(), "has a heading").toBeVisible();
+}
+
+/**
+ * Nothing scrolls sideways: the document is exactly as wide as the window, no
+ * visible element reaches past the viewport (text cut by an ellipsis aside), and from 768px the header fits
+ * its own box (scrollWidth equals clientWidth). Any failure is a defect.
+ */
+export async function widthInvariants(page: Page, width: number): Promise<void> {
+  const m = await page.evaluate(() => {
+    const vw = window.innerWidth;
+    const wide: string[] = [];
+    for (const el of Array.from(document.body.querySelectorAll<HTMLElement>("*"))) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      const style = getComputedStyle(el);
+      if (style.position === "fixed" && r.right <= vw + 1) continue;
+      if (style.visibility === "hidden" || el.closest(".sr-only")) continue;
+      if (r.right <= vw + 1 && r.width <= vw + 1) continue;
+      // Text cut by an ellipsis is fine: its box runs on, but a truncating ancestor that fits the viewport hides the rest. A scroll container is not an excuse, and neither is main.
+      let cut = false;
+      for (let a = el.parentElement; a && a !== document.body && a.tagName !== "MAIN"; a = a.parentElement) {
+        const o = getComputedStyle(a).overflowX;
+        if ((o === "hidden" || o === "clip") && a.getBoundingClientRect().right <= vw + 1) {
+          cut = true;
+          break;
+        }
+      }
+      if (!cut) wide.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)} (${Math.round(r.left)} to ${Math.round(r.right)})`);
+    }
+    const header = document.querySelector("header");
+    const nav = header?.querySelector("nav") ?? null;
+    return { vw, scrollWidth: document.documentElement.scrollWidth, wide: wide.slice(0, 5), header: header ? [header.scrollWidth, header.clientWidth] : null, nav: nav ? [nav.scrollWidth, nav.clientWidth] : null };
+  });
+  expect(m.vw, "viewport is the width under test").toBe(width);
+  expect(m.scrollWidth, "document scrollWidth equals window.innerWidth").toBe(m.vw);
+  expect(m.wide, "no element wider than the viewport").toEqual([]);
+  if (width >= 768 && m.header) {
+    expect(m.header[0], "header scrollWidth equals clientWidth").toBe(m.header[1]);
+    if (m.nav) expect(m.nav[0], "nav scrollWidth equals clientWidth").toBeLessThanOrEqual(m.nav[1]);
+  }
+}
+
+/** A fresh order ID for a probe sale: since v3.0 a sale needs one (or an explicit "No order ID" with a reason). */
+export function probeOrderId(): string {
+  return `5799${Date.now()}${Math.floor(Math.random() * 90 + 10)}`;
 }
 
 export function money(n: number): string {

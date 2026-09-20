@@ -4,7 +4,7 @@
  * carry a QA-PROBE note and are removed afterwards through the service role.
  */
 import { expect, test } from "@playwright/test";
-import { admin, BOX_ID, BUSINESS, check, cleanupProbes, login, money, pickProduct, PROBE, setLang, shot, VIEWPORTS } from "./helpers";
+import { admin, BOX_ID, BUSINESS, check, cleanupProbes, login, money, pickProduct, PROBE, probeOrderId, setLang, shot, VIEWPORTS } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 test.use({ viewport: VIEWPORTS.desktop });
@@ -36,6 +36,8 @@ test("income: new form saves, ledger and reports move, invalid lines are blocked
   await check(b, "invalid: lines that do not add up are refused with the difference", async () => {
     await page.locator("#gross_amount").fill("798");
     await page.locator("#net_amount").fill("754");
+    await page.locator("#order_ref").fill(probeOrderId());
+    await page.locator("#customer_name").fill(`${PROBE} income`);
     await page.getByLabel("Qty", { exact: true }).first().fill("2");
     await page.locator("#note").fill(`${PROBE} income`);
     // Tamper the hidden lines so qty x price is 399, not 798.
@@ -54,6 +56,8 @@ test("income: new form saves, ledger and reports move, invalid lines are blocked
   await check(b, "valid: qty 2 derives the unit price and saves", async () => {
     await page.locator("#gross_amount").fill("798");
     await page.locator("#net_amount").fill("754");
+    await page.locator("#order_ref").fill(probeOrderId());
+    await page.locator("#customer_name").fill(`${PROBE} income`);
     await pickProduct(page, "1 kg x 10 packs");
     const qty = page.getByLabel("Qty", { exact: true }).first();
     await qty.fill("2");
@@ -76,7 +80,7 @@ test("income: new form saves, ledger and reports move, invalid lines are blocked
     const now = new Date();
     const first = `${now.toISOString().slice(0, 7)}-01`;
     const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
-    const { data, error } = await admin.from("transactions").select("net_amount").eq("business_id", BUSINESS).eq("type", "income").is("deleted_at", null).gte("date", first).lt("date", next);
+    const { data, error } = await admin.from("transactions").select("net_amount").eq("business_id", BUSINESS).eq("type", "income").eq("status", "active").is("deleted_at", null).gte("date", first).lt("date", next); // a cancelled order is not revenue
     expect(error).toBeNull();
     const ledger = Math.round((data ?? []).reduce((a, r) => a + Number(r.net_amount), 0) * 100) / 100;
     expect(after).toBe(ledger);
@@ -119,6 +123,7 @@ test("quick entry: income with product chip and qty 2 saves and appears in the l
   await setLang(context, "en");
   await login(page, "admin");
   const b = base("/ (quick entry)");
+  const quickRef = probeOrderId();
   await check(b, "sheet opens, chips preselect the last product, qty stepper works, save", async () => {
     await page.getByRole("button", { name: /Add income or expense|^Add$/ }).first().click();
     await expect(page.getByRole("heading", { name: /Add to the ledger/ })).toBeVisible();
@@ -126,13 +131,14 @@ test("quick entry: income with product chip and qty 2 saves and appears in the l
     await page.getByRole("button", { name: "+1" }).click();
     await expect(page.locator("#qe-qty")).toHaveValue("2");
     await expect(page.locator("#qe-amount")).toHaveValue("798");
+    await page.locator("#qe-ref").fill(quickRef);
     await page.getByRole("button", { name: /Add a note/ }).click();
     await page.locator("#qe-note").fill(`${PROBE} quick`);
     await page.getByRole("button", { name: /^Save$/ }).click();
     // The sheet closes at once; the toast gains its Undo action only once the server has saved.
     await expect(page.getByRole("button", { name: /^Undo$/ })).toBeVisible({ timeout: 15_000 });
     await page.goto("/transactions");
-    await expect(page.locator("tr", { hasText: `${PROBE} quick` }).first()).toBeVisible();
+    await expect(page.locator("tr", { hasText: quickRef }).first()).toBeVisible();
   });
   await check(b, "invalid: amount empty is refused inline", async () => {
     await page.goto("/");
@@ -187,6 +193,7 @@ test("payouts: new payout, reconciliation marks the probe sale as in the bank, e
   await page.goto("/transactions/new?type=income");
   await page.locator("#gross_amount").fill("399");
   await page.locator("#net_amount").fill("377");
+  await page.locator("#order_ref").fill(probeOrderId());
   await page.locator("#customer_name").fill(`${PROBE} match`);
   await page.locator("#note").fill(`${PROBE} to-match`);
   await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
@@ -219,7 +226,7 @@ test("payouts: new payout, reconciliation marks the probe sale as in the bank, e
       const row = rows.nth(i);
       const box = row.locator('input[type="checkbox"]');
       if ((await box.count()) === 0) continue;
-      const wanted = (await row.innerText()).includes(`${PROBE} to-match`) || (await row.innerText()).includes("QA-PROBE");
+      const wanted = (await row.innerText()).includes(`${PROBE} match`);
       if ((await box.isChecked()) !== wanted) await box.click();
     }
     await expect(page.locator("table tbody tr").filter({ has: page.locator('input[type="checkbox"]:checked') })).toHaveCount(1);
@@ -343,7 +350,9 @@ test("units report toggles and data health run", async ({ page, context }) => {
       await all.click();
       expect(await page.locator("tbody tr").count()).toBeGreaterThan(before);
     }
-    await expect(page.locator("th", { hasText: /Period/ })).toHaveCSS("position", "sticky");
+    // v3.0: the table never scrolls sideways, so nothing needs to stick; its box fits its card.
+    const fit = await page.locator("main table").first().evaluate((t) => [t.parentElement!.scrollWidth, t.parentElement!.clientWidth]);
+    expect(fit[0]).toBe(fit[1]);
   });
   await check(base("/more/health"), "run again records a run and Home shows it", async () => {
     await page.goto("/more/health");

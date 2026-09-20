@@ -6,7 +6,7 @@
  * removed afterwards.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { admin, BUSINESS, check, cleanupProbes, login, PROBE, setLang, VIEWPORTS } from "./helpers";
+import { admin, BUSINESS, check, cleanupProbes, login, PROBE, probeOrderId, setLang, VIEWPORTS } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 test.use({ viewport: VIEWPORTS.desktop });
@@ -31,6 +31,7 @@ test("contributor creates four rows; admin edits and deletes each", async ({ bro
   await saiPage.goto("/transactions/new?type=income");
   await saiPage.locator("#gross_amount").fill("399");
   await saiPage.locator("#net_amount").fill("377");
+  await saiPage.locator("#order_ref").fill(probeOrderId());
   await saiPage.locator("#note").fill(`${PROBE} sai income`);
   await submit(saiPage).click();
   await expect(saiPage).toHaveURL(/saved=1/, { timeout: 15_000 });
@@ -73,9 +74,12 @@ test("contributor creates four rows; admin edits and deletes each", async ({ bro
     await page.locator("#customer_name").fill(`${PROBE} edited by mike`);
     await submit(page).click();
     await expect(page).toHaveURL(/saved=1/, { timeout: 15_000 });
-    const row = page.locator("tr", { hasText: `${PROBE} sai income` }).first();
-    await expect(row.getByText(/created by Sai/)).toBeVisible();
-    await expect(row.getByText(/edited by Mike/)).toBeVisible();
+    // The byline lives in the row detail since v3.0: open it from the chevron.
+    const row = page.locator("tr", { hasText: `${PROBE} edited by mike` }).first();
+    await row.getByRole("button", { name: /Show details/ }).click();
+    const detail = page.locator("tr", { hasText: /created by Sai/ }).first();
+    await expect(detail.getByText(/created by Sai/)).toBeVisible();
+    await expect(detail.getByText(/edited by Mike/)).toBeVisible();
   });
   await check(base("/transactions/[id]/edit"), "admin edits the contributor's expense", async () => {
     await page.goto(`/transactions/${expense!.id}/edit`);

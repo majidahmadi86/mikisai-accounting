@@ -52,7 +52,7 @@ test("every report export matches the screen", async ({ page, context }) => {
 
   for (const r of REPORTS) {
     const card = page.locator("h2", { hasText: new RegExp(`^${r.title}$`) }).first().locator("xpath=ancestor::*[contains(@class,'rounded-card')][1]");
-    const screenRows = await card.locator("table").first().locator("tbody tr").evaluateAll((trs) => trs.map((tr) => Array.from(tr.querySelectorAll("td")).map((td) => (td.textContent ?? "").trim())));
+    const screenRows = await card.locator("table").first().locator("tbody tr").evaluateAll((trs) => trs.map((tr) => Array.from(tr.querySelectorAll("td")).filter((td) => !td.querySelector("button[aria-expanded]")).map((td) => (td.textContent ?? "").trim())));
 
     await check(base("/reports"), `xlsx export ${r.id} equals the screen table`, async () => {
       const res = await page.request.get(`/reports/export?format=xlsx&report=${r.id}&period=month`);
