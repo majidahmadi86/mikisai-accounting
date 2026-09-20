@@ -7,7 +7,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
 import { ExpandableNote } from "@/components/ui/ExpandableNote";
-import { Table, Td, Th } from "@/components/ui/Table";
+import { ExpandableRow } from "@/components/ui/ExpandableRow";
+import { EditIcon, MatchIcon } from "@/components/ui/Icons";
+import { IconLink, RowDetail, Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
 import { getLocale, t } from "@/lib/i18n/server";
 import { platformName, platformTone } from "@/lib/labels";
@@ -120,49 +122,66 @@ export default async function PayoutsPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{tr("common.date")}</Th>
-                <Th>{tr("common.platform")}</Th>
-                <Th>{tr("payouts.receivedBy")}</Th>
-                <Th align="right">{tr("payouts.amountReceived")}</Th>
-                <Th>
+                <Th kind="date">{tr("common.date")}</Th>
+                <Th kind="pill" priority="secondary">
+                  {tr("common.platform")}
+                </Th>
+                <Th kind="short">{tr("payouts.receivedBy")}</Th>
+                <Th kind="money">{tr("payouts.amountReceived")}</Th>
+                <Th kind="long">
                   <span className="inline-flex items-center gap-1">
                     {tr("common.status")} <InfoTip text={tr("payouts.tipStatus")} />
                   </span>
                 </Th>
-                <Th>{tr("common.note")}</Th>
-                <Th></Th>
+                <Th kind="long" priority="tertiary">
+                  {tr("common.note")}
+                </Th>
+                <Th kind="action" icons={admin ? 4 : 3}>
+                  <span className="sr-only">{tr("table.showDetail")}</span>
+                </Th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((p) => {
-                  return (
-                  <tr key={p.id} className="hover:bg-lavender-tint">
-                    <Td className="whitespace-nowrap">{formatDate(p.date, locale)}</Td>
-                    <Td>
-                      <Pill tone={platformTone(p.platform)}>{platformName(tr, p.platform)}</Pill>
-                    </Td>
-                    <Td>{tr(`common.${p.received_by}`)}</Td>
-                    <Td align="right" className="font-medium">
-                      {thb(p.amount_received)}
-                    </Td>
-                    <Td>
-                      <Status p={p} />
-                    </Td>
-                    <Td className="max-w-56 text-plum-soft">{p.note ? <ExpandableNote text={p.note} /> : null}</Td>
-                    <Td align="right">
-                      <div className="flex items-center justify-end gap-3">
-                        <Link href={`/payouts/${p.id}/edit`} className="text-xs text-berry hover:underline whitespace-nowrap">
-                          {tr("common.edit")} →
-                        </Link>
-                        <Link href={`/payouts/${p.id}/reconcile`} className="text-xs text-berry hover:underline whitespace-nowrap">
-                          {tr("payouts.reconcile")} →
-                        </Link>
-                        {admin ? <SoftDeleteButton entity="payout" id={p.id} variant="ghost" className="px-2 text-xs" /> : null}
-                      </div>
-                    </Td>
-                  </tr>
-                );
-              })}
+              {rows.map((p) => (
+                <ExpandableRow
+                  key={p.id}
+                  label={`${formatDate(p.date, locale)} ${thb(p.amount_received)}`}
+                  actions={
+                    <>
+                      <IconLink href={`/payouts/${p.id}/edit`} label={tr("common.edit")}>
+                        <EditIcon className="h-5 w-5" />
+                      </IconLink>
+                      <IconLink href={`/payouts/${p.id}/reconcile`} label={tr("payouts.reconcile")}>
+                        <MatchIcon className="h-5 w-5" />
+                      </IconLink>
+                      {admin ? <SoftDeleteButton entity="payout" id={p.id} icon /> : null}
+                    </>
+                  }
+                  detail={
+                    <RowDetail
+                      items={[
+                        { label: tr("common.platform"), value: platformName(tr, p.platform), priority: "secondary" },
+                        { label: tr("common.note"), value: p.note, wide: true },
+                      ]}
+                    />
+                  }
+                >
+                  <Td kind="date">{formatDate(p.date, locale)}</Td>
+                  <Td kind="pill" priority="secondary">
+                    <Pill tone={platformTone(p.platform)}>{platformName(tr, p.platform)}</Pill>
+                  </Td>
+                  <Td kind="short">{tr(`common.${p.received_by}`)}</Td>
+                  <Td kind="money" className="font-medium">
+                    {thb(p.amount_received)}
+                  </Td>
+                  <Td>
+                    <Status p={p} />
+                  </Td>
+                  <Td kind="long" priority="tertiary" className="text-plum-soft">
+                    {p.note ?? ""}
+                  </Td>
+                </ExpandableRow>
+              ))}
             </tbody>
           </Table>
         </>
