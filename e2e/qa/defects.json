@@ -124,5 +124,59 @@
     "fix": "The input shows from 2xl; below that a search icon opens the Search page.",
     "commit": "32ff05e",
     "status": "fixed"
+  },
+  {
+    "id": "D15",
+    "route": "every route from 768px",
+    "found": "v3.0 width assertions",
+    "description": "The header nav was a sideways-scrolling strip: at 1024px the eight links plus the controls needed about 1050px of a 976px row, so the nav's scrollWidth exceeded its clientWidth.",
+    "fix": "Search input removed for an overlay button, wordmark steps aside below 1280px, Insights, More, language and sign out fold into a More menu between 768 and 1024px.",
+    "commit": "c6c1ce9",
+    "status": "fixed"
+  },
+  {
+    "id": "D16",
+    "route": "/products",
+    "found": "founder review, 20 Sept",
+    "description": "Full product names wrapped to five lines and the Details link was clipped at the right edge.",
+    "fix": "Short name and variant on one line, full name in the row detail and on hover, Details as a 44px icon; fixed column widths.",
+    "commit": "e4a9860",
+    "status": "fixed"
+  },
+  {
+    "id": "D17",
+    "route": "/transactions, /search",
+    "found": "founder review, 20 Sept",
+    "description": "At 1440px the product cell wrapped and the customer cell carried the TikTok product text and the byline.",
+    "fix": "Product on one line, buyer name only; note, byline and Mark cancelled in the row detail.",
+    "commit": "c25ea34",
+    "status": "fixed"
+  },
+  {
+    "id": "D18",
+    "route": "/reports/units",
+    "found": "v3.0 width assertions",
+    "description": "The Units table and the per-product strip scrolled sideways inside the card at every width.",
+    "fix": "Column priorities and cards below 1024px; the strip wraps.",
+    "commit": "f7090d9",
+    "status": "fixed"
+  },
+  {
+    "id": "D19",
+    "route": "/import",
+    "found": "v3.0 width assertions",
+    "description": "The thirteen-column editable review table and the nightly ready rows (min-width 640px) scrolled sideways.",
+    "fix": "Review is one editable card per order at every width; ready rows follow the table rule with cards below 1024px.",
+    "commit": "c576fbe",
+    "status": "fixed"
+  },
+  {
+    "id": "D20",
+    "route": "/more/health",
+    "found": "v3.0 QA sweep",
+    "description": "While the sweep's probe rows were being removed through the service role (which does not expire the app's ledger cache), Data health briefly listed report-total mismatches whose labels are internal ids such as units.sold, and the no-raw-key check flagged them. It passes on a clean ledger (rerun: 16 of 16).",
+    "fix": "None yet: a test artefact, but the ids are not plain words. Candidate for the next directive: translate the report-total labels.",
+    "commit": "",
+    "status": "open (transient, test data only)"
   }
 ]
