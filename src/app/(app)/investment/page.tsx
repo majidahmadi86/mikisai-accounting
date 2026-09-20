@@ -5,7 +5,9 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
-import { Table, Td, Th } from "@/components/ui/Table";
+import { ExpandableRow } from "@/components/ui/ExpandableRow";
+import { EditIcon } from "@/components/ui/Icons";
+import { IconLink, RowDetail, Table, Td, Th } from "@/components/ui/Table";
 import { requireSession } from "@/lib/auth";
 import { categoryLabel } from "@/lib/categories";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
@@ -100,7 +102,7 @@ export default async function InvestmentPage({ searchParams }: PageProps<"/inves
             <p className="text-sm text-plum-soft">{tr("investment.none")}</p>
           ) : (
             <>
-              <ul className="space-y-2 md:hidden">
+              <ul className="space-y-2 lg:hidden">
                 {inv.contributions.map((c) => (
                   <li key={c.id}>
                     <Link href={c.href} className="block rounded-xl border border-line bg-card px-4 py-3">
@@ -124,36 +126,62 @@ export default async function InvestmentPage({ searchParams }: PageProps<"/inves
               <Table>
                 <thead>
                   <tr>
-                    <Th>{tr("common.date")}</Th>
-                    <Th>{tr("investment.who")}</Th>
-                    <Th>{tr("investment.reason")}</Th>
-                    <Th>{tr("investment.details")}</Th>
-                    <Th align="right">{tr("common.amount")}</Th>
-                    <Th align="right">{tr("investment.runningShort")}</Th>
-                    <Th></Th>
+                    <Th kind="date">{tr("common.date")}</Th>
+                    <Th kind="num" align="left">
+                      {tr("investment.who")}
+                    </Th>
+                    <Th kind="status">{tr("investment.reason")}</Th>
+                    <Th kind="long">{tr("investment.details")}</Th>
+                    <Th kind="money">{tr("common.amount")}</Th>
+                    <Th kind="money" priority="secondary">
+                      {tr("investment.runningShort")}
+                    </Th>
+                    <Th kind="action" icons={2}>
+                      <span className="sr-only">{tr("table.showDetail")}</span>
+                    </Th>
                   </tr>
                 </thead>
                 <tbody>
                   {inv.contributions.map((c) => (
-                    <tr key={c.id} className="hover:bg-lavender-tint">
-                      <Td className="whitespace-nowrap">{formatDate(c.date, locale)}</Td>
-                      <Td className="text-plum">{who(c.who)}</Td>
-                      <Td>
-                        <Pill tone={c.kind === "capital" ? "lavender" : "neutral"}>{c.label}</Pill>
+                    <ExpandableRow
+                      key={c.id}
+                      label={`${formatDate(c.date, locale)} ${c.label}`}
+                      actions={
+                        <IconLink href={c.href} label={tr("common.edit")}>
+                          <EditIcon className="h-5 w-5" />
+                        </IconLink>
+                      }
+                      detail={
+                        <RowDetail
+                          items={[
+                            { label: tr("investment.reason"), value: c.label },
+                            { label: tr("investment.runningShort"), value: <span className="tabular">{thb(c.running)}</span>, priority: "secondary" },
+                            { label: tr("investment.details"), value: c.details, wide: true },
+                          ]}
+                        />
+                      }
+                    >
+                      <Td kind="date">{formatDate(c.date, locale)}</Td>
+                      <Td kind="num" align="left" className="text-plum">
+                        {who(c.who)}
                       </Td>
-                      <Td className="max-w-64 truncate text-plum-soft">{c.details}</Td>
-                      <Td align="right" className="font-medium">
+                      <Td kind="status">
+                        <Pill tone={c.kind === "capital" ? "lavender" : "neutral"} className="max-w-full">
+                          <span className="truncate" title={c.label}>
+                            {c.label}
+                          </span>
+                        </Pill>
+                      </Td>
+                      <Td kind="long" className="text-plum-soft">
+                        {c.details ?? ""}
+                      </Td>
+                      <Td kind="money" className="font-medium">
                         {thb(c.amount)}
                       </Td>
-                      <Td align="right" className="text-plum-soft">
+                      <Td kind="money" priority="secondary" className="text-plum-soft">
                         {thb(c.running)}
                       </Td>
-                      <Td align="right">
-                        <Link href={c.href} className="whitespace-nowrap text-xs text-berry hover:underline">
-                          {tr("common.edit")} →
-                        </Link>
-                      </Td>
-                    </tr>
+                    </ExpandableRow>
                   ))}
                 </tbody>
               </Table>
