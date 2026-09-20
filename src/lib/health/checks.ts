@@ -15,11 +15,21 @@ import type { ReportTx } from "@/lib/reports/build";
 import { tiktokProblems, type TiktokStatus } from "@/lib/tiktok/status";
 import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
+import { splitNoOrderRef } from "@/lib/ledger/order-ref";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
-export type HealthIssue = { id: string; label: string; href: string | null; detail?: string };
+export type HealthIssue = {
+  id: string;
+  label: string;
+  href: string | null;
+  detail?: string;
+  /** Numbers and text the page turns into a translated explanation (no order ID: reason; backlog: sold, bought, n). */
+  meta?: Record<string, string | number>;
+  /** Extra places to look, beyond href. */
+  links?: { href: string; kind: "deleted" | "orders" }[];
+};
 export type HealthCheck = { key: HealthKey; count: number; issues: HealthIssue[]; adminOnly: boolean; skipped: boolean };
 export type HealthResult = { ranAt: string; checks: HealthCheck[]; issues: number; ok: boolean };
 
@@ -179,6 +189,8 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("payout_unmatched", unmatched),
     check("transfer_no_reason", noReason),
     check("duplicate_order_ids", duplicates),
+    check("no_order_ref", ordersWithoutOrderRef(income, txLabel)),
+    check("backlog_no_purchase", backlogWithoutPurchase(input)),
     check("late_contributor_edit", lateEdits, { adminOnly: true, skipped: !input.audit }),
     check("no_expected_net", noExpectedNet),
     check("orphan_movements", orphanMovements),
@@ -194,6 +206,34 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
   ];
   const issues = checks.reduce((a, c) => a + c.count, 0);
   return { ranAt, checks, issues, ok: issues === 0 };
+}
+
+/** Live sales saved with no order ID: an import cannot recognise them, so the same order could be added twice. */
+function ordersWithoutOrderRef(income: HealthInput["transactions"], label: (t: HealthInput["transactions"][number]) => string): HealthIssue[] {
+  return income
+    .filter((t) => !t.order_ref?.trim() && (t.status ?? "active") === "active")
+    .map((t) => ({ id: t.id, label: label(t), href: `/transactions/${t.id}/edit`, meta: { reason: splitNoOrderRef(t.note).reason ?? "" } }));
+}
+
+/**
+ * A buy-to-order product has sold more units than were ever bought. Either a
+ * purchase was never recorded (or was deleted), or the orders are real and
+ * still unshipped; the row says how many were sold and bought and links to both places.
+ */
+function backlogWithoutPurchase(input: HealthInput): HealthIssue[] {
+  const page = buildStockPage({ products: input.products, movements: input.movements, items: input.items, names: new Map() });
+  return page.cards
+    .filter((c) => c.stock.backlog > 0 && c.stock.product.active)
+    .map((c) => ({
+      id: `backlog:${c.stock.product.id}`,
+      label: c.stock.product.short_name || c.stock.product.variant || c.stock.product.name,
+      href: `/stock?product=${c.stock.product.id}`,
+      meta: { sold: c.sold, bought: c.bought, n: c.stock.backlog },
+      links: [
+        { href: "/more/deleted", kind: "deleted" as const },
+        { href: `/transactions?type=income&product_id=${c.stock.product.id}`, kind: "orders" as const },
+      ],
+    }));
 }
 
 /** TikTok sales exist but nothing fed them for 36 hours: the nightly routine was skipped (or the API sync stopped). */

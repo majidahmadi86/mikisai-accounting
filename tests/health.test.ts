@@ -11,8 +11,29 @@ describe("data health", () => {
   it("is green on the clean real fixture, every report total matching the ledger", () => {
     const r = runHealthChecks(base(), REAL_TODAY);
     expect(r.checks.find((c) => c.key === "report_totals")!.issues).toEqual([]);
-    expect(r.issues).toBe(0);
-    expect(r.ok).toBe(true);
+    // The fixture predates order IDs and carries a real backlog, so only the two v3.0 guards speak up.
+    expect(r.checks.filter((c) => c.count > 0).map((c) => c.key).sort()).toEqual(["backlog_no_purchase", "no_order_ref"]);
+  });
+
+  it("lists sales without an order ID with their reason, and leaves cancelled ones out", () => {
+    const input = base();
+    for (const t of input.transactions) if (t.type === "income") t.order_ref = `5860${t.id}`;
+    const income = input.transactions.filter((t) => t.type === "income");
+    income[0].order_ref = null;
+    income[0].note = "friend · No order ID: cash sale at the market";
+    income[1].order_ref = null;
+    income[1].status = "cancelled";
+    const c = runHealthChecks(input, REAL_TODAY).checks.find((x) => x.key === "no_order_ref")!;
+    expect(c.count).toBe(1);
+    expect(c.issues[0]).toMatchObject({ id: income[0].id, href: `/transactions/${income[0].id}/edit`, meta: { reason: "cash sale at the market" } });
+  });
+
+  it("explains a backlog: sold, bought, and links to Recently deleted and to the orders", () => {
+    const c = runHealthChecks(base(), REAL_TODAY).checks.find((x) => x.key === "backlog_no_purchase")!;
+    expect(c.count).toBeGreaterThan(0);
+    const issue = c.issues.find((i) => i.id === `backlog:${BOX_ID}`)!;
+    expect(Number(issue.meta!.sold) - Number(issue.meta!.bought)).toBe(Number(issue.meta!.n));
+    expect(issue.links!.map((l) => l.href)).toEqual(["/more/deleted", `/transactions?type=income&product_id=${BOX_ID}`]);
   });
 
   it("catches two boxes entered as one, a sale without a product, a stale payout and a late contributor edit", () => {

@@ -50,9 +50,22 @@ export default async function DataHealthPage() {
               <ul className="mt-3 divide-y divide-line/60">
                 {c.issues.slice(0, 50).map((i, idx) => (
                   <li key={`${i.id}-${idx}`} className="flex items-center justify-between gap-3 py-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate text-plum">
-                      {i.label}
-                      {i.detail ? <span className="ml-2 text-xs text-plum-faint">{i.detail}</span> : null}
+                    <span className="min-w-0 flex-1 text-plum">
+                      <span className="block truncate">
+                        {i.label}
+                        {i.detail ? <span className="ml-2 text-xs text-plum-faint">{i.detail}</span> : null}
+                      </span>
+                      {c.key === "no_order_ref" ? <span className="block text-xs text-plum-soft">{i.meta?.reason ? tr("health.noDedupeReason", { reason: i.meta.reason }) : tr("health.noDedupe")}</span> : null}
+                      {c.key === "backlog_no_purchase" && i.meta ? <span className="block text-xs text-plum-soft">{tr("health.backlogExplain", { sold: i.meta.sold, bought: i.meta.bought, n: i.meta.n })}</span> : null}
+                      {i.links?.length ? (
+                        <span className="mt-0.5 flex flex-wrap gap-x-4 text-xs">
+                          {i.links.map((l) => (
+                            <Link key={l.href} href={l.href} className="inline-flex min-h-8 items-center font-medium text-berry hover:underline">
+                              {tr(l.kind === "deleted" ? "health.backlogDeleted" : "health.backlogOrders")} →
+                            </Link>
+                          ))}
+                        </span>
+                      ) : null}
                     </span>
                     {c.key === "date_assumed" ? <ConfirmTagButton id={i.id.replace(/:qty$/, "")} tag={i.id.endsWith(":qty") ? "qty_inferred" : "date_assumed"} /> : null}
                     {i.href ? (
