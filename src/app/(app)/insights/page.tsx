@@ -1,5 +1,5 @@
+import { InfoTip } from "@/components/ui/InfoTip";
 import Link from "next/link";
-import { AddButton } from "@/components/nav/AddButton";
 import { RefreshButton } from "@/components/insights/RefreshButton";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -52,7 +52,7 @@ export default async function InsightsPage() {
       <p className="mb-5 text-xs text-plum-faint">{tr("insights.asOf", { date: formatDate(today, locale) })}</p>
 
       {insights.products.length === 0 && insights.cash.length === 0 && insights.exceptions.length === 0 ? (
-        <EmptyState title={tr("insights.empty")} body={tr("insights.emptyBody")} action={<AddButton label={tr("dashboard.addFirst")} />} />
+        <EmptyState title={tr("insights.empty")} body={tr("insights.emptyBody")} />
       ) : (
         <div className="space-y-6">
           {narrative ? (
@@ -67,7 +67,9 @@ export default async function InsightsPage() {
 
           <section>
             <h2 className="text-2xl text-plum">{tr("insights.products")}</h2>
-            <p className="mb-3 text-sm text-plum-soft">{tr("insights.productsDesc")}</p>
+            <div className="mb-2">
+              <InfoTip text={tr("insights.productsDesc")} align="left" />
+            </div>
             <div className="grid gap-3 md:grid-cols-2">
               {insights.products.map((p) => (
                 <InsightCard
@@ -118,7 +120,9 @@ export default async function InsightsPage() {
 
           <section>
             <h2 className="text-2xl text-plum">{tr("reports.marginPlan")}</h2>
-            <p className="mb-3 text-sm text-plum-soft">{tr("insights.marginPlanDesc")}</p>
+            <div className="mb-2">
+              <InfoTip text={tr("insights.marginPlanDesc")} align="left" />
+            </div>
             {plan.length === 0 ? (
               <Card className="px-5 py-4 text-sm text-plum-soft">{tr("reports.marginPlanNone")}</Card>
             ) : (
@@ -145,7 +149,9 @@ export default async function InsightsPage() {
 
           <section>
             <h2 className="text-2xl text-plum">{tr("insights.drift")}</h2>
-            <p className="mb-3 text-sm text-plum-soft">{tr("insights.driftDesc")}</p>
+            <div className="mb-2">
+              <InfoTip text={tr("insights.driftDesc")} align="left" />
+            </div>
             {insights.drifting.length === 0 ? (
               <Card tone="success" className="px-5 py-4 text-sm text-success">
                 {tr("insights.noDrift")}
@@ -168,7 +174,9 @@ export default async function InsightsPage() {
 
           <section>
             <h2 className="text-2xl text-plum">{tr("insights.cash")}</h2>
-            <p className="mb-3 text-sm text-plum-soft">{tr("insights.cashDesc")}</p>
+            <div className="mb-2">
+              <InfoTip text={tr("insights.cashDesc")} align="left" />
+            </div>
             {insights.cash.length === 0 ? (
               <Card tone="success" className="px-5 py-4 text-sm text-success">
                 {tr("insights.cashNone")}

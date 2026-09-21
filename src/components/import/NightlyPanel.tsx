@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "@/components/ui/InfoTip";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { commitImport, mapSku, type CommitResult } from "@/app/(app)/import/actions";
@@ -209,7 +210,7 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
         {result.unmapped_skus.length ? (
           <Card className="px-5 py-4">
             <p className="font-display text-lg text-plum">{t("nightly.skusTitle", { n: result.unmapped_skus.length })}</p>
-            <p className="text-xs text-plum-soft">{t("nightly.skusHint")}</p>
+            <InfoTip text={t("nightly.skusHint")} align="left" />
             <ul className="mt-3 space-y-2">
               {result.unmapped_skus.map((s) => (
                 <li key={s.sku_key} className="flex flex-wrap items-center gap-2 text-sm">
@@ -243,7 +244,7 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
         {result.status_changes.length ? (
           <Card className="px-5 py-4">
             <p className="font-display text-lg text-plum">{t("nightly.changesTitle", { n: result.status_changes.length })}</p>
-            <p className="text-xs text-plum-soft">{t("nightly.changesHint")}</p>
+            <InfoTip text={t("nightly.changesHint")} align="left" />
             <ul className="mt-2 divide-y divide-line text-sm">
               {result.status_changes.map((c) => (
                 <li key={c.transaction_id} className="flex flex-wrap items-center gap-2 py-2">
@@ -259,7 +260,7 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
         {payouts.length ? (
           <Card className="px-5 py-4">
             <p className="font-display text-lg text-plum">{t("import.payoutsTitle", { n: payouts.length })}</p>
-            <p className="text-xs text-plum-soft">{t("nightly.payoutsHint")}</p>
+            <InfoTip text={t("nightly.payoutsHint")} align="left" />
             <ul className="mt-2 divide-y divide-line text-sm">
               {payouts.map((p) => (
                 <li key={p.key} className={cn("flex flex-wrap items-center gap-3 py-2", !p.include && "opacity-60")}>
@@ -298,7 +299,7 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
                 {showReady ? t("nightly.hideReady") : t("nightly.showReady")}
               </button>
             </div>
-            <p className="text-xs text-plum-soft">{t("nightly.readyHint")}</p>
+            <InfoTip text={t("nightly.readyHint")} align="left" />
             {showReady ? (
               <div className="mt-3">
                 <ul className="space-y-2 lg:hidden">
@@ -366,12 +367,12 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
     <Card className="mb-4 p-5 sm:p-6">
       <p className="eyebrow">{t("nightly.eyebrow")}</p>
       <p className="mt-1 font-display text-2xl text-plum">{t("nightly.title")}</p>
-      <p className="text-sm text-plum-soft">{t("nightly.subtitle")}</p>
+      <InfoTip text={t("nightly.subtitle")} align="left" />
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <DropZone id="nightly-orders" title={t("nightly.ordersTitle")} hint={t("nightly.ordersHint")} href={SELLER_CENTER_ORDERS} linkLabel={t("nightly.ordersLink")} disabled={reading} onFiles={add} />
         <DropZone id="nightly-finance" title={t("nightly.financeTitle")} hint={t("nightly.financeHint")} href={SELLER_CENTER_FINANCE} linkLabel={t("nightly.financeLink")} disabled={reading} onFiles={add} />
       </div>
-      <p className="mt-3 text-xs text-plum-faint">{t("nightly.anyZone")}</p>
+      <InfoTip text={t("nightly.anyZone")} align="left" />
       {reading ? <p className="mt-3 text-sm text-plum-soft">{t("import.readingTable")}…</p> : null}
       {error ? <p className="mt-3 text-sm text-berry">{error}</p> : null}
     </Card>

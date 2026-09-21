@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "@/components/ui/InfoTip";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { commitImport, dismissQueued } from "@/app/(app)/import/actions";
@@ -52,7 +53,7 @@ export function SyncQueue({ queued, settings, products }: { queued: QueuedOrder[
         <div>
           <p className="eyebrow">{t("tiktok.queueEyebrow")}</p>
           <p className="mt-1 font-display text-xl text-plum">{t("tiktok.queueTitle", { n: queued.length })}</p>
-          <p className="text-sm text-plum-soft">{t("tiktok.queueHint")}</p>
+          <InfoTip text={t("tiktok.queueHint")} align="left" />
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="ghost" disabled={pending || !chosen.length} onClick={() => start(async () => void (await dismissQueued(chosen.map((r) => r.key)), router.refresh()))}>

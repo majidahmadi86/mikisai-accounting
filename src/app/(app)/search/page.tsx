@@ -57,7 +57,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         </label>
       </form>
       {q ? <p className="mb-3 text-xs text-plum-faint">{tr("search.results", { n: rows.length, q })}</p> : null}
-      {q && rows.length === 0 ? <EmptyState title={tr("search.none")} body={tr("search.hint")} /> : null}
+      {q && rows.length === 0 ? <EmptyState title={tr("search.none")} /> : null}
       {rows.length ? <TransactionList rows={rows} tr={tr} locale={locale} categories={categories} itemsOf={itemsOf} byline={byline} admin={session.profile.role === "admin"} /> : null}
     </div>
   );

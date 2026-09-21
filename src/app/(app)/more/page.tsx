@@ -13,19 +13,19 @@ export default async function MorePage({ searchParams }: PageProps<"/more">) {
   const admin = session.profile.role === "admin";
 
   const items = [
-    { href: "/reports", title: tr("more.reports"), desc: tr("more.reportsDesc") },
-    { href: "/products", title: tr("nav.products"), desc: tr("products.subtitle") },
-    { href: "/stock", title: tr("stock.title"), desc: tr("stock.subtitle") },
-    { href: "/investment", title: tr("investment.title"), desc: tr("investment.subtitle") },
-    { href: "/import", title: tr("more.import"), desc: tr("more.importDesc") },
-    { href: "/more/connect-tiktok", title: tr("tiktok.title"), desc: tr("tiktok.moreDesc") },
-    { href: "/payouts", title: tr("more.payouts"), desc: tr("more.payoutsDesc") },
-    { href: "/customers", title: tr("more.customers"), desc: tr("more.customersDesc") },
-    { href: "/insights", title: tr("more.insights"), desc: tr("more.insightsDesc") },
-    { href: "/more/health", title: tr("health.title"), desc: tr("health.moreDesc") },
-    ...(admin ? [{ href: "/more/check-books", title: tr("more.checkBooks"), desc: tr("more.checkBooksDesc") }, { href: "/audit", title: tr("more.audit"), desc: tr("more.auditDesc") }, { href: "/more/deleted", title: tr("more.deleted"), desc: tr("more.deletedDesc") }] : []),
-    { href: "/settings", title: tr("more.settings"), desc: tr("more.settingsDesc") },
-    { href: "/more/help", title: tr("more.help"), desc: tr("more.helpDesc") },
+    { href: "/reports", title: tr("more.reports") },
+    { href: "/products", title: tr("nav.products") },
+    { href: "/stock", title: tr("stock.title") },
+    { href: "/investment", title: tr("investment.title") },
+    { href: "/import", title: tr("more.import") },
+    { href: "/more/connect-tiktok", title: tr("tiktok.title") },
+    { href: "/payouts", title: tr("more.payouts") },
+    { href: "/customers", title: tr("more.customers") },
+    { href: "/insights", title: tr("more.insights") },
+    { href: "/more/health", title: tr("health.title") },
+    ...(admin ? [{ href: "/more/check-books", title: tr("more.checkBooks") }, { href: "/audit", title: tr("more.audit") }, { href: "/more/deleted", title: tr("more.deleted") }] : []),
+    { href: "/settings", title: tr("more.settings") },
+    { href: "/more/help", title: tr("more.help") },
   ];
 
   return (
@@ -37,7 +37,6 @@ export default async function MorePage({ searchParams }: PageProps<"/more">) {
           <Link key={item.href} href={item.href} className="flex min-h-16 items-center gap-4 px-5 py-3 transition-colors hover:bg-lavender-tint">
             <span className="min-w-0 flex-1">
               <span className="block text-base font-medium text-plum">{item.title}</span>
-              <span className="block text-sm text-plum-soft">{item.desc}</span>
             </span>
             <ChevronRightIcon className="h-5 w-5 shrink-0 text-plum-faint" />
           </Link>

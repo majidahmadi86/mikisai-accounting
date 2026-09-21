@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { InfoTip } from "./InfoTip";
 
 export type CardTone = "card" | "berry" | "lavender" | "ivory" | "success" | "warning";
 
@@ -15,12 +16,14 @@ export function Card({ className, children, tone = "card" }: { className?: strin
   return <div className={cn("rounded-card shadow-[0_1px_2px_rgba(48,35,51,0.05)]", tones[tone], className)}>{children}</div>;
 }
 
+/** A card's title. Its explanation, when it has one, sits behind the info icon beside the title, never on the page. */
 export function CardHeader({ title, subtitle, action }: { title: React.ReactNode; subtitle?: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-3 sm:px-6">
-      <div className="min-w-0">
+      <div className="flex min-w-0 items-center gap-2">
         <h2 className="text-xl text-plum">{title}</h2>
-        {subtitle ? <p className="text-sm text-plum-soft mt-0.5">{subtitle}</p> : null}
+        {typeof subtitle === "string" && subtitle ? <InfoTip text={subtitle} align="left" /> : null}
+        {subtitle && typeof subtitle !== "string" ? <p className="mt-0.5 text-sm text-plum-soft">{subtitle}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>

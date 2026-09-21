@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "@/components/ui/InfoTip";
 import { Pill } from "@/components/ui/Pill";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { platformName, platformTone } from "@/lib/labels";
@@ -17,7 +18,7 @@ export function PayoutRows({ rows, onChange }: { rows: PayoutRow[]; onChange: (r
     <div className="rounded-card border border-line bg-card">
       <div className="border-b border-line px-4 py-3">
         <p className="font-display text-lg text-plum">{t("import.payoutsTitle", { n: rows.length })}</p>
-        <p className="text-xs text-plum-soft">{t("import.payoutsHint")}</p>
+        <InfoTip text={t("import.payoutsHint")} align="left" />
       </div>
       <ul className="divide-y divide-line">
         {rows.map((r) => (

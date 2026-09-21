@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "@/components/ui/InfoTip";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { commitImport, type CommitResult } from "@/app/(app)/import/actions";
@@ -165,9 +166,9 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-display text-xl text-plum">{t("import.reviewTitle")}</p>
-              <p className="text-sm text-plum-soft">{t("import.reviewSubtitle")}</p>
+              <InfoTip text={t("import.reviewSubtitle")} align="left" />
               <p className="mt-1 text-xs text-plum-faint">{t("import.reviewCounts", { fresh, changes, dupes, payouts: chosenPayouts })}</p>
-              <p className="mt-1 text-xs text-plum-soft">{t("import.reviewHint")}</p>
+              <InfoTip text={t("import.reviewHint")} align="left" />
             </div>
             <div className="flex w-full gap-2 sm:w-auto">
               <Button type="button" variant="ghost" onClick={reset}>
@@ -227,7 +228,7 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
       <Card className="p-5 sm:p-6">
         <p className="eyebrow">{t("import.screensEyebrow")}</p>
         <p className="mt-1 font-display text-xl text-plum">{t("import.screensTitle")}</p>
-        <p className="text-sm text-plum-soft">{t("import.screensHint")}</p>
+        <InfoTip text={t("import.screensHint")} align="left" />
         <div className="mt-3 grid gap-5 lg:grid-cols-2">
           <div className="space-y-3">
             <Field label={t("import.filesLabel")} htmlFor="files" hint={t("import.filesHint")}>

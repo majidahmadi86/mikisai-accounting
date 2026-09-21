@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { InfoTip } from "./InfoTip";
 
 /** 44px tall controls so every field is a comfortable touch target. */
 export const controlClass =
@@ -28,12 +29,21 @@ export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<H
   return <textarea className={cn(controlClass, "min-h-24", className)} {...props} />;
 }
 
+/**
+ * A labelled control. Help never sits on the page: a hint lives behind the
+ * info icon beside the label, so a form reads as labels and fields only.
+ */
 export function Field({ label, htmlFor, children, hint }: { label: React.ReactNode; htmlFor?: string; children: React.ReactNode; hint?: React.ReactNode }) {
   return (
     <div>
-      <Label htmlFor={htmlFor}>{label}</Label>
+      <div className="mb-1.5 flex items-center gap-2">
+        <label htmlFor={htmlFor} className="eyebrow block">
+          {label}
+        </label>
+        {typeof hint === "string" && hint ? <InfoTip text={hint} align="left" /> : null}
+      </div>
       {children}
-      {hint ? <p className="mt-1.5 text-xs leading-relaxed text-plum-soft">{hint}</p> : null}
+      {hint && typeof hint !== "string" ? <p className="mt-1.5 text-xs leading-relaxed text-plum-soft">{hint}</p> : null}
     </div>
   );
 }

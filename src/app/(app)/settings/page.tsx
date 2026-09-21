@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
@@ -51,11 +51,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             </Card>
           );
         })}
-        <p className="px-1 text-xs text-plum-faint tabular">{tr("settings.formula")}</p>
+        <InfoTip text={tr("settings.formula")} align="left" />
 
         <Card className="p-5">
           <p className="eyebrow">{tr("settings.exposureTitle")}</p>
-          <p className="mb-4 mt-1 text-sm text-plum-soft">{tr("settings.exposureDesc")}</p>
+          <div className="mb-3">
+            <InfoTip text={tr("settings.exposureDesc")} align="left" />
+          </div>
           <Field label={tr("settings.exposure")} htmlFor="exposure_limit" hint={tr("settings.exposureHint")}>
             <Input id="exposure_limit" name="exposure_limit" type="number" inputMode="decimal" step="100" min="0" defaultValue={snapshot.business.exposure_limit} className="tabular text-lg" readOnly={ro} />
           </Field>
@@ -76,12 +78,6 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       <div className="mt-6">
         <CategoryManager categories={snapshot.categories} tr={tr} admin={admin} />
       </div>
-      <p className="mt-6 text-sm text-plum-soft">
-        {tr("settings.productsMoved")}{" "}
-        <Link href="/products" className="font-medium text-berry hover:underline">
-          {tr("nav.products")} →
-        </Link>
-      </p>
     </div>
   );
 }
