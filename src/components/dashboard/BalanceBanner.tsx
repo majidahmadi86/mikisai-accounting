@@ -1,6 +1,7 @@
 import type { WhoOwesWhom } from "@/lib/truth";
 import type { Translator } from "@/lib/i18n/dictionary";
 import { thb } from "@/lib/money";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { cn } from "@/lib/cn";
 
 export function BalanceBanner({ balance, tr }: { balance: WhoOwesWhom; tr: Translator }) {
@@ -11,9 +12,10 @@ export function BalanceBanner({ balance, tr }: { balance: WhoOwesWhom; tr: Trans
 
   return (
     <section className={cn("mb-6 rounded-card border px-5 py-6 sm:mb-8 sm:px-8 sm:py-9", owes ? "bg-berry-tint border-berry/15" : "bg-success-tint border-success/20")}>
-      <p className={cn("eyebrow", owes ? "text-berry" : "text-success")}>{tr("dashboard.title")}</p>
+      <p className={cn("eyebrow flex items-center gap-2", owes ? "text-berry" : "text-success")}>
+        {tr("dashboard.title")} <InfoTip text={tr("dashboard.bannerHint")} align="left" />
+      </p>
       <h1 className={cn("mt-2 text-3xl leading-tight sm:text-5xl", owes ? "text-berry" : "text-success")}>{headline}</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-plum-soft">{tr("dashboard.bannerHint")}</p>
       <dl className="mt-5 grid max-w-xl grid-cols-2 gap-3 sm:mt-6 sm:gap-4">
         {(["mike", "sai"] as const).map((p) => (
           <div key={p} className="rounded-xl bg-card/80 px-4 py-3">

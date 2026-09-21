@@ -9,7 +9,7 @@ import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot, type LedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
-import { shortProductName } from "@/lib/inventory/units";
+import { productLine } from "@/lib/search";
 import { formatDateTime, todayIso } from "@/lib/money";
 import { stockPositions, whoOwesWhom } from "@/lib/truth";
 
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
           <span className="eyebrow mr-1">{tr("stock.title")} →</span>
           {stockRows.map((r) => (
             <span key={r.product.id} className="inline-flex items-center gap-1.5 text-xs text-plum">
-              <span className="max-w-32 truncate">{shortProductName(r.product, locale)}</span>
+              <span className="max-w-44 truncate">{productLine(r.product, locale)}</span>
               <StockPill row={r} tr={tr} />
             </span>
           ))}
