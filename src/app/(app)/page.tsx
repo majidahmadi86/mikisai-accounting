@@ -1,106 +1,40 @@
 import Link from "next/link";
 import { BalanceBanner } from "@/components/dashboard/BalanceBanner";
 import { AddButton } from "@/components/nav/AddButton";
+import { StockPill } from "@/components/products/StockPill";
 import { Tour } from "@/components/tour/Tour";
 import { ButtonLink } from "@/components/ui/Button";
-import { Card, CardHeader } from "@/components/ui/Card";
-import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
-import { RecordTransferButton } from "@/components/transfers/RecordTransferButton";
-import { QuickOrderButton } from "@/components/quick-entry/QuickOrderButton";
-import { InstallCard } from "@/components/pwa/InstallCard";
-import { relativeTime } from "@/lib/tiktok/status";
-import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
-import { SELLER_CENTER_FINANCE, SELLER_CENTER_ORDERS } from "@/lib/import/links";
-import { InfoTip } from "@/components/ui/InfoTip";
-import { Pill } from "@/components/ui/Pill";
-import { StatCard } from "@/components/ui/StatCard";
-import { ExpandableNote } from "@/components/ui/ExpandableNote";
+import { Card } from "@/components/ui/Card";
 import { requireSession } from "@/lib/auth";
-import { whoOwesWhom, stockPositions } from "@/lib/truth";
-import { getLedgerSnapshot } from "@/lib/data/ledger";
+import { getLedgerSnapshot, type LedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
-import { platformName, platformTone, statusName, statusTone } from "@/lib/labels";
-import { categoryById, categoryLabel } from "@/lib/categories";
-import { formatDate, thb } from "@/lib/money";
-import { PLATFORMS } from "@/lib/types";
-import { ItemsSummary } from "@/components/transactions/ItemsSummary";
-import { YesterdayCard } from "@/components/dashboard/YesterdayCard";
-import { buildYesterday } from "@/lib/dashboard/yesterday";
-import { summariseItems } from "@/lib/inventory/units";
-import { todayIso } from "@/lib/money";
-import { lastHealthRun } from "@/lib/health/run";
-import { payoutReminderDue } from "@/lib/payouts/partial";
+import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
 import { shortProductName } from "@/lib/inventory/units";
-import { StockPill } from "@/components/products/StockPill";
-import { formatDateTime } from "@/lib/money";
+import { formatDateTime, todayIso } from "@/lib/money";
+import { stockPositions, whoOwesWhom } from "@/lib/truth";
 
-export default async function DashboardPage({ searchParams }: PageProps<"/">) {
-  const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
+type Tr = ReturnType<typeof t>;
+
+/**
+ * Home holds three things only: who owes whom with the two partner cards, one
+ * routine card (the admin's nightly files, or the contributor's "record what
+ * you paid for"), and the Stock strip. Everything else lives on its own page.
+ */
+export default async function DashboardPage() {
+  const [session, locale] = await Promise.all([requireSession(), getLocale()]);
   const tr = t(locale);
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const admin = session.profile.role === "admin";
-  const categories = categoryById(snapshot.categories);
-
   const balance = whoOwesWhom(snapshot, todayIso());
-  const recent = snapshot.transactions.slice(0, 8);
-  const productsById = new Map(snapshot.products.map((p) => [p.id, p]));
-  const itemsOf = (id: string) => summariseItems(snapshot.items.filter((i) => i.transaction_id === id), productsById, locale, (n) => tr("transactions.items", { n }));
-  const yesterday = buildYesterday(snapshot, todayIso());
-  const health = await lastHealthRun(session.supabase, session.profile.business_id);
-  const reminder = payoutReminderDue(new Date(), balance.pendingTotal, snapshot.payouts.map((p) => p.date));
   const stockRows = stockPositions(snapshot).filter((r) => r.product.active);
-  const transfers = snapshot.transfers.slice(0, 20);
-  const pendingPlatforms = PLATFORMS.filter((p) => balance.pendingByPlatform[p].orders > 0);
-  const transferError = typeof sp.transfer === "string" ? sp.transfer : null;
-  const empty = snapshot.transactions.length === 0;
-
-  // Last import and the TikTok connection: inside the routine card for the admin, in a card of its own for Sai.
-  const importStatus = (
-    <p className="text-xs text-plum-faint">
-      <Link href="/import" className="hover:underline">
-        {snapshot.lastImport
-          ? tr("dashboard.lastImport", { source: tr(`dashboard.source.${snapshot.lastImport.source}`), time: formatDateTime(snapshot.lastImport.ran_at, locale), orders: snapshot.lastImport.orders, cancellations: snapshot.lastImport.cancellations, payouts: snapshot.lastImport.payouts })
-          : tr("dashboard.lastImportNone")}{" "}
-        →
-      </Link>
-      <br />
-      <Link href="/more/connect-tiktok" className={snapshot.tiktok.state === "expired" || snapshot.tiktok.state === "error" ? "font-medium text-berry hover:underline" : "hover:underline"}>
-        {snapshot.tiktok.connected
-          ? [
-              tr(`tiktok.home.${snapshot.tiktok.state === "connected" ? "connected" : "attention"}`),
-              snapshot.tiktok.last_sync_at ? tr("tiktok.lastSync", { time: relativeTime(snapshot.tiktok.last_sync_at, locale) }) : tr("tiktok.home.neverSynced"),
-              snapshot.tiktok.last_log ? tr("tiktok.newOrders", { n: snapshot.tiktok.last_log.orders_new }) : "",
-              snapshot.tiktok.queued ? tr("tiktok.toReview", { n: snapshot.tiktok.queued }) : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")
-          : tr("tiktok.home.notConnected")}{" "}
-        →
-      </Link>
-    </p>
-  );
 
   return (
     <div>
       <Tour autoOpen />
-      {!admin ? <InstallCard /> : null}
-      {admin ? (
-        <NightlyRoutine last={snapshot.lastTiktokImport} tr={tr} locale={locale}>
-          {importStatus}
-        </NightlyRoutine>
-      ) : null}
       <BalanceBanner balance={balance} tr={tr} />
-      {!admin ? <Card className="-mt-2 mb-6 px-5 py-3">{importStatus}</Card> : null}
-
-      {reminder ? (
-        <Link href="/payouts/new" className="mb-6 block rounded-card border border-lavender bg-lavender-tint px-5 py-4 transition-colors hover:bg-lavender-soft">
-          <p className="eyebrow">{tr("dashboard.payoutReminderTitle")}</p>
-          <p className="mt-1 text-sm text-plum">{tr("dashboard.payoutReminder")} →</p>
-        </Link>
-      ) : null}
-
+      {admin ? <NightlyRoutine last={snapshot.lastTiktokImport} lastImport={snapshot.lastImport} tr={tr} locale={locale} /> : <PaidForRoutine lastImport={snapshot.lastImport} tr={tr} locale={locale} />}
       {stockRows.length ? (
-        <Link href="/stock" className="mb-6 flex flex-wrap items-center gap-2 rounded-card border border-line bg-card px-4 py-3 transition-colors hover:bg-lavender-tint">
+        <Link href="/stock" className="flex flex-wrap items-center gap-2 rounded-card border border-line bg-card px-4 py-3 transition-colors hover:bg-lavender-tint">
           <span className="eyebrow mr-1">{tr("stock.title")} →</span>
           {stockRows.map((r) => (
             <span key={r.product.id} className="inline-flex items-center gap-1.5 text-xs text-plum">
@@ -110,193 +44,52 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           ))}
         </Link>
       ) : null}
-
-      <YesterdayCard data={yesterday} tr={tr} locale={locale} />
-
-      <p className="-mt-3 mb-6 text-xs text-plum-faint">
-        <Link href="/more/health" className={health && health.issues > 0 ? "font-medium text-warning-ink hover:underline" : "hover:underline"}>
-          {health ? (health.issues > 0 ? tr("health.homeIssues", { n: health.issues, time: formatDateTime(health.ran_at, locale) }) : tr("health.homeOk", { time: formatDateTime(health.ran_at, locale) })) : tr("health.homeNever")} →
-        </Link>
-      </p>
-
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label={tr("dashboard.settledIncome")} value={thb(balance.settledIncome)} tone="berry" info={<InfoTip text={tr("tips.settledIncome")} />} />
-        <StatCard label={tr("dashboard.expenses")} value={thb(balance.expenses)} info={<InfoTip text={tr("tips.expenses")} />} />
-        <StatCard label={tr("dashboard.netProfit")} value={thb(balance.netProfit)} info={<InfoTip text={tr("tips.netProfit")} />} />
-        <StatCard label={tr("dashboard.share")} value={thb(balance.target)} hint="50 / 50" info={<InfoTip text={tr("tips.share")} />} />
-      </div>
-
-      <div className="mb-6 grid gap-4 sm:gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-2">
-          <CardHeader title={tr("dashboard.pendingTitle")} subtitle={tr("dashboard.pendingSubtitle")} action={<InfoTip text={tr("tips.pending")} />} />
-          <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-            {pendingPlatforms.length === 0 ? (
-              <p className="text-sm text-plum-soft">{tr("dashboard.pendingNone")}</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {pendingPlatforms.map((p) => {
-                  const b = balance.pendingByPlatform[p];
-                  return (
-                    <li key={p} className="flex items-center justify-between py-3">
-                      <div>
-                        <Pill tone={platformTone(p)}>{platformName(tr, p)}</Pill>
-                        <p className="mt-1 text-xs text-plum-faint">
-                          {b.orders} {tr("common.orders")}
-                          {b.settled_not_withdrawn > 0 ? ` · ${statusName(tr, "settled_not_withdrawn")} ${thb(b.settled_not_withdrawn)}` : ""}
-                        </p>
-                      </div>
-                      <span className="font-medium text-xl tabular text-plum">{thb(b.total)}</span>
-                    </li>
-                  );
-                })}
-                <li className="flex items-center justify-between pt-3 text-sm">
-                  <span className="text-plum-soft">{tr("common.total")}</span>
-                  <span className="font-medium tabular">{thb(balance.pendingTotal)}</span>
-                </li>
-              </ul>
-            )}
-          </div>
-        </Card>
-
-        <Card className="lg:col-span-3">
-          <CardHeader
-            title={tr("dashboard.recentTitle")}
-            subtitle={tr("dashboard.recentSubtitle")}
-            action={
-              <Link href="/transactions" className="min-h-11 inline-flex items-center text-sm text-berry hover:underline whitespace-nowrap">
-                {tr("common.viewAll")} →
-              </Link>
-            }
-          />
-          <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-            {recent.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-lavender bg-lavender-tint/60 px-4 py-6 text-center">
-                <p className="text-sm text-plum-soft">{tr("dashboard.recentNone")}</p>
-                <div className="mt-3 flex justify-center">
-                  <AddButton label={tr("dashboard.addFirst")} />
-                </div>
-              </div>
-            ) : (
-              <ul className="divide-y divide-line">
-                {recent.map((row) => (
-                  <li key={row.id}>
-                    <Link href={`/transactions/${row.id}/edit`} className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-lavender-tint">
-                      <div className="min-w-0">
-                        <p className="line-clamp-2 text-sm text-plum">
-                          {row.type === "income" ? row.customer_name || platformName(tr, row.platform) : row.note || categoryLabel(categories.get(row.category_id ?? ""), locale) || tr("common.expense")}
-                        </p>
-                        <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-plum-faint">
-                          <span>{formatDate(row.date, locale)}</span>
-                          {(() => {
-                            const s = itemsOf(row.id);
-                            return s ? <span className="text-plum-soft">· <ItemsSummary label={s.label} lines={s.lines} /></span> : null;
-                          })()}
-                          <span>· {row.type === "income" ? tr(`common.${row.received_by ?? "mike"}`) : tr(`common.${row.payer ?? "mike"}`)}</span>
-                          {row.type === "income" && row.settlement ? (
-                            <Pill tone={statusTone(row.settlement.status)} className="px-2 py-0 text-[10px]">
-                              {statusName(tr, row.settlement.status)}
-                            </Pill>
-                          ) : null}
-                        </p>
-                      </div>
-                      <span className={`shrink-0 tabular font-medium ${row.type === "expense" ? "text-plum-soft" : "text-berry"}`}>
-                        {row.type === "expense" ? "-" : "+"}
-                        {thb(row.net_amount)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader title={tr("dashboard.transfersTitle")} subtitle={tr("dashboard.transfersSubtitle")} action={<InfoTip text={tr("dashboard.transferHint")} />} />
-        <div className="grid gap-5 px-5 pb-5 sm:px-6 sm:pb-6 lg:grid-cols-5">
-          <div className="lg:col-span-3">
-            {transfers.length === 0 ? (
-              <p className="text-sm text-plum-soft">{tr("dashboard.transfersNone")}</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {transfers.map((tf) => {
-                  return (
-                    <li key={tf.id} className="flex items-center justify-between gap-3 py-2.5">
-                      <Link href={`/transfers/${tf.id}/edit`} className="min-w-0 flex-1 rounded-lg transition-colors hover:bg-lavender-tint">
-                        <p className="text-sm text-plum">
-                          {tr(`common.${tf.from_person}`)} → {tr(`common.${tf.to_person}`)}
-                          <span className="ml-2 font-medium tabular">{thb(tf.amount)}</span>
-                          <Pill tone={tf.kind === "capital" ? "lavender" : "neutral"} className="ml-2">
-                            {tr(`transfer.reason.${tf.reason}`)}
-                          </Pill>
-                        </p>
-                        <p className="text-xs text-plum-faint">
-                          {formatDate(tf.date, locale)} · {tr("common.edit")} →
-                        </p>
-                        {tf.note ? <ExpandableNote text={tf.note} className="text-xs text-plum-soft" /> : null}
-                      </Link>
-                      {admin ? <SoftDeleteButton entity="internal_transfer" id={tf.id} variant="ghost" className="px-3 text-xs" /> : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-          <div className="rounded-xl bg-ivory-deep/70 p-4 lg:col-span-2">
-            <p className="text-sm text-plum-soft">{tr("dashboard.transferHint")}</p>
-            {transferError ? <p className="mt-2 rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">{tr("common.error")}</p> : null}
-            <RecordTransferButton className="mt-3 w-full sm:w-auto" />
-          </div>
-        </div>
-      </Card>
-
-      {empty ? null : (
-        <div className="mt-6 flex flex-wrap gap-2">
-          <QuickOrderButton variant="primary" />
-          <AddButton label={tr("transactions.addIncome")} type="income" variant="secondary" />
-          <AddButton label={tr("transactions.addExpense")} type="expense" variant="secondary" />
-          <ButtonLink href="/payouts/new" variant="secondary">
-            {tr("payouts.new")}
-          </ButtonLink>
-          <ButtonLink href="/import" variant="ghost">
-            {tr("import.title")} ↗
-          </ButtonLink>
-        </div>
-      )}
     </div>
   );
 }
 
-/** The admin's nightly TikTok routine: export, drop, confirm, with when it last ran and what it brought. */
-function NightlyRoutine({ last, tr, locale, children }: { last: { ran_at: string; orders: number; cancellations: number; payouts: number } | null; tr: ReturnType<typeof t>; locale: "en" | "th"; children?: React.ReactNode }) {
+/** The last time files or screenshots fed the ledger. A sale typed by hand is not an import. */
+function LastImportLine({ lastImport, tr, locale }: { lastImport: LedgerSnapshot["lastImport"]; tr: Tr; locale: "en" | "th" }) {
+  return (
+    <p className="mt-3 border-t border-line pt-3 text-xs text-plum-faint">
+      <Link href="/import" className="hover:underline">
+        {lastImport ? tr("dashboard.lastImport", { source: tr(`dashboard.source.${lastImport.source}`), time: formatDateTime(lastImport.ran_at, locale), orders: lastImport.orders, cancellations: lastImport.cancellations, payouts: lastImport.payouts }) : tr("dashboard.lastImportNone")} →
+      </Link>
+    </p>
+  );
+}
+
+/** The admin's one job: export yesterday from Seller Center, drop both files, confirm. Warns after 36 hours. */
+function NightlyRoutine({ last, lastImport, tr, locale }: { last: LedgerSnapshot["lastTiktokImport"]; lastImport: LedgerSnapshot["lastImport"]; tr: Tr; locale: "en" | "th" }) {
   // eslint-disable-next-line react-hooks/purity -- a server component rendered per request
   const stale = !last || Date.now() - Date.parse(last.ran_at) > NIGHTLY_STALE_HOURS * 3600 * 1000;
   return (
     <Card tone={stale ? "warning" : "card"} className="mb-6 px-5 py-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="eyebrow">{tr("nightly.routineEyebrow")}</p>
+          <p className="eyebrow">{tr("home.tonight")}</p>
           <p className="mt-1 font-display text-xl text-plum">{tr("nightly.routineTitle")}</p>
           <p className="mt-1 text-sm text-plum-soft">{last ? tr("nightly.routineLast", { time: formatDateTime(last.ran_at, locale), orders: last.orders, cancellations: last.cancellations, payouts: last.payouts }) : tr("nightly.routineNever")}</p>
         </div>
         <ButtonLink href="/import">{tr("nightly.routineGo")}</ButtonLink>
       </div>
-      <ol className="mt-3 grid gap-2 text-sm text-plum sm:grid-cols-3">
-        <li className="rounded-xl bg-ivory-deep px-3 py-2">
-          1. {tr("nightly.step1")}{" "}
-          <a href={SELLER_CENTER_ORDERS} target="_blank" rel="noreferrer" className="font-medium text-berry hover:underline">
-            {tr("nightly.ordersLink")} ↗
-          </a>
-          {" · "}
-          <a href={SELLER_CENTER_FINANCE} target="_blank" rel="noreferrer" className="font-medium text-berry hover:underline">
-            {tr("nightly.financeLink")} ↗
-          </a>
-        </li>
-        <li className="rounded-xl bg-ivory-deep px-3 py-2">2. {tr("nightly.step2")}</li>
-        <li className="rounded-xl bg-ivory-deep px-3 py-2">3. {tr("nightly.step3")}</li>
-      </ol>
-      {children ? <div className="mt-3 border-t border-line pt-3">{children}</div> : null}
+      <LastImportLine lastImport={lastImport} tr={tr} locale={locale} />
+    </Card>
+  );
+}
+
+/** The contributor's one job: when she buys stock, record what she paid. One button, straight to Stock purchase. */
+function PaidForRoutine({ lastImport, tr, locale }: { lastImport: LedgerSnapshot["lastImport"]; tr: Tr; locale: "en" | "th" }) {
+  return (
+    <Card className="mb-6 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="eyebrow">{tr("home.today")}</p>
+          <p className="mt-1 font-display text-xl text-plum">{tr("home.paidForTitle")}</p>
+        </div>
+        <AddButton label={tr("home.paidForGo")} kind="expense" stockFirst />
+      </div>
+      <LastImportLine lastImport={lastImport} tr={tr} locale={locale} />
     </Card>
   );
 }

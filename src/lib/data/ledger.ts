@@ -76,7 +76,8 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("stock_movements").select("id, product_id, qty, kind, unit_cost, transaction_id, date, created_at, created_by, note").eq("business_id", businessId).is("deleted_at", null).order("date").order("created_at"),
         admin.from("transaction_items").select("id, transaction_id, product_id, qty, unit_price, unit_cost").eq("business_id", businessId).is("deleted_at", null),
         admin.from("clawbacks").select("*").eq("business_id", businessId).is("deleted_at", null).order("created_at"),
-        admin.from("import_runs").select("*").eq("business_id", businessId).order("ran_at", { ascending: false }).limit(1).maybeSingle(),
+        // A sale typed by hand is not an import: only files, screenshots and the API sync count.
+        admin.from("import_runs").select("*").eq("business_id", businessId).neq("source", "quick").order("ran_at", { ascending: false }).limit(1).maybeSingle(),
         admin.from("import_runs").select("*").eq("business_id", businessId).in("source", ["csv", "tiktok"]).order("ran_at", { ascending: false }).limit(1).maybeSingle(),
         admin.from("tiktok_sku_map").select("sku_key, sku_name").eq("business_id", businessId).is("product_id", null).order("created_at"),
         admin.from("payout_allocations").select("payout_id, amount").eq("business_id", businessId),
