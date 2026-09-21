@@ -15,12 +15,12 @@ import { cn } from "@/lib/cn";
  * column on narrow screens and two above 640px, and wrap only at word
  * boundaries. Every reason changes who owes whom; the reason explains why.
  */
-export function TransferSheet({ defaultFrom, onSaved, onError }: { defaultFrom: Person; onSaved: (message: string) => void; onError: (message: string) => void }) {
+export function TransferSheet({ defaultFrom, defaultAmount, defaultReason, onSaved, onError }: { defaultFrom: Person; defaultAmount?: number; defaultReason?: TransferReason; onSaved: (message: string) => void; onError: (message: string) => void }) {
   const t = useT();
   const [date, setDate] = useState(todayIso());
-  const [reason, setReason] = useState<TransferReason>("my_half_of_costs");
+  const [reason, setReason] = useState<TransferReason>(defaultReason ?? "my_half_of_costs");
   const [from, setFrom] = useState<Person>(defaultFrom);
-  const [amountText, setAmountText] = useState("");
+  const [amountText, setAmountText] = useState(defaultAmount ? String(defaultAmount) : "");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -69,7 +69,7 @@ export function TransferSheet({ defaultFrom, onSaved, onError }: { defaultFrom: 
             </button>
           ))}
         </div>
-        <p className="mt-1.5 text-xs leading-relaxed text-plum-soft">{t("transfer.reasonsHint")}</p>
+
       </div>
 
       <div className="mt-4">

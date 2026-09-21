@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ButtonLink } from "@/components/ui/Button";
 import { SoftDeleteButton } from "@/components/ui/SoftDeleteButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { InfoTip } from "@/components/ui/InfoTip";
@@ -78,15 +77,15 @@ export default async function PayoutsPage() {
 
   return (
     <div>
-      <PageHeader title={tr("payouts.title")} subtitle={tr("payouts.subtitle")} action={<ButtonLink href="/payouts/new">{tr("payouts.new")}</ButtonLink>} />
+      <PageHeader title={tr("payouts.title")} subtitle={tr("payouts.subtitle")} />
       {pendingClawbacks > 0 ? (
         <Card tone="warning" className="mb-4 px-5 py-4">
           <p className="text-sm font-medium text-warning-ink">{tr("orders.clawbackPending", { amount: thb(pendingClawbacks) })}</p>
-          <p className="mt-1 text-xs text-plum-soft">{tr("orders.clawbackHint")}</p>
+          <InfoTip text={tr("orders.clawbackHint")} align="left" />
         </Card>
       ) : null}
       {rows.length === 0 ? (
-        <EmptyState title={tr("payouts.empty")} body={tr("payouts.emptyBody")} action={<ButtonLink href="/payouts/new">{tr("payouts.new")}</ButtonLink>} />
+        <EmptyState title={tr("payouts.empty")} body={tr("payouts.emptyBody")} />
       ) : (
         <>
           <StackedList>

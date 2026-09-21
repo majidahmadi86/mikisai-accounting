@@ -22,14 +22,14 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function createPayout(formData: FormData) {
   const { supabase, profile } = await requireSession();
   const parsed = PayoutSchema.safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) redirect("/payouts/new?error=invalid");
+  if (!parsed.success) redirect("/payouts?error=invalid");
 
   const { data, error } = await supabase
     .from("payouts")
     .insert({ business_id: profile.business_id, ...parsed.data, note: parsed.data.note ?? "" })
     .select("id")
     .single();
-  if (error || !data) redirect("/payouts/new?error=save");
+  if (error || !data) redirect("/payouts?error=save");
 
   ledgerChanged(profile.business_id);
   redirect(`/payouts/${data.id}/reconcile`);

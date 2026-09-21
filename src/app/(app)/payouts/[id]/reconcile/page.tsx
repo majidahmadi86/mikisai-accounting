@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/ui/InfoTip";
 import { notFound } from "next/navigation";
 import { ReconcilePanel, type ReconcileCandidate } from "@/components/payouts/ReconcilePanel";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -77,7 +78,9 @@ export default async function ReconcilePage({ params }: PageProps<"/payouts/[id]
           </span>
         }
       />
-      <p className="mb-5 text-sm text-plum-soft">{tr("payouts.reconcileSubtitle", { platform: platformName(tr, payout.platform) })}</p>
+      <div className="mb-3">
+        <InfoTip text={tr("payouts.reconcileSubtitle", { platform: platformName(tr, payout.platform) })} align="left" />
+      </div>
       <ReconcilePanel payoutId={payout.id} amountReceived={payout.amount_received} clawbackOffset={clawbackOffset} candidates={candidates} initialSelected={proposal.selectedIds} locale={locale} />
     </div>
   );

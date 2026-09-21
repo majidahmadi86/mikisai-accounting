@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { createTransfer } from "@/app/(app)/transfers/actions";
-import { Button } from "@/components/ui/Button";
+import { AddButton } from "@/components/nav/AddButton";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -58,19 +57,9 @@ export default async function InvestmentPage({ searchParams }: PageProps<"/inves
             <div>
               <p className="eyebrow">{tr("investment.toBeEqual")}</p>
               <p className="mt-1 text-xl font-medium text-plum">{tr("investment.owes", { from: who(inv.settle.from), to: who(inv.settle.to), amount: thb(inv.settle.amount) })}</p>
-              <p className="mt-1 text-xs text-plum-soft">{tr("investment.alreadyCounted")}</p>
-              <p className="mt-1 text-xs text-plum-faint">{tr("investment.owesHint")}</p>
+
             </div>
-            <form action={createTransfer}>
-              <input type="hidden" name="date" value={today} />
-              <input type="hidden" name="from_person" value={inv.settle.from} />
-              <input type="hidden" name="to_person" value={inv.settle.to} />
-              <input type="hidden" name="amount" value={inv.settle.amount} />
-              <input type="hidden" name="reason" value="my_half_of_costs" />
-              <input type="hidden" name="note" value={tr("investment.recordNote")} />
-              <input type="hidden" name="redirect_to" value="/investment" />
-              <Button type="submit">{tr("investment.record", { amount: thb(inv.settle.amount) })}</Button>
-            </form>
+            <AddButton label={tr("investment.record", { amount: thb(inv.settle.amount) })} kind="transfer" transfer={{ from: inv.settle.from, amount: inv.settle.amount, reason: "my_half_of_costs" }} withIcon={false} />
           </div>
         ) : (
           <p className="text-lg font-medium text-success">{tr("investment.equal")}</p>

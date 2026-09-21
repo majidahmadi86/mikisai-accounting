@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AddButton } from "@/components/nav/AddButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -46,7 +45,7 @@ export default async function CustomersPage() {
     <div>
       <PageHeader title={tr("customers.title")} subtitle={tr("customers.subtitle")} />
       {rows.length === 0 ? (
-        <EmptyState title={tr("customers.empty")} body={tr("customers.emptyBody")} action={<AddButton label={tr("transactions.addIncome")} type="income" />} />
+        <EmptyState title={tr("customers.empty")} body={tr("customers.emptyBody")} />
       ) : (
         <>
           <StackedList>

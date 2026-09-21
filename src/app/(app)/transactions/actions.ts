@@ -7,22 +7,9 @@ import { findDuplicateOrder, hasUnspecifiedProduct, insertTransaction, reconcile
 import { applyTransactionUpdate } from "@/lib/ledger/update";
 import { formToObject, isOrderRefIssue, toRow, TransactionSchema } from "@/lib/ledger/transaction-input";
 
-export async function createTransaction(formData: FormData) {
-  const parsed = TransactionSchema.safeParse(formToObject(formData));
-  if (!parsed.success) redirect(`/transactions/new?type=${formData.get("type") ?? "income"}&error=${isOrderRefIssue(parsed.error) ? "order_ref" : "invalid"}`);
-  const result = await insertTransaction(parsed.data);
-  if (!result.ok) redirect(`/transactions/new?type=${parsed.data.type}&error=${result.error === "reconcile" ? `reconcile:${result.difference ?? 0}` : result.error === "duplicate" ? `duplicate:${result.duplicate?.date ?? ""}:${result.duplicate?.net_amount ?? 0}` : result.error}`);
-  redirect("/transactions?saved=1");
-}
-
-/** Quick-entry sheet: validates the client payload and inserts without a redirect. A quick order logs itself as the path that last fed the ledger. */
-export async function quickAddTransaction(input: unknown, source?: "quick"): Promise<SaveResult> {
-  const result = await insertTransaction(input);
-  if (result.ok && source === "quick") {
-    const { supabase, profile } = await requireSession();
-    await supabase.from("import_runs").insert({ business_id: profile.business_id, source: "quick", orders: 1 });
-  }
-  return result;
+/** The Add sheet: validates the client payload and inserts without a redirect. A sale typed by hand is not an import, so nothing is logged as one. */
+export async function quickAddTransaction(input: unknown): Promise<SaveResult> {
+  return insertTransaction(input);
 }
 
 export async function updateTransaction(id: string, formData: FormData) {

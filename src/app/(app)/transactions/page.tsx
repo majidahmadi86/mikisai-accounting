@@ -1,4 +1,3 @@
-import { AddButton } from "@/components/nav/AddButton";
 import { ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -85,12 +84,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
       <PageHeader
         title={tr("transactions.title")}
         subtitle={tr("transactions.subtitle")}
-        action={
-          <span className="hidden gap-2 md:flex">
-            <AddButton label={tr("transactions.addExpense")} type="expense" variant="secondary" />
-            <AddButton label={tr("transactions.addIncome")} type="income" />
-          </span>
-        }
+
       />
 
       <TransactionFilters tr={tr} filters={filters} />
@@ -115,12 +109,12 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/tra
                 <ButtonLink href="/transactions" variant="secondary">
                   {tr("transactions.clearFilters")}
                 </ButtonLink>
-                <AddButton label={tr("common.add")} />
+
               </>
             }
           />
         ) : (
-          <EmptyState title={tr("transactions.emptyAll")} body={tr("transactions.emptyAllBody")} action={<AddButton label={tr("dashboard.addFirst")} />} />
+          <EmptyState title={tr("transactions.emptyAll")} body={tr("transactions.emptyAllBody")} />
         )
       ) : (
         <TransactionList rows={rows} tr={tr} locale={locale} categories={categories} itemsOf={itemsOf} byline={byline} admin={session.profile.role === "admin"} />

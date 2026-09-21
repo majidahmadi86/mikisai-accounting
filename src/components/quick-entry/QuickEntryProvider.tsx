@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { quickAddTransaction, removeTransaction } from "@/app/(app)/transactions/actions";
 import type { TransactionInput } from "@/lib/ledger/transaction-input";
@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n/client";
 import { thb } from "@/lib/money";
 import type { ExpenseCategory } from "@/lib/categories";
 import type { Product } from "@/lib/inventory/valuation";
-import type { Customer, Person, Platform, PlatformSetting, ProductLine, TransactionType } from "@/lib/types";
+import type { Customer, Person, Platform, PlatformSetting, ProductLine, TransferReason } from "@/lib/types";
 import { Toast, type ToastState } from "./Toast";
 
 /** Everything the sheet needs, resolved on the server once per layout render. */
@@ -28,8 +28,14 @@ export type QuickEntryContextData = {
 
 export type Notice = { message: string; actionLabel?: string; onAction?: () => void | Promise<void>; durationMs?: number };
 
+/** The four things the Add sheet records. */
+export type AddKind = "sale" | "expense" | "transfer" | "payout";
+
+/** `stockFirst` starts Expense on Stock purchase; `transfer` fills Money moved in (My Balance, Investment). */
+export type AddOptions = { stockFirst?: boolean; transfer?: { from: Person; amount: number; reason: TransferReason } };
+
 type Ctx = {
-  open: (type?: TransactionType | "transfer" | "order") => void;
+  open: (kind?: AddKind, opts?: AddOptions) => void;
   close: () => void;
   isOpen: boolean;
   data: QuickEntryContextData;
@@ -40,15 +46,19 @@ type Ctx = {
 
 const QuickEntryContext = createContext<Ctx | null>(null);
 
-const QuickEntrySheet = dynamic(() => import("./QuickEntrySheet").then((m) => m.QuickEntrySheet), { ssr: false });
+const AddSheet = dynamic(() => import("./AddSheet").then((m) => m.AddSheet), { ssr: false });
 
 const UNDO_MS = 6000;
 
 export function QuickEntryProvider({ data, children }: { data: QuickEntryContextData; children: React.ReactNode }) {
   const t = useT();
   const router = useRouter();
-  const [isOpen, setOpen] = useState(false);
-  const [initialType, setInitialType] = useState<TransactionType | "transfer" | "order">("income");
+  // The sheet belongs to the page it was opened on: a save that moves on (a payout opens its matching page) closes it.
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const [initialKind, setInitialKind] = useState<AddKind>("sale");
+  const [options, setOptions] = useState<AddOptions>({});
+  const pathname = usePathname();
+  const isOpen = openOn === pathname;
   const [toast, setToast] = useState<ToastState | null>(null);
   const [retryInput, setRetryInput] = useState<TransactionInput | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,12 +69,13 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
     timer.current = null;
   };
 
-  const open = useCallback((type: TransactionType | "transfer" | "order" = "income") => {
-    setInitialType(type);
+  const open = useCallback((kind: AddKind = "sale", opts?: AddOptions) => {
+    setInitialKind(kind);
+    setOptions(opts ?? {});
     setRetryInput(null);
-    setOpen(true);
-  }, []);
-  const close = useCallback(() => setOpen(false), []);
+    setOpenOn(pathname);
+  }, [pathname]);
+  const close = useCallback(() => setOpenOn(null), []);
 
   /**
    * Optimistic save: the sheet closes immediately and a toast with Undo
@@ -76,7 +87,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
       clearTimer();
       const amount = input.type === "income" ? (input.net_amount ?? input.gross_amount) : input.amount;
       const sign = input.type === "income" ? "+" : "-";
-      if (!keepOpen) setOpen(false);
+      if (!keepOpen) setOpenOn(null);
       noticeAction.current = null;
       setToast({ kind: "saving", message: t("quick.saved", { amount: `${sign}${thb(amount)}` }) });
 
@@ -117,7 +128,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
     }
     if (toast.kind === "error") {
       setToast(null);
-      setOpen(true);
+      setOpenOn(pathname);
       return;
     }
     if (toast.kind === "saved" && toast.id) {
@@ -130,7 +141,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
         timer.current = setTimeout(() => setToast(null), 2500);
       })();
     }
-  }, [router, t, toast]);
+  }, [pathname, router, t, toast]);
 
   useEffect(() => clearTimer, []);
 
@@ -139,7 +150,7 @@ export function QuickEntryProvider({ data, children }: { data: QuickEntryContext
   return (
     <QuickEntryContext.Provider value={value}>
       {children}
-      {isOpen ? <QuickEntrySheet initialType={initialType} retryInput={retryInput} /> : null}
+      {isOpen ? <AddSheet initialKind={initialKind} retryInput={retryInput} options={options} /> : null}
       {toast ? <Toast state={toast} onAction={onToastAction} onDismiss={() => setToast(null)} /> : null}
     </QuickEntryContext.Provider>
   );

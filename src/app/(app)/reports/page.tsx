@@ -1,4 +1,3 @@
-import { AddButton } from "@/components/nav/AddButton";
 import { BarList } from "@/components/charts/BarList";
 import { PeriodPicker } from "@/components/reports/PeriodPicker";
 import { ReportTableView } from "@/components/reports/ReportTableView";
@@ -62,7 +61,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
       </div>
 
       {empty ? (
-        <EmptyState title={tr("reports.empty")} body={tr("reports.emptyBody")} action={<AddButton label={tr("dashboard.addFirst")} />} />
+        <EmptyState title={tr("reports.empty")} body={tr("reports.emptyBody")} />
       ) : (
         <div className="space-y-5">
           <Link href={`/reports/units?${qs}`} className="flex items-center justify-between gap-3 rounded-card border border-lavender bg-lavender-tint px-5 py-4 transition-colors hover:bg-lavender-soft">

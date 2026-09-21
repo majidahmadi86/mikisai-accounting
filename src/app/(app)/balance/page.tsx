@@ -1,5 +1,5 @@
 import { ExposureChart } from "@/components/balance/ExposureChart";
-import { MarkAsSent } from "@/components/balance/MarkAsSent";
+import { AddButton } from "@/components/nav/AddButton";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -159,7 +159,7 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
             </p>
             {b.action ? (
               <div className="mt-3">
-                <MarkAsSent from={b.action.from} to={b.action.to} amount={b.action.amount} today={today} />
+                <AddButton label={tr("balance.markSent")} kind="transfer" transfer={{ from: b.action.from, amount: b.action.amount, reason: "profit_share" }} withIcon={false} />
               </div>
             ) : null}
           </div>
