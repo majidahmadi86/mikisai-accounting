@@ -10,8 +10,9 @@ export function productName(tr: Translator, p: ProductLine): string {
   return tr(`product.${p}`);
 }
 
-export function statusName(tr: Translator, s: SettlementStatus): string {
-  return tr(`status.${s}`);
+/** Where the money of a sale is, in plain words that name the platform: "Waiting for TikTok". Without a platform (filters) it says "the platform". */
+export function statusName(tr: Translator, s: SettlementStatus, platform?: Platform | null): string {
+  return tr(`status.${s}`, { platform: platform && platform !== "other" ? tr(`platform.${platform}`) : tr("status.thePlatform") });
 }
 
 export function personName(tr: Translator, p: Person): string {

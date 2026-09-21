@@ -61,7 +61,7 @@ export function TransactionList({ rows, tr, locale, categories, itemsOf, byline,
                 <p className="mt-1.5 flex flex-wrap gap-1.5">
                   <Pill tone={typeTone(row.type)}>{row.type === "income" ? tr("common.income") : tr("common.expense")}</Pill>
                   <Pill tone={platformTone(row.platform)}>{platformName(tr, row.platform)}</Pill>
-                  {row.settlement_status && row.status === "active" ? <Pill tone={statusTone(row.settlement_status)}>{statusName(tr, row.settlement_status)}</Pill> : null}
+                  {row.settlement_status && row.status === "active" ? <Pill tone={statusTone(row.settlement_status)}>{statusName(tr, row.settlement_status, row.platform)}</Pill> : null}
                 </p>
               </div>
               <div className="shrink-0 text-right">
@@ -173,7 +173,7 @@ export function TransactionList({ rows, tr, locale, categories, itemsOf, byline,
                   {row.type !== "income" ? null : row.status !== "active" ? (
                     <Pill tone="berry-soft">{row.status === "cancelled" ? tr("orders.cancelled") : tr("orders.refunded", { amount: thb(row.refund_amount ?? 0) })}</Pill>
                   ) : row.settlement_status ? (
-                    <Pill tone={statusTone(row.settlement_status)}>{statusName(tr, row.settlement_status)}</Pill>
+                    <Pill tone={statusTone(row.settlement_status)}>{statusName(tr, row.settlement_status, row.platform)}</Pill>
                   ) : null}
                 </Td>
               </ExpandableRow>
