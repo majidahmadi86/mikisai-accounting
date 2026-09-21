@@ -39,7 +39,7 @@ Marks: **D** daily · **W** weekly · **N** never (or a duplicate of something t
 | Home | Four stat tiles | N, duplicate | Remove | Reports · Profit and loss |
 | Home | "Waiting on platforms" card | N, duplicate | Remove | My Balance "Still coming", Reports · Payout status |
 | Home | "Recent activity" card | N, duplicate | Remove | Ledger |
-| Home | "Internal transfers" list and Record button | N, duplicate | Remove. Every transfer stays listed with its Edit link on Investment "Every contribution" and My Balance; delete stays on the transfer edit page. | Investment, My Balance |
+| Home | "Internal transfers" list and Record button | N, duplicate | Moves. Found while executing: Investment lists only the transfers that count as money put in, so the full list (every transfer, each opening its edit page, where delete stays) now sits on My Balance as "Money moved". | My Balance |
 | Home | Bottom row of five buttons | N, duplicates | Remove | Add |
 | Transactions | "Add income", "Add expense", empty-state Add buttons | N, duplicates | Remove | Add |
 | Customers, Reports, Insights | empty-state Add buttons | N, duplicates | Remove | Add |

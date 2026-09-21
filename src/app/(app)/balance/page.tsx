@@ -189,6 +189,34 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
           </div>
         </Card>
 
+        {/* Money moved: every transfer between the two of you, newest first, each one open for editing. */}
+        <Card>
+          <CardHeader title={tr("add.transfer")} />
+          <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+            {snapshot.transfers.length === 0 ? (
+              <p className="text-sm text-plum-soft">{tr("dashboard.transfersNone")}</p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {snapshot.transfers.slice(0, 50).map((tf) => (
+                  <li key={tf.id}>
+                    <Link href={`/transfers/${tf.id}/edit`} className="-mx-2 block rounded-lg px-2 py-2.5 transition-colors hover:bg-lavender-tint">
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-plum">
+                        <span>
+                          {tr(`common.${tf.from_person}`)} → {tr(`common.${tf.to_person}`)}
+                        </span>
+                        <span className="font-medium tabular">{thb(tf.amount)}</span>
+                        <Pill tone={tf.kind === "capital" ? "lavender" : "neutral"}>{tr(`transfer.reason.${tf.reason}`)}</Pill>
+                      </span>
+                      <span className="block text-xs text-plum-faint">{formatDate(tf.date, locale)}</span>
+                      {tf.note ? <ExpandableNote text={tf.note} className="text-xs text-plum-soft" /> : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Card>
+
         {/* f) 30-day chart */}
         <Card>
           <CardHeader title={tr("balance.chartTitle")} subtitle={tr("balance.chartHint", { partner: partnerName })} />
