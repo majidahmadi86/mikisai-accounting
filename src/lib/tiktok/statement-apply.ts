@@ -105,10 +105,12 @@ export async function applyStatement(db: Db, businessId: string, statement: Stat
   let refunds = 0;
   if (plan.refunds.length) {
     const { data: cat } = await db.from("expense_categories").select("id").eq("business_id", businessId).ilike("name_en", RETURN_COST_CATEGORY).maybeSingle();
+    // Without the category a loss would vanish silently; stop before anything about the return is written.
+    if (!cat) return { ok: false, error: "return-cost-category-missing" };
     for (const r of plan.refunds) {
       const tx = idOf.get(r.order_ref) ?? (r.transaction_id ? { id: r.transaction_id, net: 0, status: "active" } : null);
       if (tx && tx.status === "active") await applyOrderStatus(db, tx.id, { status: "refunded", date: r.date, reason: "from TikTok statement", refund_amount: tx.net > 0 ? tx.net : null }, null);
-      if (r.loss > 0 && cat) {
+      if (r.loss > 0) {
         const { error } = await db.from("transactions").insert({ business_id: businessId, type: "expense", date: r.date, platform: "tiktok", product_line: "sugar", gross_amount: r.loss, net_amount: r.loss, quantity: 1, payer: opts.receivedBy, received_by: null, category_id: cat.id, customer_name: null, order_ref: null, note: `Return cost · order #${r.order_ref}`, ...by });
         if (!error) refunds += 1;
       }
