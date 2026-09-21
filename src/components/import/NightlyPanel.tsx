@@ -3,7 +3,7 @@
 import { InfoTip } from "@/components/ui/InfoTip";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { commitImport, mapSku, type CommitResult } from "@/app/(app)/import/actions";
+import { commitImport, confirmStatement, mapSku, type CommitResult } from "@/app/(app)/import/actions";
 import { MappingPanel } from "./MappingPanel";
 import { ReviewTable } from "./ReviewTable";
 import { Button } from "@/components/ui/Button";
@@ -145,9 +145,16 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
         rows: chosen.map((r) => ({ date: r.date, platform: r.platform, product_line: r.product_line, gross_amount: r.gross_amount ?? r.net_amount ?? 0, net_amount: r.net_amount ?? 0, received_by: r.received_by, status: r.status, customer_name: r.customer_name, order_id: r.order_id, note: r.note, product_id: r.product_id as string, quantity: r.quantity ?? 1, tags: [], order_status: r.order_status ?? "active", refund_amount: r.refund_amount ?? null })),
         status_changes: result.status_changes.map(({ transaction_id, order_status, date, refund_amount }) => ({ transaction_id, order_status, date, refund_amount })),
         payouts: payouts.filter((p) => p.include).map((p) => ({ date: p.date, platform: p.platform, amount: p.amount, received_by: p.received_by, note: p.note, external_ref: p.external_ref, allocations: p.allocations })),
-        details: { nightly: true, files: result.files.map((f) => ({ name: f.name, type: f.file_type, rows: f.rows })), missing_status: result.missing_status.length, unmapped_skus: result.unmapped_skus.length },
+        details: { nightly: true, files: result.files.map((f) => ({ name: f.name, type: f.file_type, rows: f.rows })), missing_status: result.missing_status.length, unmapped_skus: result.unmapped_skus.length, ...(result.statement ? { missing_from_orders: result.statement.missing_from_orders.slice(0, 200), missing_from_statement: result.statement.missing_from_statement.slice(0, 200) } : {}) },
       });
       if (!outcome.ok) return setError(t("common.error"));
+      // The statement goes last, so the orders this drop just saved are found and settled rather than made twice.
+      if (result.statement) {
+        const applied = await confirmStatement({ upload_ids: result.upload_ids, received_by: defaultReceivedBy });
+        if (!applied.ok) return setError(t("statement.failed"));
+        outcome.inserted += applied.created;
+        outcome.payouts += applied.payouts;
+      }
       setPhase({ name: "done", result: outcome });
       router.refresh();
     });
@@ -170,7 +177,9 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
   if (phase.name === "review") {
     const result = phase.result;
     const counts = { ready: ready.filter((r) => r.include).length, review: review.filter((r) => r.include).length, changes: result.status_changes.length, payouts: payouts.filter((p) => p.include).length };
-    const total = counts.ready + counts.review + counts.changes + counts.payouts;
+    const st = result.statement;
+    const statementWork = st ? st.settle + st.create + st.fixed.length + st.refunds.length + st.withdrawals.length + st.pre_business.count : 0;
+    const total = counts.ready + counts.review + counts.changes + counts.payouts + statementWork;
     const typed = (type: "orders" | "finance") => result.files.find((f) => f.file_type === type && f.headers.length);
     return (
       <div className="mb-4 space-y-4">
@@ -186,7 +195,16 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
                 <li><Pill tone={payouts.length ? "lavender" : "neutral"}>{t("nightly.countPayouts", { n: payouts.length })}</Pill></li>
                 <li><Pill tone="neutral">{t("nightly.countSkipped", { n: result.skipped + result.known_payments })}</Pill></li>
               </ul>
-              <p className="mt-2 text-xs text-plum-faint">{result.files.map((f) => `${f.name} · ${f.error ? t(`nightly.fileError.${f.error}`) : `${t(`import.fileType.${f.file_type as "orders"}`)}, ${f.rows}`}`).join("  |  ")}</p>
+              <ul className="mt-2 space-y-1 text-xs text-plum-soft">
+                {result.files.map((f) => (
+                  <li key={f.name} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 truncate font-medium text-plum">{f.name}</span>
+                    {f.error ? <Pill tone="warning">{t(`nightly.fileError.${f.error}`)}</Pill> : <Pill tone="plum">{t(`import.fileType.${f.file_type as "orders"}`)}</Pill>}
+                    {f.period ? <span>{t("statement.period", { from: formatDate(f.period.from, locale), to: formatDate(f.period.to, locale) })}</span> : null}
+                    {f.error ? null : <span className="tabular">{t("statement.rows", { n: f.rows })}</span>}
+                  </li>
+                ))}
+              </ul>
             </div>
             <div className="flex w-full gap-2 sm:w-auto">
               <Button type="button" variant="ghost" onClick={reset}>
@@ -201,6 +219,53 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
           {result.warnings.length ? <p className="mt-2 rounded-xl bg-warning-tint px-3 py-2 text-xs text-warning-ink">{result.warnings.join(" ")}</p> : null}
           {error ? <p className="mt-3 text-sm text-berry">{error}</p> : null}
         </Card>
+
+        {st ? (
+          <Card className="px-5 py-4" >
+            <p className="font-display text-lg text-plum">{t("statement.title")}</p>
+            <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+              {(
+                [
+                  [t("statement.settle"), String(st.settle)],
+                  [t("statement.create"), String(st.create)],
+                  [t("statement.fixed"), String(st.fixed.length)],
+                  [t("statement.refunds"), st.refunds.length ? `${st.refunds.length} · ${thb(st.refunds.reduce((a, r) => a + r.loss, 0))}` : "0"],
+                  [t("statement.overweight"), String(st.overweight.length)],
+                  [t("statement.withdrawals"), st.withdrawals.length ? `${st.withdrawals.length} · ${thb(st.withdrawals.reduce((a, w) => a + w.amount, 0))}` : "0"],
+                  [t("statement.preBusiness"), st.pre_business.count ? `${st.pre_business.count} · ${thb(st.pre_business.total)}` : "0"],
+                  [t("statement.advance"), thb(st.advance.balance)],
+                  [t("statement.known"), String(st.already_known)],
+                ] as [string, string][]
+              ).map(([label, value]) => (
+                <div key={label} className="min-w-0">
+                  <dt className="eyebrow text-[0.62rem]">{label}</dt>
+                  <dd className="mt-0.5 tabular text-plum">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {st.fixed.length ? (
+              <ul className="mt-3 space-y-1 text-xs text-plum-soft">
+                {st.fixed.slice(0, 20).map((f) => (
+                  <li key={f.order_ref} className="flex flex-wrap gap-x-2">
+                    <span className="font-mono text-plum">#{f.order_ref}</span>
+                    <span className="tabular">
+                      {thb(f.old)} → {thb(f.new)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {st.withdrawals.length ? (
+              <ul className="mt-3 space-y-1 text-xs text-plum-soft">
+                {st.withdrawals.map((w) => (
+                  <li key={w.reference}>{t("statement.withdrawalLine", { date: formatDate(w.date, locale), amount: thb(w.amount), bank: w.bank_suffix || "·", orders: w.orders, advance: thb(w.advance), other: thb(w.other) })}</li>
+                ))}
+              </ul>
+            ) : null}
+            {st.needs_product.length ? <p className="mt-3 rounded-xl bg-warning-tint px-3 py-2 text-xs text-warning-ink">{t("statement.needsProduct", { n: st.needs_product.length, skus: Array.from(new Set(st.needs_product.flatMap((n) => n.skus))).slice(0, 5).join(", ") || "·" })}</p> : null}
+            {st.missing_from_orders.length || st.missing_from_statement.length ? <p className="mt-2 rounded-xl bg-warning-tint px-3 py-2 text-xs text-warning-ink">{t("statement.crossCheck", { a: st.missing_from_orders.length, b: st.missing_from_statement.length })}</p> : null}
+          </Card>
+        ) : null}
 
         {(["orders", "finance"] as const).map((type) => {
           const f = typed(type);

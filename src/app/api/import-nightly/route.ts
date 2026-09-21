@@ -4,7 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { detectFileType, detectMapping, FIELD_KEYS, mappingIsUsable, ordersFromRows, parseTable, settlementsFromRows, type ColumnMapping, type FieldKey, type ImportedOrder, type ImportedSettlement } from "@/lib/import/tiktok";
 import { existingOrders, importContext } from "@/lib/import/server";
-import type { NightlyFile, NightlyReview } from "@/lib/import/nightly";
+import type { NightlyFile, NightlyReview, StatementReview } from "@/lib/import/nightly";
+import { parseCsv, readXlsxSheets } from "@/lib/import/table";
+import { mergeStatements, readStatement, type Statement } from "@/lib/tiktok/statement";
+import { statementContext } from "@/lib/tiktok/statement-apply";
+import { planStatement } from "@/lib/tiktok/statement-plan";
 import { todayIso } from "@/lib/money";
 import { financeFromFile, ordersFromFile } from "@/lib/tiktok/from-file";
 import { planSync } from "@/lib/tiktok/plan";
@@ -30,6 +34,17 @@ function cleanMapping(raw: unknown): ColumnMapping {
     if (typeof v === "string" && v.trim()) out[key as FieldKey] = v.trim();
   }
   return out;
+}
+
+/** A TikTok Finance statement, from an .xlsx workbook or from a CSV of its "Order details" sheet; null for anything else. */
+async function statementFrom(bytes: Uint8Array, filename: string): Promise<Statement | null> {
+  try {
+    const zipped = bytes.length > 3 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+    if (zipped || /\.xlsx$/i.test(filename)) return readStatement(await readXlsxSheets(bytes));
+    return readStatement({ "Order details": parseCsv(new TextDecoder("utf-8").decode(bytes)) });
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -72,9 +87,23 @@ export async function POST(request: Request) {
   const orderRows: ImportedOrder[] = [];
   const financeRows: ImportedSettlement[] = [];
   const warnings: string[] = [];
+  const statements: Statement[] = [];
 
   for (const file of uploads) {
     const bytes = new Uint8Array(await file.arrayBuffer());
+    // The real Finance statement is recognised first, by its own sheets and headers, in either drop zone.
+    const statement = await statementFrom(bytes, file.name);
+    if (statement) {
+      const path = `${businessId}/${Date.now()}-${crypto.randomUUID()}-${safeName(file.name)}`;
+      const { error: upErr } = await admin.storage.from("reports").upload(path, bytes, { contentType: file.type || "application/octet-stream", upsert: false });
+      if (!upErr) {
+        const { data: upload } = await supabase.from("report_uploads").insert({ business_id: businessId, platform: "tiktok", file_url: path, parsed: false, parse_result: { file_type: "statement", file_name: file.name, rows: statement.rows.length, wallet_rows: statement.wallet.length, period: statement.period } }).select("id").single();
+        if (upload) uploadIds.push(upload.id as string);
+      } else warnings.push(`${file.name} could not be stored, so it cannot be confirmed. Try again.`);
+      statements.push(statement);
+      files.push({ name: file.name, file_type: "statement", period: statement.period, rows: statement.rows.length + statement.wallet.length, headers: [], mapping: {}, error: null, missing: [] });
+      continue;
+    }
     let table;
     try {
       table = await parseTable(bytes, file.name);
@@ -112,11 +141,40 @@ export async function POST(request: Request) {
   const today = todayIso();
   const fromOrders = ordersFromFile(orderRows, today);
   const fromFinance = financeFromFile(financeRows);
+  const merged = statements.length ? mergeStatements(statements) : null;
+  // What the statement says TikTok paid per order feeds the same plan the Orders file runs through.
+  for (const r of merged?.rows ?? []) if (r.type === "order") fromFinance.settlements.set(r.id, r.settlement);
   const [ctx, skuMap, knownPayments] = await Promise.all([importContext(supabase, businessId), loadSkuMap(supabase, businessId), knownPaymentIds(supabase, businessId, "tiktok")]);
   const refs = [...fromOrders.orders.map((o) => o.order_ref), ...fromFinance.payments.flatMap((p) => p.allocations.map((a) => a.order_ref))];
   const existing = await existingOrders(supabase, businessId, "tiktok", refs);
   const plan = planSync({ orders: fromOrders.orders, returns: fromOrders.returns, settlements: fromFinance.settlements, payments: fromFinance.payments, ctx, existing, receivedBy: fields.data.received_by, today, skuMap, knownPaymentIds: knownPayments });
   await rememberSkus(supabase, businessId, plan.skus);
+
+  let statementReview: StatementReview | null = null;
+  if (merged) {
+    const sp = planStatement(await statementContext(supabase, businessId, merged, fields.data.received_by));
+    const fromOrdersFile = new Set([...plan.auto.map((r) => r.order_id as string), ...plan.queue.map((q) => q.order_ref)]);
+    const orderRefs = new Set(fromOrders.orders.map((o) => o.order_ref));
+    const statementRefs = new Set(merged.rows.filter((r) => r.type === "order").map((r) => r.id));
+    const businessRefs = new Set(sp.facts.filter((f) => f.kind === "order" && !f.pre_business).map((f) => f.order_ref));
+    statementReview = {
+      period: sp.period,
+      rows: merged.rows.length + merged.wallet.length,
+      settle: sp.settle.length,
+      create: sp.create.filter((c) => !fromOrdersFile.has(c.order_ref)).length,
+      fixed: sp.netFixes.map((f) => ({ order_ref: f.order_ref, old: f.old, new: f.new })),
+      refunds: sp.refunds.map((r) => ({ order_ref: r.order_ref, loss: r.loss })),
+      overweight: sp.overweight,
+      needs_product: sp.needsProduct.map((n) => ({ order_ref: n.order_ref, skus: n.skus })),
+      pre_business: sp.preBusiness,
+      advance: { balance: sp.wallet.advanceBalance, disbursed: sp.wallet.disbursed, recovered: sp.wallet.recovered },
+      withdrawals: sp.payouts.map((w) => ({ reference: w.reference, date: w.date, amount: w.amount, bank_suffix: w.bank_suffix, orders: w.orders.length, advance: w.advance, other: w.other })),
+      already_known: sp.alreadyKnown,
+      missing_from_orders: orderRefs.size ? Array.from(businessRefs).filter((ref) => !orderRefs.has(ref)) : [],
+      missing_from_statement: orderRefs.size ? fromOrders.orders.filter((o) => o.delivered && o.status === "active" && !statementRefs.has(o.order_ref) && merged.period && o.date >= merged.period.from && o.date <= merged.period.to).map((o) => o.order_ref) : [],
+    };
+    for (const m of sp.wallet.earningsMismatch) warnings.push(`Earnings on ${m.date} say ${m.stated.toFixed(2)} but that day's rows add up to ${m.rows.toFixed(2)}.`);
+  }
 
   const inLedgerOrPlan = new Set<string>([...existing.keys(), ...plan.auto.map((r) => r.order_id as string), ...plan.queue.map((q) => q.order_ref)]);
   const body: NightlyReview = {
@@ -135,6 +193,7 @@ export async function POST(request: Request) {
     missing_status: fromOrders.missingStatus,
     unmapped_skus: plan.skus.filter((s) => !s.product_id).map((s) => ({ sku_key: s.sku_key, sku_name: s.sku_name })),
     warnings,
+    statement: statementReview,
   };
   return NextResponse.json(body);
 }

@@ -167,7 +167,7 @@ export function readPeriod(grid: Grid): { from: string; to: string } | null {
 export function readStatement(sheets: Record<string, Grid>): Statement | null {
   const find = (name: string) => Object.entries(sheets).find(([n]) => norm(n) === norm(name))?.[1];
   const orderGrid = find(STATEMENT_SHEETS.orders) ?? Object.values(sheets).find((g) => g.some(isStatementHeader));
-  if (!orderGrid) return null;
+  if (!orderGrid || !orderGrid.some(isStatementHeader)) return null;
   const rows = readOrderDetails(orderGrid);
   const wallet = readWallet(find(STATEMENT_SHEETS.wallet) ?? []);
   let period = readPeriod(find(STATEMENT_SHEETS.reports) ?? []);
@@ -176,6 +176,13 @@ export function readStatement(sheets: Record<string, Grid>): Statement | null {
     if (days.length) period = { from: days[0], to: days[days.length - 1] };
   }
   return { period, rows, wallet };
+}
+
+/** Several statements dropped at once read as one: rows and wallet lines together, the period from the first day to the last. */
+export function mergeStatements(list: Statement[]): Statement {
+  const periods = list.map((s) => s.period).filter((p): p is { from: string; to: string } => Boolean(p));
+  const period = periods.length ? { from: periods.map((p) => p.from).sort()[0], to: periods.map((p) => p.to).sort().slice(-1)[0] } : null;
+  return { period, rows: list.flatMap((s) => s.rows), wallet: list.flatMap((s) => s.wallet) };
 }
 
 /* ------------------------------------------------------------------ */

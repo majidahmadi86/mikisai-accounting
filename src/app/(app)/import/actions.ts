@@ -3,7 +3,15 @@
 import { recordAudit } from "@/lib/audit";
 import { requireAdmin, requireSession } from "@/lib/auth";
 import { ledgerChanged } from "@/lib/data/ledger";
+import { z } from "zod";
 import { CommitSchema, commitRows, MappingSchema, type CommitResult as CoreResult } from "@/lib/import/commit";
+import { parseCsv, readXlsxSheets } from "@/lib/import/table";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { mergeStatements, readStatement, type Statement } from "@/lib/tiktok/statement";
+import { applyStatement, type StatementOutcome } from "@/lib/tiktok/statement-apply";
+import { PEOPLE } from "@/lib/types";
+
+const StatementConfirmSchema = z.object({ upload_ids: z.array(z.string().uuid()).min(1).max(50), received_by: z.enum(PEOPLE) });
 
 export type CommitResult = { ok: true; inserted: number; cancellations: number; payouts: number; skipped: number } | { ok: false; error: string };
 
@@ -24,6 +32,38 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
   if (queue_ids.length) await supabase.from("sync_queue").update({ status: "confirmed", updated_at: new Date().toISOString() }).in("id", queue_ids).eq("business_id", profile.business_id);
   ledgerChanged(profile.business_id);
   return { ok: true, inserted: result.inserted, cancellations: result.cancellations, payouts: result.payouts, skipped: result.skipped };
+}
+
+/**
+ * Applies the TikTok Finance statements of a confirmed drop. The files are
+ * read again from the stored originals, so nothing about money travels
+ * through the browser; a second confirm of the same file changes nothing.
+ */
+export async function confirmStatement(input: unknown): Promise<StatementOutcome> {
+  const session = await requireSession();
+  const { supabase, profile, userId } = session;
+  const parsed = StatementConfirmSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const { data: uploads } = await supabase.from("report_uploads").select("id, file_url, parse_result").eq("business_id", profile.business_id).in("id", parsed.data.upload_ids);
+  const wanted = (uploads ?? []).filter((u) => (u.parse_result as { file_type?: string } | null)?.file_type === "statement");
+  if (!wanted.length) return { ok: false, error: "no-statement" };
+  const admin = createAdminClient();
+  const statements: Statement[] = [];
+  for (const u of wanted) {
+    if (!String(u.file_url).startsWith(`${profile.business_id}/`)) continue;
+    const { data: blob } = await admin.storage.from("reports").download(u.file_url as string);
+    if (!blob) continue;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const zipped = bytes.length > 3 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+    const statement = zipped ? readStatement(await readXlsxSheets(bytes)) : readStatement({ "Order details": parseCsv(new TextDecoder("utf-8").decode(bytes)) });
+    if (statement) statements.push(statement);
+  }
+  if (!statements.length) return { ok: false, error: "unreadable" };
+  const name = wanted.map((u) => (u.parse_result as { file_name?: string } | null)?.file_name ?? "statement").join(", ");
+  const outcome = await applyStatement(supabase, profile.business_id, mergeStatements(statements), { receivedBy: parsed.data.received_by, createdBy: userId, fileName: name, uploadId: wanted[0].id as string, audit: (entry) => recordAudit(session, entry) });
+  if (outcome.ok) await supabase.from("report_uploads").update({ parsed: true }).in("id", wanted.map((u) => u.id as string)).eq("business_id", profile.business_id);
+  ledgerChanged(profile.business_id);
+  return outcome;
 }
 
 /** Admin: remember how this file type's columns map, so the next export reads the same way. */
