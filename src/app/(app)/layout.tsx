@@ -13,7 +13,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
 
   // Smart defaults for the quick-entry sheet: last used platform and product, the signed-in person.
-  const last = snapshot.transactions[0];
+  // The last sale, not the last row: an expense carries no platform worth repeating.
+  const last = snapshot.transactions.find((tx) => tx.type === "income") ?? snapshot.transactions[0];
   const quick: QuickEntryContextData = {
     person: session.profile.display_name === "Sai" ? "sai" : "mike",
     lastPlatform: last?.platform ?? "tiktok",
