@@ -69,7 +69,38 @@ function cashRow(from: ReportTx, id: string, amount: number, date: string): Repo
  * reached the bank still counts as cash (it did arrive) and its clawback
  * takes it out again, pending or offset, so nothing is counted twice.
  */
-export function normalizeLedger<T extends ReportTx>(all: T[], clawbacks: ClawbackLite[] = []): NormalizedLedger<T> {
+/** Advance money from TikTok reaching the bank (+) or being taken back after it did (-). Cash, never revenue. */
+export type AdvanceCashLite = { id: string; date: string; amount: number; received_by: Person };
+
+/**
+ * An early-settlement advance is TikTok's money until the orders behind it
+ * settle. When it is withdrawn it is cash in the bank (so who-owes-whom and
+ * cash flow must see it), but it is never a sale: it enters here, as a
+ * synthetic cash row, and nowhere else.
+ */
+export function advanceCashRows(cash: AdvanceCashLite[]): ReportTx[] {
+  return cash.map((c) => ({
+    id: c.id,
+    type: "income" as const,
+    date: c.date,
+    platform: "tiktok" as const,
+    product_line: "sugar" as const,
+    gross_amount: 0,
+    net_amount: round2(c.amount),
+    quantity: 0,
+    payer: null,
+    received_by: c.received_by,
+    category_id: null,
+    customer_name: null,
+    note: "",
+    order_ref: null,
+    created_at: `${c.date}T00:00:00Z`,
+    settlement: { status: "received_in_bank" as const, settled_at: `${c.date}T00:00:00Z`, payout_id: null, paid_amount: Math.abs(round2(c.amount)) },
+    synthetic: true,
+  }));
+}
+
+export function normalizeLedger<T extends ReportTx>(all: T[], clawbacks: ClawbackLite[] = [], advanceCash: AdvanceCashLite[] = []): NormalizedLedger<T> {
   const transactions: T[] = [];
   const cancelled: T[] = [];
   const cashAdjustments: ReportTx[] = [];
@@ -100,6 +131,7 @@ export function normalizeLedger<T extends ReportTx>(all: T[], clawbacks: Clawbac
     if (!order) continue;
     cashAdjustments.push(cashRow(order, `claw:${c.id}`, -c.amount, c.created_at.slice(0, 10)));
   }
+  cashAdjustments.push(...advanceCashRows(advanceCash));
   return { transactions, cancelled, cashAdjustments };
 }
 

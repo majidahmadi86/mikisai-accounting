@@ -4,13 +4,28 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { ExpenseCategory } from "@/lib/categories";
 import type { Product, StockMovement } from "@/lib/inventory/valuation";
 import type { TransactionItemRow } from "@/lib/inventory/reports";
-import { num, type Business, type Clawback, type Customer, type ImportRun, type InternalTransfer, type Payout, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
+import { num, type Business, type Clawback, type Customer, type ImportRun, type InternalTransfer, type Payout, type Person, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
 import { normalizeLedger, type ClawbackLite } from "@/lib/truth";
+import { walletState } from "@/lib/tiktok/wallet";
 import { loadTiktokStatus } from "@/lib/tiktok/load-status";
 import type { TiktokStatus } from "@/lib/tiktok/status";
 
 export type LedgerTransaction = Transaction & {
   settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null; paid_amount: number } | null;
+};
+
+export type StatementFactLite = { order_ref: string; kind: "order" | "refund"; transaction_id: string | null; settled_date: string | null; settlement_amount: number; fee_seller_shipping: number; chargeable_weight_g: number | null; boxes: number; overweight: boolean; pre_business: boolean; ledger_net_before: number | null };
+
+export type TiktokMoney = {
+  startDate: string;
+  advanceBalance: number;
+  disbursed: number;
+  recovered: number;
+  /** The balance spread over unsettled orders at 70% each: an estimate until they settle. */
+  allocations: { order_ref: string; date: string; amount: number }[];
+  advancePreBusiness: number;
+  facts: StatementFactLite[];
+  periods: { from: string; to: string }[];
 };
 
 export type LedgerSnapshot = {
@@ -40,6 +55,8 @@ export type LedgerSnapshot = {
   payoutCoverage: Record<string, number>;
   /** The TikTok Shop connection as the app may show it; never the tokens. */
   tiktok: TiktokStatus;
+  /** What the TikTok Finance statements say: the advance still to be recovered, what each order really paid, the days covered. */
+  tiktokMoney: TiktokMoney;
   fetchedAt: string;
 };
 
@@ -58,7 +75,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
     async () => {
       const admin = createAdminClient();
       // Soft-deleted rows are hidden everywhere; only the Recently deleted list reads them.
-      const [tx, tr, po, ps, cu, bz, ec, pr, mv, it, cb, ir, nr, sk, pa] = await Promise.all([
+      const [tx, tr, po, ps, cu, bz, ec, pr, mv, it, cb, ir, nr, sk, pa, os, we, st, sd] = await Promise.all([
         admin
           .from("transactions")
           .select("*, settlements(status, settled_at, payout_id, paid_amount, deleted_at)")
@@ -81,6 +98,10 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("import_runs").select("*").eq("business_id", businessId).in("source", ["csv", "tiktok"]).order("ran_at", { ascending: false }).limit(1).maybeSingle(),
         admin.from("tiktok_sku_map").select("sku_key, sku_name").eq("business_id", businessId).is("product_id", null).order("created_at"),
         admin.from("payout_allocations").select("payout_id, amount").eq("business_id", businessId),
+        admin.from("order_statements").select("order_ref, kind, transaction_id, settled_date, settlement_amount, fee_seller_shipping, chargeable_weight_g, boxes, overweight, pre_business, ledger_net_before").eq("business_id", businessId),
+        admin.from("wallet_events").select("kind, reference, event_date, amount, bank_suffix, received_by").eq("business_id", businessId),
+        admin.from("tiktok_statements").select("period_from, period_to").eq("business_id", businessId).order("period_from"),
+        admin.from("businesses").select("start_date").eq("id", businessId).maybeSingle(),
       ]);
 
       const allTransactions: LedgerTransaction[] = (tx.data ?? []).map((row) => {
@@ -103,7 +124,15 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
       });
       const tiktok = await loadTiktokStatus(admin, businessId);
       const clawbacks: ClawbackLite[] = (cb.data ?? []).map((c) => ({ ...(c as Clawback), amount: num(c.amount) }));
-      const normalized = normalizeLedger(allTransactions, clawbacks);
+      // The TikTok wallet, replayed from the stored statements: the advance balance and the advance cash that reached the bank.
+      const facts: StatementFactLite[] = (os.data ?? []).map((f) => ({ order_ref: f.order_ref as string, kind: f.kind as "order" | "refund", transaction_id: (f.transaction_id as string | null) ?? null, settled_date: (f.settled_date as string | null) ?? null, settlement_amount: num(f.settlement_amount), fee_seller_shipping: num(f.fee_seller_shipping), chargeable_weight_g: f.chargeable_weight_g == null ? null : num(f.chargeable_weight_g), boxes: num(f.boxes) || 1, overweight: Boolean(f.overweight), pre_business: Boolean(f.pre_business), ledger_net_before: f.ledger_net_before == null ? null : num(f.ledger_net_before) }));
+      const wallet = walletState({
+        settled: facts.filter((f) => f.kind === "order" && f.settled_date).map((f) => ({ order_ref: f.order_ref, date: f.settled_date as string, net: f.settlement_amount, business: !f.pre_business })),
+        losses: facts.filter((f) => f.kind === "refund" && f.settled_date && !f.pre_business && f.settlement_amount < 0).map((f) => ({ order_ref: f.order_ref, date: f.settled_date as string, loss: Math.abs(f.settlement_amount) })),
+        events: (we.data ?? []).map((e) => ({ kind: e.kind as "earnings", reference: e.reference as string, date: e.event_date as string, amount: num(e.amount), bank_suffix: (e.bank_suffix as string) ?? "", received_by: e.received_by as Person })),
+        unsettled: allTransactions.filter((t) => t.type === "income" && t.platform === "tiktok" && t.status === "active" && t.order_ref && (t.settlement?.status ?? "pending") === "pending").map((t) => ({ order_ref: t.order_ref as string, date: t.date, value: t.net_amount })),
+      });
+      const normalized = normalizeLedger(allTransactions, clawbacks, wallet.advanceCash);
 
       return {
         transactions: normalized.transactions,
@@ -130,6 +159,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         skusAwaiting: (sk.data ?? []) as { sku_key: string; sku_name: string }[],
         payoutCoverage: (pa.data ?? []).reduce<Record<string, number>>((acc, a) => ({ ...acc, [a.payout_id as string]: Math.round(((acc[a.payout_id as string] ?? 0) + num(a.amount)) * 100) / 100 }), {}),
         tiktok,
+        tiktokMoney: { startDate: (sd.data?.start_date as string | undefined) ?? "2026-09-15", advanceBalance: wallet.advanceBalance, disbursed: wallet.disbursed, recovered: wallet.recovered, allocations: wallet.allocations, advancePreBusiness: wallet.advancePreBusiness, facts, periods: (st.data ?? []).map((p) => ({ from: p.period_from as string, to: p.period_to as string })) },
         fetchedAt: new Date().toISOString(),
       };
     },
