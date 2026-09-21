@@ -2,6 +2,8 @@ import Link from "next/link";
 import { GranularityPicker } from "@/components/reports/GranularityPicker";
 import { PeriodPicker } from "@/components/reports/PeriodPicker";
 import { UnitsSummaryStrip, UnitsTable } from "@/components/reports/UnitsTable";
+import { YesterdayCard } from "@/components/dashboard/YesterdayCard";
+import { buildYesterday } from "@/lib/dashboard/yesterday";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -57,6 +59,8 @@ export default async function UnitsReportPage({ searchParams }: PageProps<"/repo
           {sp.period ? periodLabel(period, locale, tr) : `${tr("units.last14")} · ${periodLabel(period, locale, tr)}`} · <Link href="/reports" className="text-berry hover:underline">{tr("reports.title")} →</Link>
         </p>
       </div>
+
+      <YesterdayCard data={buildYesterday(snapshot, today)} tr={tr} locale={locale} />
 
       <Card tone={backlog.length ? "berry" : "success"} className="mb-4 px-5 py-4">
         <p className="eyebrow">{tr("units.toBuyToday")}</p>
