@@ -55,7 +55,8 @@ export default async function PayoutsPage() {
   });
 
   function Status({ p }: { p: (typeof rows)[number] }) {
-    const diff = p.match ? round2(p.match.total - p.amount_received) : null;
+    // A withdrawal can carry an advance from TikTok or money from before the business; that part is explained.
+    const diff = p.match ? round2(p.match.total + num((p as { non_order_amount?: number | string | null }).non_order_amount ?? 0) - p.amount_received) : null;
     return (
       <span className="inline-flex flex-wrap items-center gap-2">
         {p.match ? <Pill tone="success">{tr("payouts.reconciled", { n: p.match.count })}</Pill> : <Pill tone="lavender">{tr("payouts.unreconciled")}</Pill>}
@@ -82,6 +83,13 @@ export default async function PayoutsPage() {
         <Card tone="warning" className="mb-4 px-5 py-4">
           <p className="text-sm font-medium text-warning-ink">{tr("orders.clawbackPending", { amount: thb(pendingClawbacks) })}</p>
           <InfoTip text={tr("orders.clawbackHint")} align="left" />
+        </Card>
+      ) : null}
+      {snapshot.tiktokMoney.advanceBalance > 0 ? (
+        <Card tone="lavender" className="mb-4 px-5 py-4">
+          <p className="flex items-center gap-2 text-sm font-medium text-plum">
+            {tr("advance.line", { amount: thb(snapshot.tiktokMoney.advanceBalance) })} <InfoTip text={tr("advance.tip")} align="left" />
+          </p>
         </Card>
       ) : null}
       {rows.length === 0 ? (

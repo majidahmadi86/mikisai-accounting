@@ -75,6 +75,11 @@ export default async function MyBalancePage({ searchParams }: PageProps<"/balanc
           <p className="mt-1 text-sm text-plum-soft">
             {b.owedToMe > 0 ? tr("balance.owedToMe", { name: partnerName, amount: thb(b.owedToMe) }) : b.iOwe > 0 ? tr("balance.iOwe", { name: partnerName, amount: thb(b.iOwe) }) : tr("balance.even")}
           </p>
+          {snapshot.tiktokMoney.advanceBalance > 0 ? (
+            <p className="mt-2 flex items-center gap-2 rounded-xl bg-lavender-tint px-3 py-2 text-xs text-plum">
+              {tr("advance.line", { amount: thb(snapshot.tiktokMoney.advanceBalance) })} <InfoTip text={tr("advance.tip")} align="left" />
+            </p>
+          ) : null}
           {b.clawbackPending > 0 ? <p className="mt-2 rounded-xl bg-warning-tint px-3 py-2 text-xs text-warning-ink">{tr("orders.clawbackPending", { amount: thb(b.clawbackPending) })} · {tr("orders.clawbackHint")}</p> : null}
         </Card>
 
