@@ -13,11 +13,14 @@ export function AppShell({
   locale,
   tr,
   displayName,
+  alert = false,
   children,
 }: {
   locale: Locale;
   tr: Translator;
   displayName: string;
+  /** Data health found something: a red dot on More. */
+  alert?: boolean;
   children: React.ReactNode;
 }) {
   const links = [
@@ -28,7 +31,7 @@ export function AppShell({
     { href: "/balance", label: tr("nav.balance") },
     { href: "/reports", label: tr("nav.reports") },
     { href: "/insights", label: tr("nav.insights"), collapse: true },
-    { href: "/more", label: tr("nav.more"), collapse: true },
+    { href: "/more", label: tr("nav.more"), collapse: true, alert },
   ];
 
   return (
@@ -81,7 +84,7 @@ export function AppShell({
       <main className="flex-1 pb-24 md:pb-0">
         <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10 xl:max-w-7xl wide:max-w-[88rem]">{children}</div>
       </main>
-      <TabBar />
+      <TabBar alert={alert} />
     </div>
   );
 }

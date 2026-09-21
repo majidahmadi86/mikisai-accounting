@@ -23,7 +23,7 @@ function Tab({ href, label, icon, active }: { href: string; label: string; icon:
 }
 
 /** Phone navigation: Home · Ledger · Add · My Balance · More. Reports moved under More. Hidden from md up. */
-export function TabBar() {
+export function TabBar({ alert = false }: { alert?: boolean }) {
   const t = useT();
   const pathname = usePathname();
   const { open } = useQuickEntry();
@@ -45,7 +45,17 @@ export function TabBar() {
           </button>
         </div>
         <Tab href="/balance" label={t("nav.balance")} icon={<BalanceIcon />} active={pathname.startsWith("/balance")} />
-        <Tab href="/more" label={t("nav.more")} icon={<MoreIcon />} active={isMore} />
+        <Tab
+          href="/more"
+          label={t("nav.more")}
+          icon={
+            <span className="relative">
+              <MoreIcon />
+              {alert ? <span aria-hidden="true" className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-berry ring-2 ring-ivory" /> : null}
+            </span>
+          }
+          active={isMore}
+        />
       </div>
     </nav>
   );

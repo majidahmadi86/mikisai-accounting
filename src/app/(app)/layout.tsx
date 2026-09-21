@@ -3,6 +3,7 @@ import { RegisterSw } from "@/components/pwa/RegisterSw";
 import { QuickEntryProvider, type QuickEntryContextData } from "@/components/quick-entry/QuickEntryProvider";
 import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
+import { lastHealthRun } from "@/lib/health/run";
 import { fifoBacklog } from "@/lib/inventory/backlog";
 import { LocaleProvider } from "@/lib/i18n/client";
 import { getLocale, t } from "@/lib/i18n/server";
@@ -10,7 +11,7 @@ import { getLocale, t } from "@/lib/i18n/server";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const [session, locale] = await Promise.all([requireSession(), getLocale()]);
   const tr = t(locale);
-  const snapshot = await getLedgerSnapshot(session.profile.business_id);
+  const [snapshot, health] = await Promise.all([getLedgerSnapshot(session.profile.business_id), lastHealthRun(session.supabase, session.profile.business_id)]);
 
   // Smart defaults for the quick-entry sheet: last used platform and product, the signed-in person.
   // The last sale, not the last row: an expense carries no platform worth repeating.
@@ -39,7 +40,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <LocaleProvider locale={locale}>
       <RegisterSw />
       <QuickEntryProvider data={quick}>
-        <AppShell locale={locale} tr={tr} displayName={session.profile.display_name}>
+        <AppShell locale={locale} tr={tr} displayName={session.profile.display_name} alert={Boolean(health && health.issues > 0)}>
           {children}
         </AppShell>
       </QuickEntryProvider>

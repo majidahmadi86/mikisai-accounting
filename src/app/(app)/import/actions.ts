@@ -2,7 +2,9 @@
 
 import { recordAudit } from "@/lib/audit";
 import { requireAdmin, requireSession } from "@/lib/auth";
-import { ledgerChanged } from "@/lib/data/ledger";
+import { getLedgerSnapshot, ledgerChanged } from "@/lib/data/ledger";
+import { loadAuditForHealth, recordHealthRun, runHealth } from "@/lib/health/run";
+import { todayIso } from "@/lib/money";
 import { z } from "zod";
 import { CommitSchema, commitRows, MappingSchema, type CommitResult as CoreResult } from "@/lib/import/commit";
 import { parseCsv, readXlsxSheets } from "@/lib/import/table";
@@ -31,7 +33,19 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
   if (!result.ok) return { ok: false, error: "save" };
   if (queue_ids.length) await supabase.from("sync_queue").update({ status: "confirmed", updated_at: new Date().toISOString() }).in("id", queue_ids).eq("business_id", profile.business_id);
   ledgerChanged(profile.business_id);
+  await healthAfterImport(session);
   return { ok: true, inserted: result.inserted, cancellations: result.cancellations, payouts: result.payouts, skipped: result.skipped };
+}
+
+/** Every import runs the Data health checks, so the red dot on More is never a day behind. Never throws: health must not fail an import. */
+async function healthAfterImport(session: Awaited<ReturnType<typeof requireSession>>): Promise<void> {
+  try {
+    const snapshot = await getLedgerSnapshot(session.profile.business_id);
+    const audit = session.profile.role === "admin" ? await loadAuditForHealth(session.supabase, session.profile.business_id) : null;
+    await recordHealthRun(session.supabase, session.profile.business_id, await runHealth(snapshot, audit, todayIso()), "page", session.userId);
+  } catch (err) {
+    console.error("[health] after import", err);
+  }
 }
 
 /**
@@ -63,6 +77,7 @@ export async function confirmStatement(input: unknown): Promise<StatementOutcome
   const outcome = await applyStatement(supabase, profile.business_id, mergeStatements(statements), { receivedBy: parsed.data.received_by, createdBy: userId, fileName: name, uploadId: wanted[0].id as string, audit: (entry) => recordAudit(session, entry) });
   if (outcome.ok) await supabase.from("report_uploads").update({ parsed: true }).in("id", wanted.map((u) => u.id as string)).eq("business_id", profile.business_id);
   ledgerChanged(profile.business_id);
+  await healthAfterImport(session);
   return outcome;
 }
 

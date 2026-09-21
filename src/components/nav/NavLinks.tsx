@@ -6,7 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/cn";
 
-export type NavLink = { href: string; label: string; /** Folds into the More menu between 768 and 1024px. */ collapse?: boolean };
+const Dot = () => <span aria-hidden="true" className="ml-1 inline-block h-2 w-2 shrink-0 rounded-full bg-berry align-middle" />;
+
+export type NavLink = { href: string; label: string; /** Shows a red dot: something there needs a look. */ alert?: boolean; /** Folds into the More menu between 768 and 1024px. */ collapse?: boolean };
 
 const linkClass = (active: boolean) => cn("rounded-full px-2.5 py-2 text-sm whitespace-nowrap transition-colors", active ? "bg-lavender-tint text-berry font-medium" : "text-plum-soft hover:text-plum hover:bg-lavender-tint");
 
@@ -43,12 +45,14 @@ export function NavLinks({ links, className, menuFooter }: { links: NavLink[]; c
       {links.map((link) => (
         <Link key={link.href} href={link.href} className={cn(linkClass(isActive(link.href)), link.collapse && "hidden lg:inline-flex")}>
           {link.label}
+          {link.alert ? <Dot /> : null}
         </Link>
       ))}
       {folded.length ? (
         <div ref={menu} className="relative lg:hidden">
           <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} aria-label={t("nav.moreMenu")} className={cn(linkClass(folded.some((l) => isActive(l.href))), "inline-flex min-h-9 items-center gap-1")}>
-            {t("nav.more")} <span className={cn("text-[10px] transition-transform", open && "rotate-180")}>▾</span>
+            {t("nav.more")}
+            {folded.some((l) => l.alert) ? <Dot /> : null} <span className={cn("text-[10px] transition-transform", open && "rotate-180")}>▾</span>
           </button>
           {open ? (
             <div role="menu" className="absolute right-0 top-full z-20 mt-2 min-w-44 overflow-hidden rounded-card border border-line bg-card py-1 shadow-[0_8px_24px_rgba(48,35,51,0.15)]">
