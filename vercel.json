@@ -17,7 +17,7 @@
     },
     {
       "path": "/api/tiktok/sync",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 21 * * *"
     }
   ]
 }

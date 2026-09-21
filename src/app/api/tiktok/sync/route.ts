@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * The poll, every 30 minutes from the Vercel cron in vercel.json. Vercel sends
+ * The poll, once a day at 04:00 Bangkok from the Vercel cron in vercel.json
+ * (the Hobby plan allows daily crons only; webhook hints still trigger a sync
+ * as they arrive). Vercel sends
  * "Authorization: Bearer <CRON_SECRET>"; anything else is refused. One sync
  * per connected business.
  */
