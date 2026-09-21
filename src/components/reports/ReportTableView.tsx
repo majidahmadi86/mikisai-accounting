@@ -50,8 +50,8 @@ export function ReportTableView({ table }: { table: ExportTable }) {
               {r.cells.slice(1).map((v, i) =>
                 v === "" ? null : (
                   <div key={i} className={cn("flex items-baseline justify-between gap-2 text-xs", table.columns[i + 1].kind === "text" && "col-span-2")}>
-                    <dt className="eyebrow shrink-0 text-[0.6rem]">{table.columns[i + 1].label}</dt>
-                    <dd className={cn("min-w-0 text-right text-plum", table.columns[i + 1].kind === "text" ? "[overflow-wrap:anywhere]" : "tabular whitespace-nowrap", r.total && "font-medium text-berry")}>{v}</dd>
+                    <dt className="eyebrow min-w-0 text-[0.6rem] [overflow-wrap:anywhere]">{table.columns[i + 1].label}</dt>
+                    <dd className={cn("text-right text-plum", table.columns[i + 1].kind === "text" ? "min-w-0 [overflow-wrap:anywhere]" : "shrink-0 tabular whitespace-nowrap", r.total && "font-medium text-berry")}>{v}</dd>
                   </div>
                 ),
               )}
