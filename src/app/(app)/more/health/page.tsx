@@ -10,7 +10,8 @@ import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import type { HealthKey } from "@/lib/health/checks";
 import { loadAuditForHealth, recordHealthRun, runHealth } from "@/lib/health/run";
-import { formatDateTime, todayIso } from "@/lib/money";
+import { formatDateTime, thb, todayIso } from "@/lib/money";
+import { lostTotal } from "@/lib/health/tiktok-money";
 import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,14 @@ export default async function DataHealthPage() {
                   <InfoTip text={tr(`health.${c.key}.desc` as `health.${HealthKey}.desc`)} align="left" />
                 </p>
               </div>
-              {c.skipped ? <Pill tone="neutral">{tr("health.adminOnly")}</Pill> : <Pill tone={c.count ? (c.key === "consistency" ? "berry" : "warning") : "success"}>{c.count}</Pill>}
+              {c.skipped ? (
+                <Pill tone="neutral">{tr("health.adminOnly")}</Pill>
+              ) : (
+                <Pill tone={c.count ? (c.key === "consistency" ? "berry" : "warning") : "success"}>
+                  {c.count}
+                  {c.count && (c.key === "overweight_week" || c.key === "returns_week") ? ` · ${thb(lostTotal(c.issues))}` : ""}
+                </Pill>
+              )}
             </div>
             {c.count ? (
               <ul className="mt-3 divide-y divide-line/60">

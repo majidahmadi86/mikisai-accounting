@@ -16,8 +16,9 @@ import { tiktokProblems, type TiktokStatus } from "@/lib/tiktok/status";
 import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 import { splitNoOrderRef } from "@/lib/ledger/order-ref";
+import { STATEMENT_KEYS, statementHealth, type MoneyInput } from "./tiktok-money";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = {
@@ -47,6 +48,8 @@ export type HealthInput = Omit<StatementsInput, "transfers"> & {
   lastTiktokImport?: { ran_at: string; source: string; details?: Record<string, unknown> } | null;
   skusAwaiting?: { sku_key: string; sku_name: string }[];
   payoutCoverage?: Record<string, number>;
+  /** What the TikTok Finance statements say; absent on a bare fixture. */
+  tiktokMoney?: MoneyInput;
 };
 
 export const UNMATCHED_PAYOUT_DAYS = 20;
@@ -180,6 +183,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
   // 13. Every report total equals the ledger sum for this month, and the books balance.
   const totals = reportTotalMismatches(input, today);
 
+  const money = statementHealth(input.tiktokMoney, [...input.transactions, ...(input.cancelled ?? [])], input.lastTiktokImport?.details, today);
   const checks: HealthCheck[] = [
     check("qty_amount", qtyAmount),
     check("negative_stocked", negativeStocked),
@@ -200,6 +204,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("skus_awaiting", (input.skusAwaiting ?? []).map((s): HealthIssue => ({ id: s.sku_key, label: s.sku_name || s.sku_key, href: "/import", detail: "pick its product" }))),
     check("orders_missing_status", Number(input.lastTiktokImport?.details?.missing_status ?? 0) > 0 ? [{ id: "missing-status", label: `${Number(input.lastTiktokImport?.details?.missing_status)} order(s) in the last file had no status the import knows`, href: "/import", detail: "treated as active" }] : []),
     check("payout_not_matched", payoutsNotMatched(input, income)),
+    ...STATEMENT_KEYS.map((key) => check(key, money[key])),
     check("tiktok_sync", tiktokProblems(input.tiktok, Date.parse(ranAt)).map((p): HealthIssue => ({ id: p.id, label: p.label, href: "/more/connect-tiktok", detail: p.detail }))),
     check("consistency", consistency),
     check("report_totals", totals),
@@ -254,6 +259,8 @@ function payoutsNotMatched(input: HealthInput, income: HealthInput["transactions
   return input.payouts
     .filter((p) => (p as { external_ref?: string | null }).external_ref)
     .map((p) => ({ p, covered: input.payoutCoverage?.[p.id] ?? legacy.get(p.id) ?? 0 }))
+    // A withdrawal can carry an advance from TikTok or money from before the business: that part is explained, not unmatched.
+    .map(({ p, covered }) => ({ p, covered: round2(covered + Number((p as { non_order_amount?: number | string | null }).non_order_amount ?? 0)) }))
     .filter(({ p, covered }) => p.amount_received - covered > Math.max(0.05, p.amount_received * 0.02))
     .map(({ p, covered }): HealthIssue => ({ id: p.id, label: `${p.date} · ${p.platform} · ฿${p.amount_received.toFixed(2)}`, href: `/payouts/${p.id}/reconcile`, detail: `฿${round2(p.amount_received - covered).toFixed(2)} not matched` }));
 }
