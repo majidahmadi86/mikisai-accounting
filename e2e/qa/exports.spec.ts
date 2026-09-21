@@ -20,7 +20,7 @@ const REPORTS: { id: string; title: string }[] = [
   { id: "product", title: "Sales by product" },
   { id: "platform", title: "Sales by platform" },
   { id: "category", title: "Payments by category" },
-  { id: "settlement", title: "Payout status" },
+  { id: "settlement", title: "Where the money is" },
   { id: "owes", title: "Who owes whom" },
   { id: "customers", title: "Customers" },
   { id: "stock", title: "Stock on hand" },

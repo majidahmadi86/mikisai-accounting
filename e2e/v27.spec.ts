@@ -27,7 +27,6 @@ test("one who-owes-whom figure on Home, Investment and My Balance; transfer shee
 
   await page.goto("/investment");
   const investmentText = (await page.locator("main").innerText()).trim();
-  if (amount) await expect(page.getByText("Already counted: transfers between you.")).toBeVisible();
   await page.screenshot({ path: `${OUT}/investment-to-be-equal-375.png` });
 
   await page.goto("/balance");
@@ -53,8 +52,8 @@ test("one who-owes-whom figure on Home, Investment and My Balance; transfer shee
   await page.screenshot({ path: `${OUT}/data-health-consistency-375.png` });
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Record an internal transfer" }).click();
-  await expect(page.getByRole("heading", { name: "Record an internal transfer" })).toBeVisible();
+  await page.getByRole("button", { name: "Add", exact: true }).first().click();
+  await page.getByRole("dialog").getByRole("radio", { name: "Money moved", exact: true }).click();
   // Reason chips: one column at 375px, whole words only.
   const chips = page.locator('[role="radiogroup"][aria-label="Why the money moved"] button');
   const boxes = await chips.evaluateAll((els) => els.map((el) => el.getBoundingClientRect()));

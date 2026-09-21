@@ -4,7 +4,7 @@
  * the denied message. Probe rows are removed afterwards.
  */
 import { expect, test } from "@playwright/test";
-import { admin, BUSINESS, check, cleanupProbes, login, PROBE, probeOrderId, setLang, shot, VIEWPORTS } from "./helpers";
+import { admin, BUSINESS, check, cleanupProbes, addSale, login, PROBE, probeOrderId, setLang, shot, VIEWPORTS } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 test.use({ viewport: VIEWPORTS.phone });
@@ -19,14 +19,9 @@ test("contributor adds a sale, edits it, cannot delete, sees denied on admin pag
   await setLang(context, "en");
   await login(page, "contributor");
 
-  await check(base("/transactions/new"), "income form saves for a contributor", async () => {
-    await page.goto("/transactions/new?type=income");
-    await page.locator("#gross_amount").fill("399");
-    await page.locator("#net_amount").fill("377");
-    await page.locator("#order_ref").fill(probeOrderId());
-    await page.locator("#note").fill(`${PROBE} contributor`);
-    await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-    await expect(page).toHaveURL(/saved=1/, { timeout: 15_000 });
+  await check(base("Add · Sale"), "a sale saves for a contributor", async () => {
+    await addSale(page, { ref: probeOrderId(), receive: 377, note: `${PROBE} contributor` });
+    await page.goto("/transactions");
     await expect(page.getByText(`${PROBE} contributor`).first()).toBeVisible();
   });
   await shot(page, "/transactions-after-save", "contributor", "phone", "en");
@@ -77,16 +72,16 @@ test("contributor adds a sale, edits it, cannot delete, sees denied on admin pag
   });
   await shot(page, "/more/health", "contributor", "phone", "en");
 
-  await check(base("/ (quick entry)"), "quick entry saves as contributor", async () => {
+  await check(base("/ (routine card)"), "Record what you paid for opens Expense on Stock purchase and saves", async () => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Add income or expense" }).first().click();
-    await page.getByRole("radio", { name: "1 kg packs" }).click();
-    // A sale with no platform order: the explicit toggle and a reason.
-    await page.getByLabel("No order ID").check();
-    await page.locator("#qe-ref-reason").fill("QA probe, cash sale");
-    await page.getByRole("button", { name: /Add a note/ }).click();
-    await page.locator("#qe-note").fill(`${PROBE} contributor quick`);
-    await page.getByRole("button", { name: /^Save$/ }).click();
+    await page.getByRole("button", { name: "Record a payment" }).click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet.getByRole("radiogroup", { name: "What did you pay for?" }).getByRole("radio").first()).toHaveAttribute("aria-checked", "true");
+    await sheet.getByRole("radio", { name: "Packaging", exact: true }).click();
+    await sheet.locator("#qe-amount").fill("45");
+    await sheet.getByRole("button", { name: /Add a note/ }).click();
+    await sheet.locator("#qe-note").fill(`${PROBE} contributor quick`);
+    await sheet.getByRole("button", { name: /^Save$/ }).click();
     await expect(page.getByRole("button", { name: /^Undo$/ })).toBeVisible({ timeout: 15_000 });
   });
 });

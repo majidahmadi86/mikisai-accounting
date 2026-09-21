@@ -43,8 +43,11 @@ test("share-to-app: install card for Sai, and a share lands on /import with the 
   mkdirSync(OUT, { recursive: true });
   await page.setViewportSize({ width: 375, height: 812 });
   await login(page, "sai");
+  // The install card sits on Import for a contributor since v3.0.
+  await page.goto("/import");
   await expect(page.getByText("Install MikiSai, then share order screenshots to it")).toBeVisible();
   await page.screenshot({ path: `${OUT}/share-install-card-375.png`, fullPage: false });
+  await page.goto("/");
 
   // The manifest declares the share target; the worker answers a share POST and parks the files.
   const manifest = await page.evaluate(async () => (await fetch("/manifest.webmanifest")).json());
@@ -90,8 +93,8 @@ test("Seller Center export in review with gold tags; Ledger with Order ID; quick
   // One new order without a settlement waits for a look, the cancelled one was never a sale, the known one is skipped.
   await expect(page.getByText("1 need a look")).toBeVisible();
   await expect(page.getByText("1 already in the ledger")).toBeVisible();
-  await expect(page.getByText("no settlement yet, net estimated").first()).toBeVisible();
-  await expect(page.getByText("net estimated", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("not paid yet, you receive is an estimate").first()).toBeVisible();
+  await expect(page.getByText("you receive is an estimate", { exact: true }).first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/import-review-tags-375.png`, fullPage: true });
 
   // Ledger: copyable Order IDs.
@@ -101,12 +104,12 @@ test("Seller Center export in review with gold tags; Ledger with Order ID; quick
 
   // Quick order: three fields, one tap.
   await page.goto("/");
-  await page.getByRole("button", { name: "Quick order" }).first().click();
-  await expect(page.getByRole("heading", { name: "Quick order" })).toBeVisible();
+  await page.getByRole("button", { name: "Add", exact: true }).first().click();
+  await expect(page.getByRole("dialog").getByRole("radio", { name: "Sale", exact: true })).toHaveAttribute("aria-checked", "true");
   await page.locator("#qo-ref").fill(PROBE_REF);
   await page.getByRole("button", { name: "One more" }).click();
   await page.screenshot({ path: `${OUT}/quick-order-375.png` });
-  await page.getByRole("button", { name: "Save order" }).click();
+  await page.getByRole("button", { name: "Save sale" }).click();
   await expect(page.getByText(/Order saved: 2 unit/)).toBeVisible({ timeout: 15_000 });
 
   // Search finds it by order number; Mark cancelled is one tap away.

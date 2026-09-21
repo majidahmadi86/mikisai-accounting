@@ -1,5 +1,5 @@
 /**
- * Regression: a transfer with a very long note must not widen the Home page
+ * Regression: a transfer with a very long note must not widen My Balance (where the Money moved list lives since v3.0)
  * beyond the viewport or push the bottom tab bar. Signs in as the admin with
  * the seed credentials, plants one probe transfer with a 300 character note
  * through the service role, checks every width, and removes the probe
@@ -38,7 +38,7 @@ test.afterAll(async () => {
   await admin.from("audit_log").delete().eq("entity_id", probeId);
 });
 
-test("Home never scrolls sideways with a 300 character note", async ({ page }) => {
+test("My Balance never scrolls sideways with a 300 character note", async ({ page }) => {
   // The probe bypasses the app, so the ledger snapshot cache (60 s safety net) may hide it briefly.
   test.setTimeout(180_000);
   // The first-run tour would cover the screenshot; mark it seen like a returning user.
@@ -51,12 +51,12 @@ test("Home never scrolls sideways with a 300 character note", async ({ page }) =
   const deadline = Date.now() + 75_000;
   while ((await page.getByText(LONG_NOTE.slice(0, 40), { exact: false }).count()) === 0 && Date.now() < deadline) {
     await page.waitForTimeout(5_000);
-    await page.goto("/");
+    await page.goto("/balance");
   }
 
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("/");
+    await page.goto("/balance");
     await expect(page.getByText(LONG_NOTE.slice(0, 40), { exact: false }).first()).toBeVisible();
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(scrollWidth, `page wider than ${width}px viewport`).toBeLessThanOrEqual(width);
@@ -69,6 +69,6 @@ test("Home never scrolls sideways with a 300 character note", async ({ page }) =
   }
 
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto("/");
-  await expect(page).toHaveScreenshot("home-375-long-note.png", { fullPage: true, maxDiffPixelRatio: 0.05 });
+  await page.goto("/balance");
+  await expect(page).toHaveScreenshot("balance-375-long-note.png", { fullPage: true, maxDiffPixelRatio: 0.05 });
 });

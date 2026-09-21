@@ -167,3 +167,52 @@ export async function pickProduct(page: Page, fragment: string): Promise<void> {
   await button.click();
   await page.locator('[role="listbox"] [role="option"]', { hasText: fragment }).first().click();
 }
+
+/** Opens the one entry door and picks one of its four choices. */
+export async function openAdd(page: Page, kind: "Sale" | "Expense" | "Money moved" | "Payout received"): Promise<void> {
+  await page.getByRole("button", { name: "Add", exact: true }).first().click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { name: "Add", exact: true })).toBeVisible();
+  await sheet.getByRole("radiogroup", { name: "Add", exact: true }).getByRole("radio", { name: kind, exact: true }).click();
+}
+
+/** Records a sale through Add, Sale. Returns once the saved toast shows. */
+export async function addSale(page: Page, o: { ref: string; qty?: number; receive?: number; customer?: string; note?: string }): Promise<void> {
+  await openAdd(page, "Sale");
+  const sheet = page.getByRole("dialog");
+  await sheet.locator("#qo-ref").fill(o.ref);
+  for (let i = 1; i < (o.qty ?? 1); i += 1) await sheet.getByRole("button", { name: "One more" }).first().click();
+  if (o.receive != null) await sheet.locator("#qo-receive").fill(String(o.receive));
+  if (o.customer || o.note) {
+    await sheet.getByRole("button", { name: /^More/ }).click();
+    if (o.customer) await sheet.locator("#qo-customer").fill(o.customer);
+    if (o.note) await sheet.locator("#qo-note").fill(o.note);
+  }
+  await sheet.getByRole("button", { name: "Save sale" }).click();
+  await expect(page.getByText(/Order saved/)).toBeVisible({ timeout: 15_000 });
+}
+
+/** Records an expense through Add, Expense. With qty and unitCost it is a stock purchase or samples line. */
+export async function addExpense(page: Page, o: { category: string; amount?: number; qty?: number; unitCost?: number; product?: string; note: string }): Promise<void> {
+  await openAdd(page, "Expense");
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("radiogroup", { name: "What did you pay for?" }).getByRole("radio", { name: o.category, exact: true }).click();
+  if (o.product) await sheet.getByRole("radio", { name: o.product, exact: true }).click();
+  if (o.qty != null) await sheet.locator("#qe-qty").fill(String(o.qty));
+  if (o.unitCost != null) await sheet.locator("#qe-cost").fill(String(o.unitCost));
+  if (o.amount != null) await sheet.locator("#qe-amount").fill(String(o.amount));
+  await sheet.getByRole("button", { name: /Add a note/ }).click();
+  await sheet.locator("#qe-note").fill(o.note);
+  await sheet.getByRole("button", { name: /^Save$/ }).click();
+}
+
+/** Records a payout through Add, Payout received, and lands on its matching page. */
+export async function addPayout(page: Page, amount: number, note: string): Promise<string> {
+  await openAdd(page, "Payout received");
+  const sheet = page.getByRole("dialog");
+  await sheet.locator("#po-amount").fill(String(amount));
+  await sheet.locator("#po-note").fill(note);
+  await sheet.getByRole("button", { name: /Save and match/ }).click();
+  await page.waitForURL(/\/payouts\/[0-9a-f-]{36}\/reconcile/, { timeout: 15_000 });
+  return page.url().match(/payouts\/([0-9a-f-]{36})/)![1];
+}

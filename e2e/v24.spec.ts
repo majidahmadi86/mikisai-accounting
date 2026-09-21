@@ -23,8 +23,10 @@ test("v2.4 reports, units, home yesterday and data health at 375px", async ({ pa
   await page.getByRole("button", { name: /sign in|เข้าสู่ระบบ/i }).click();
   await page.waitForURL("**/");
 
+  // Yesterday lives on Reports, Units since v3.0.
+  await page.goto("/reports/units");
   await expect(page.getByRole("heading", { name: "Yesterday" })).toBeVisible();
-  await page.screenshot({ path: `${OUT}/home-yesterday-375.png` });
+  await page.screenshot({ path: `${OUT}/units-yesterday-375.png` });
 
   await page.goto("/reports");
   await expect(page.getByRole("heading", { name: "Profit and loss" })).toBeVisible();

@@ -109,3 +109,67 @@ for (const [name, path] of [["products", "/products"], ["ledger", "/transactions
     await page.screenshot({ path: `${OUT}/v30-${name}-${width}.png` });
   });
 }
+
+// Revised v3.0: one entry door, Home with three things, Import by role.
+test("the Add sheet has exactly four choices and Sale asks for the order ID first", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await login(page, "admin");
+  await page.getByRole("button", { name: "Add", exact: true }).first().click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("radiogroup", { name: "Add", exact: true }).getByRole("radio")).toHaveText(["Sale", "Expense", "Money moved", "Payout received"]);
+  await expect(sheet.getByRole("radio", { name: "Sale" })).toHaveAttribute("aria-checked", "true");
+  await expect(sheet.locator("#qo-ref")).toBeVisible();
+  await expect(sheet.getByText(/Import from screenshot/)).toHaveCount(0);
+  await page.screenshot({ path: `${OUT}/v30-add-sheet-sale-375.png` });
+  await sheet.getByRole("radio", { name: "Expense" }).click();
+  const first = await sheet.getByRole("radiogroup", { name: "What did you pay for?" }).getByRole("radio").allInnerTexts();
+  expect(first.slice(0, 2).join(" | ")).toMatch(/Stock purchase.*\|.*Sample/i);
+  await page.screenshot({ path: `${OUT}/v30-add-sheet-expense-375.png` });
+  await sheet.getByRole("radio", { name: "Payout received" }).click();
+  await expect(sheet.locator("#po-amount")).toBeVisible();
+  await widthInvariants(page, 375);
+});
+
+for (const role of ["admin", "contributor"] as const) {
+  test(`Home for the ${role}: banner, one routine card, Stock strip, nothing else`, async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await login(page, role);
+    await expect(page.locator("main h1")).toHaveCount(1);
+    await expect(page.getByText(role === "admin" ? "Export, drop, confirm" : "Record what you paid for today")).toBeVisible();
+    await expect(page.getByText(role === "admin" ? "Record what you paid for today" : "Export, drop, confirm")).toHaveCount(0);
+    await expect(page.getByText(/^Last import|^Nothing imported yet/)).toBeVisible();
+    for (const gone of ["Recent activity", "Internal transfers", "Quick order", "Add income", "Record payout"]) await expect(page.getByText(gone, { exact: true })).toHaveCount(0);
+    const cards = await page.locator("main > div > *").evaluateAll((els) => els.filter((e) => (e as HTMLElement).offsetHeight > 0).length);
+    expect(cards, "banner, routine card, stock strip").toBeLessThanOrEqual(3);
+    await widthInvariants(page, 375);
+    await page.screenshot({ path: `${OUT}/v30-home-${role}-375.png`, fullPage: true });
+    if (role === "contributor") {
+      await page.getByRole("button", { name: "Record a payment" }).click();
+      const sheet = page.getByRole("dialog");
+      await expect(sheet.getByRole("radio", { name: "Expense" })).toHaveAttribute("aria-checked", "true");
+      await expect(sheet.getByRole("radiogroup", { name: "What did you pay for?" }).getByRole("radio").first()).toHaveAttribute("aria-checked", "true");
+      await page.screenshot({ path: `${OUT}/v30-home-contributor-record-375.png` });
+    }
+  });
+
+  test(`Import for the ${role}`, async ({ page }) => {
+    await page.setViewportSize(role === "admin" ? { width: 1280, height: 900 } : { width: 375, height: 812 });
+    await login(page, role);
+    await page.goto("/import");
+    await expect(page.locator("h1").first()).toHaveText("Import");
+    if (role === "admin") {
+      await expect(page.getByText("Drop the two Seller Center exports")).toBeVisible();
+      const order = await page.evaluate(() => {
+        const text = document.body.innerText;
+        return [text.indexOf("Drop the two Seller Center exports"), text.indexOf("Screenshots or pasted text")];
+      });
+      expect(order[0]).toBeGreaterThan(-1);
+      expect(order[1]).toBeGreaterThan(order[0]);
+    } else {
+      await expect(page.getByText("Drop the two Seller Center exports")).toHaveCount(0);
+      await expect(page.getByText("Screenshots or pasted text")).toBeVisible();
+    }
+    await widthInvariants(page, role === "admin" ? 1280 : 375);
+    await page.screenshot({ path: `${OUT}/v30-import-${role}.png`, fullPage: true });
+  });
+}

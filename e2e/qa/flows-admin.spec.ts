@@ -4,7 +4,7 @@
  * carry a QA-PROBE note and are removed afterwards through the service role.
  */
 import { expect, test } from "@playwright/test";
-import { admin, BOX_ID, BUSINESS, check, cleanupProbes, login, money, pickProduct, PROBE, probeOrderId, setLang, shot, VIEWPORTS } from "./helpers";
+import { admin, BOX_ID, BUSINESS, check, cleanupProbes, addExpense, addPayout, addSale, login, money, openAdd, PROBE, probeOrderId, setLang, shot, VIEWPORTS } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 test.use({ viewport: VIEWPORTS.desktop });
@@ -31,41 +31,21 @@ test("income: new form saves, ledger and reports move, invalid lines are blocked
   await page.goto("/reports");
   const revenueBefore = await tileValue(page, /You received/i);
 
-  await page.goto("/transactions/new?type=income");
-  const b = base("/transactions/new");
-  await check(b, "invalid: lines that do not add up are refused with the difference", async () => {
-    await page.locator("#gross_amount").fill("798");
-    await page.locator("#net_amount").fill("754");
-    await page.locator("#order_ref").fill(probeOrderId());
-    await page.locator("#customer_name").fill(`${PROBE} income`);
-    await page.getByLabel("Qty", { exact: true }).first().fill("2");
-    await page.locator("#note").fill(`${PROBE} income`);
-    // Tamper the hidden lines so qty x price is 399, not 798.
-    await page.evaluate(() => {
-      const el = document.querySelector('input[name="items"]') as HTMLInputElement;
-      const rows = JSON.parse(el.value) as { qty: number; unit_price: number }[];
-      rows[0].qty = 1;
-      el.value = JSON.stringify(rows);
-    });
-    await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-    await expect(page).toHaveURL(/error=reconcile/);
-    await expect(page.getByText(/do not add up/)).toBeVisible();
+  const b = base("Add · Sale");
+  const saleRef = probeOrderId();
+  await check(b, "invalid: a sale with no order ID is refused inline", async () => {
+    await openAdd(page, "Sale");
+    await page.getByRole("dialog").getByRole("button", { name: "Save sale" }).click();
+    await expect(page.getByRole("dialog").getByRole("alert")).toHaveText(/Add the order ID/);
+    await page.keyboard.press("Escape");
   });
-  await shot(page, "/transactions/new-invalid", "admin", "desktop", "en");
+  await shot(page, "/add-sale-invalid", "admin", "desktop", "en");
 
-  await check(b, "valid: qty 2 derives the unit price and saves", async () => {
-    await page.locator("#gross_amount").fill("798");
-    await page.locator("#net_amount").fill("754");
-    await page.locator("#order_ref").fill(probeOrderId());
-    await page.locator("#customer_name").fill(`${PROBE} income`);
-    await pickProduct(page, "1 kg x 10 packs");
-    const qty = page.getByLabel("Qty", { exact: true }).first();
-    await qty.fill("2");
-    await expect(page.getByText(/Lines ฿798\.00 · row ฿798\.00/)).toBeVisible();
-    await page.locator("#note").fill(`${PROBE} income`);
-    await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-    await expect(page).toHaveURL(/\/transactions\?saved=1/, { timeout: 15_000 });
+  await check(b, "valid: qty 2 prefills what you receive and saves", async () => {
+    await addSale(page, { ref: saleRef, qty: 2, receive: 754, customer: `${PROBE} income`, note: `${PROBE} income` });
+    await page.goto("/transactions");
   });
+
 
   await check(base("/transactions"), "ledger shows the row with product x qty", async () => {
     const row = page.locator("tr", { hasText: `${PROBE} income` }).first();
@@ -119,30 +99,25 @@ test("income: new form saves, ledger and reports move, invalid lines are blocked
   });
 });
 
-test("quick entry: income with product chip and qty 2 saves and appears in the ledger", async ({ page, context }) => {
+test("expense through Add: a plain expense saves with Undo, an empty amount is refused", async ({ page, context }) => {
   await setLang(context, "en");
   await login(page, "admin");
-  const b = base("/ (quick entry)");
-  const quickRef = probeOrderId();
-  await check(b, "sheet opens, chips preselect the last product, qty stepper works, save", async () => {
-    await page.getByRole("button", { name: /Add income or expense|^Add$/ }).first().click();
-    await expect(page.getByRole("heading", { name: /Add to the ledger/ })).toBeVisible();
-    await page.getByRole("radio", { name: "1 kg packs" }).click();
-    await page.getByRole("button", { name: "+1" }).click();
-    await expect(page.locator("#qe-qty")).toHaveValue("2");
-    await expect(page.locator("#qe-amount")).toHaveValue("798");
-    await page.locator("#qe-ref").fill(quickRef);
-    await page.getByRole("button", { name: /Add a note/ }).click();
-    await page.locator("#qe-note").fill(`${PROBE} quick`);
-    await page.getByRole("button", { name: /^Save$/ }).click();
+  const b = base("Add · Expense");
+  await check(b, "Stock purchase and Samples are the first two choices", async () => {
+    await openAdd(page, "Expense");
+    const names = await page.getByRole("dialog").getByRole("radiogroup", { name: "What did you pay for?" }).getByRole("radio").allInnerTexts();
+    expect(names.slice(0, 2).join(" | ")).toMatch(/Stock purchase.*\|.*Sample/i);
+    await page.keyboard.press("Escape");
+  });
+  await check(b, "valid: Packaging 120 saves and offers Undo", async () => {
+    await addExpense(page, { category: "Packaging", amount: 120, note: `${PROBE} quick` });
     // The sheet closes at once; the toast gains its Undo action only once the server has saved.
     await expect(page.getByRole("button", { name: /^Undo$/ })).toBeVisible({ timeout: 15_000 });
-    await page.goto("/transactions");
-    await expect(page.locator("tr", { hasText: quickRef }).first()).toBeVisible();
   });
   await check(b, "invalid: amount empty is refused inline", async () => {
     await page.goto("/");
-    await page.getByRole("button", { name: /Add income or expense|^Add$/ }).first().click();
+    await openAdd(page, "Expense");
+    await page.getByRole("dialog").getByRole("radio", { name: "Packaging", exact: true }).click();
     await page.locator("#qe-amount").fill("");
     await page.getByRole("button", { name: /^Save$/ }).click();
     await expect(page.getByRole("dialog").locator(".bg-berry-tint").first()).toBeVisible();
@@ -150,39 +125,34 @@ test("quick entry: income with product chip and qty 2 saves and appears in the l
   });
 });
 
-test("stock purchase: expense form with lines, backlog moves on Products", async ({ page, context }) => {
+test("stock purchase through Add: units and cost per unit give the amount, the backlog moves", async ({ page, context }) => {
   await setLang(context, "en");
   await login(page, "admin");
-  const b = base("/transactions/new?type=expense");
-  await page.goto("/transactions/new?type=expense");
+  const b = base("Add · Expense (stock purchase)");
   await check(b, "Stock purchase with 2 units at 260 saves and the backlog shrinks by 2", async () => {
     const { data: before } = await admin.from("stock_movements").select("qty").eq("product_id", BOX_ID);
     const backlogBefore = Math.max(0, -(before ?? []).reduce((a, m) => a + Number(m.qty), 0));
-    await page.getByRole("radio", { name: "Stock purchase" }).click();
-    await pickProduct(page, "1 kg x 10 packs");
-    await page.getByLabel("Qty", { exact: true }).first().fill("2");
-    await expect(page.locator("#amount")).toHaveValue("520");
-    await page.locator("#note").fill(`${PROBE} purchase`);
-    await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-    await expect(page).toHaveURL(/\/transactions\?saved=1/, { timeout: 15_000 });
-    await page.goto("/products");
+    await openAdd(page, "Expense");
+    const sheet = page.getByRole("dialog");
+    await sheet.getByRole("radio", { name: "Stock purchase", exact: true }).click();
+    await sheet.getByRole("radio", { name: "1 kg packs", exact: true }).click();
+    await sheet.locator("#qe-qty").fill("2");
+    await sheet.locator("#qe-cost").fill("260");
+    await expect(sheet.locator("#qe-amount")).toHaveValue("520");
+    await sheet.getByRole("button", { name: /Add a note/ }).click();
+    await sheet.locator("#qe-note").fill(`${PROBE} purchase`);
+    await sheet.getByRole("button", { name: /^Save$/ }).click();
+    await expect(page.getByRole("button", { name: /^Undo$/ })).toBeVisible({ timeout: 15_000 });
     const { data: after } = await admin.from("stock_movements").select("qty").eq("product_id", BOX_ID);
     const backlogAfter = Math.max(0, -(after ?? []).reduce((a, m) => a + Number(m.qty), 0));
     expect(backlogBefore - backlogAfter).toBe(Math.min(2, backlogBefore));
   });
-  await check(b, "invalid: amount that does not match the lines is refused", async () => {
-    await page.goto("/transactions/new?type=expense");
-    await page.getByRole("radio", { name: "Stock purchase" }).click();
-    await page.getByLabel("Qty", { exact: true }).first().fill("2");
-    await page.locator("#note").fill(`${PROBE} purchase bad`);
-    await page.evaluate(() => {
-      const el = document.querySelector('input[name="items"]') as HTMLInputElement;
-      const rows = JSON.parse(el.value) as { unit_cost: number }[];
-      rows[0].unit_cost = 100;
-      el.value = JSON.stringify(rows);
-    });
-    await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-    await expect(page).toHaveURL(/error=reconcile/);
+  await check(b, "invalid: an amount that does not match units times cost is refused by the server", async () => {
+    await page.goto("/");
+    await addExpense(page, { category: "Stock purchase", product: "1 kg packs", qty: 2, unitCost: 260, amount: 100, note: `${PROBE} purchase bad` });
+    await expect(page.getByText(/do not add up/)).toBeVisible({ timeout: 15_000 });
+    const { data } = await admin.from("transactions").select("id").eq("business_id", BUSINESS).eq("note", `${PROBE} purchase bad`);
+    expect(data ?? []).toEqual([]);
   });
 });
 
@@ -190,32 +160,22 @@ test("payouts: new payout, reconciliation marks the probe sale as in the bank, e
   await setLang(context, "en");
   await login(page, "admin");
   // A waiting TikTok sale to match.
-  await page.goto("/transactions/new?type=income");
-  await page.locator("#gross_amount").fill("399");
-  await page.locator("#net_amount").fill("377");
-  await page.locator("#order_ref").fill(probeOrderId());
-  await page.locator("#customer_name").fill(`${PROBE} match`);
-  await page.locator("#note").fill(`${PROBE} to-match`);
-  await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-  await expect(page).toHaveURL(/saved=1/, { timeout: 15_000 });
+  await addSale(page, { ref: probeOrderId(), receive: 377, customer: `${PROBE} match`, note: `${PROBE} to-match` });
 
-  const b = base("/payouts/new");
+  const b = base("Add · Payout received");
   await check(b, "invalid: zero amount is refused", async () => {
-    await page.goto("/payouts/new");
-    await page.locator("#amount_received").fill("0");
-    await page.locator("#note").fill(`${PROBE} payout`);
-    await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-    await expect(page).toHaveURL(/error=invalid|\/payouts\/new/);
+    await page.goto("/payouts");
+    await openAdd(page, "Payout received");
+    await page.locator("#po-amount").fill("0");
+    await page.getByRole("dialog").getByRole("button", { name: /Save and match/ }).click();
+    await expect(page).toHaveURL(/\/payouts(\?error=invalid)?$/);
+    await page.keyboard.press("Escape");
   });
   let payoutId = "";
-  await check(b, "valid: payout saves and opens reconciliation with the sale proposed", async () => {
-    await page.goto("/payouts/new");
-    await page.locator("#amount_received").fill("377");
-    await page.locator("#note").fill(`${PROBE} payout`);
-    await page.locator("form:has(#date) button[type=submit], form:has(#p-name) button[type=submit]").first().click();
-    await page.waitForURL(/\/payouts\/[0-9a-f-]{36}\/reconcile/);
-    payoutId = page.url().match(/payouts\/([0-9a-f-]{36})/)![1];
-    await expect(page.getByText(/Proposed match|matches/i).first()).toBeVisible();
+  await check(b, "valid: payout saves and opens the matching page with the sale proposed", async () => {
+    await page.goto("/payouts");
+    payoutId = await addPayout(page, 377, `${PROBE} payout`);
+    await expect(page.getByText(/add up to the payout|closest set/i).first()).toBeVisible();
   });
   await shot(page, "/payouts/[id]/reconcile", "admin", "desktop", "en");
   await check(base("/payouts/[id]/reconcile"), "confirm: only the probe sale is ticked, it is then in the bank and linked to the payout", async () => {
@@ -246,13 +206,12 @@ test("payouts: new payout, reconciliation marks the probe sale as in the bank, e
   });
 });
 
-test("transfers on Home: the sheet saves a valid transfer and refuses Other without a note", async ({ page, context }) => {
+test("money moved through Add: the sheet saves a valid transfer and refuses Other without a note", async ({ page, context }) => {
   await setLang(context, "en");
   await login(page, "admin");
-  const b = base("/ (transfer sheet)");
+  const b = base("Add · Money moved");
   await check(b, "invalid: Other without a note is refused inline", async () => {
-    await page.getByRole("button", { name: "Record an internal transfer" }).click();
-    await expect(page.getByRole("heading", { name: "Record an internal transfer" })).toBeVisible();
+    await openAdd(page, "Money moved");
     await page.getByRole("radio", { name: "Other, say what" }).click();
     await page.locator("#ts-amount").fill("10");
     await page.locator("#ts-note").fill("");
@@ -260,15 +219,15 @@ test("transfers on Home: the sheet saves a valid transfer and refuses Other with
     await page.getByRole("button", { name: "Record transfer" }).click();
     await expect(page.locator("p.text-berry", { hasText: /note is required/i })).toBeVisible();
   });
-  await check(b, "valid: Mike to Sai 10 baht appears in the transfers list", async () => {
+  await check(b, "valid: Mike to Sai 10 baht is saved and listed on Investment", async () => {
     await page.getByRole("radio", { name: "My half of a cost the other paid" }).click();
     await page.getByRole("radio", { name: "Mike" }).click();
     await page.locator("#ts-amount").fill("10");
     await page.locator("#ts-note").fill(`${PROBE} transfer`);
     await page.getByRole("button", { name: "Record transfer" }).click();
     await expect(page.getByText(/Recorded: Mike sent Sai/)).toBeVisible({ timeout: 15_000 });
-    await page.goto("/");
-    await expect(page.locator("li", { hasText: `${PROBE} transfer` }).first()).toBeVisible();
+    const { data } = await admin.from("internal_transfers").select("amount").eq("business_id", BUSINESS).eq("note", `${PROBE} transfer`).is("deleted_at", null);
+    expect((data ?? []).map((r) => Number(r.amount))).toEqual([10]);
   });
 });
 
@@ -354,12 +313,10 @@ test("units report toggles and data health run", async ({ page, context }) => {
     const fit = await page.locator("main table").first().evaluate((t) => [t.parentElement!.scrollWidth, t.parentElement!.clientWidth]);
     expect(fit[0]).toBe(fit[1]);
   });
-  await check(base("/more/health"), "run again records a run and Home shows it", async () => {
+  await check(base("/more/health"), "run again records a run", async () => {
     await page.goto("/more/health");
     await page.getByRole("link", { name: /Run again/ }).click();
     await expect(page.getByText(/Checked/).first()).toBeVisible();
-    await page.goto("/");
-    await expect(page.getByText(/Data health:/)).toBeVisible();
   });
   await check(base("/more/check-books"), "books balance on live data", async () => {
     await page.goto("/more/check-books");

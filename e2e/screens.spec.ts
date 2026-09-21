@@ -23,8 +23,8 @@ test("v2.2 screens at 375px", async ({ page }) => {
   await page.getByRole("button", { name: /sign in|เข้าสู่ระบบ/i }).click();
   await page.waitForURL("**/");
 
-  await page.getByRole("button", { name: "Add income or expense" }).click();
-  await expect(page.getByRole("heading", { name: /Add to the ledger/ })).toBeVisible();
+  await page.getByRole("button", { name: "Add", exact: true }).first().click();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "Add", exact: true })).toBeVisible();
   await page.screenshot({ path: `${OUT}/quick-entry-income-375.png` });
   await page.keyboard.press("Escape");
 

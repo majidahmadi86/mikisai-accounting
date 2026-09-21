@@ -6,7 +6,7 @@
  * removed afterwards.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { admin, BUSINESS, check, cleanupProbes, login, PROBE, probeOrderId, setLang, VIEWPORTS } from "./helpers";
+import { admin, BUSINESS, addExpense, addPayout, addSale, check, cleanupProbes, login, openAdd, PROBE, probeOrderId, setLang, VIEWPORTS } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 test.use({ viewport: VIEWPORTS.desktop });
@@ -28,29 +28,14 @@ test("contributor creates four rows; admin edits and deletes each", async ({ bro
   await setLang(sai, "en");
   await login(saiPage, "contributor");
 
-  await saiPage.goto("/transactions/new?type=income");
-  await saiPage.locator("#gross_amount").fill("399");
-  await saiPage.locator("#net_amount").fill("377");
-  await saiPage.locator("#order_ref").fill(probeOrderId());
-  await saiPage.locator("#note").fill(`${PROBE} sai income`);
-  await submit(saiPage).click();
-  await expect(saiPage).toHaveURL(/saved=1/, { timeout: 15_000 });
-
-  await saiPage.goto("/transactions/new?type=expense");
-  await saiPage.getByRole("radio", { name: "Packaging" }).click();
-  await saiPage.locator("#amount").fill("120");
-  await saiPage.locator("#note").fill(`${PROBE} sai expense`);
-  await submit(saiPage).click();
-  await expect(saiPage).toHaveURL(/saved=1/, { timeout: 15_000 });
-
-  await saiPage.goto("/payouts/new");
-  await saiPage.locator("#amount_received").fill("377");
-  await saiPage.locator("#note").fill(`${PROBE} sai payout`);
-  await submit(saiPage).click();
-  await saiPage.waitForURL(/\/payouts\/[0-9a-f-]{36}\/reconcile/, { timeout: 15_000 });
-
+  await addSale(saiPage, { ref: probeOrderId(), receive: 377, note: `${PROBE} sai income` });
   await saiPage.goto("/");
-  await saiPage.getByRole("button", { name: "Record an internal transfer" }).click();
+  await addExpense(saiPage, { category: "Packaging", amount: 120, note: `${PROBE} sai expense` });
+  await expect(saiPage.getByRole("button", { name: /^Undo$/ })).toBeVisible({ timeout: 15_000 });
+  await saiPage.goto("/");
+  await addPayout(saiPage, 377, `${PROBE} sai payout`);
+  await saiPage.goto("/");
+  await openAdd(saiPage, "Money moved");
   await saiPage.getByRole("radio", { name: "Sai" }).click();
   await saiPage.locator("#ts-amount").fill("5");
   await saiPage.locator("#ts-note").fill(`${PROBE} sai transfer`);
