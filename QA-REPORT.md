@@ -1,6 +1,6 @@
-# QA report · MikiSai Accounting v2.5 to v3.0
+# QA report · MikiSai Accounting v2.5 to v3.1
 
-Generated 2026-09-21T04:11:40.330Z from 1305 recorded checks across 32 routes. **All checks pass; 1 defect(s) still open, listed below.**
+Generated 2026-09-21T07:49:03.340Z from 1365 recorded checks across 33 routes. **All checks pass; 1 defect(s) still open, listed below.**
 
 Each cell is the number of checks that passed for that route as that role, at that viewport (phone = 375px, laptop = 1024px, desktop1280 = 1280px, desktop = 1440px), in that language. A check is one assertion group: page loads with the right heading, page invariants (document scrollWidth equals window.innerWidth, no element wider than the viewport, header scrollWidth equals clientWidth from 768px, no raw dictionary key, no unfilled placeholder, no em dash, a heading), no console errors, plus the form, export and role checks the flow specs record.
 
@@ -18,6 +18,7 @@ Each cell is the number of checks that passed for that route as that role, at th
 | `/investment` | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 |
 | `/login` | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 |
 | `/more` | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 5 | pass 4 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 |
+| `/more/before` | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 |
 | `/more/check-books` | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 5 | pass 4 | pass 2 | pass 1 | pass 1 | pass 1 | pass 1 | pass 1 | pass 1 | pass 1 |
 | `/more/deleted` | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 2 | pass 1 | pass 1 | pass 1 | pass 1 | pass 1 | pass 1 | pass 1 |
 | `/more/health` | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 4 | pass 5 | pass 4 | pass 4 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 | pass 3 |
@@ -55,6 +56,7 @@ Every route as the admin at six widths, in both languages: document.documentElem
 | `/insights` | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | `/investment` | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | `/more` | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
+| `/more/before` | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | `/more/check-books` | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | `/more/deleted` | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | `/more/health` | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
@@ -99,6 +101,7 @@ None.
 | D21 | `Add · Sale` | v3.0 revised, payout flow spec | Expenses saved from the new Expense sheet carry no platform, and the sheet took its default platform from the last row, so a new sale could start on Other and never show up when matching a TikTok payout. | The default platform comes from the last sale. | `6877fe6` | fixed |
 | D22 | `/reports at 375 and 390px` | v3.0 revised QA sweep | The plain-word column label Profit before other costs was wider than its phone card and pushed past the screen. | Labels wrap inside the card; the value keeps its width. | `64b4d19` | fixed |
 | D23 | `/ and /balance` | v3.0 revised, while executing the audit | Removing Home's transfers list would have left transfers sent as profit share with no page listing them, so they could not be opened or edited. | My Balance lists every Money moved entry, each opening its edit page. | `022a802` | fixed |
+| D24 | `/import (Finance statement)` | v3.1 end-to-end run | Migration 0026 added the Return cost category under an id that Registration and fees already held, so nothing was inserted and the loss on a return was dropped without a word. | Migration 0027 adds it under a free id; applying a return without the category now stops with an error instead of skipping the expense. | `df9d6e2` | fixed |
 
 ## What is covered by Playwright
 
@@ -109,6 +112,7 @@ None.
 - `e2e/qa/admin-edits-all.spec.ts`: the contributor creates an income, an expense, a payout and a transfer; the admin opens, edits and soft-deletes each, and the ledger row reads created by Sai · edited by Mike.
 - `e2e/qa/widths.spec.ts`: every route at 375, 390, 768, 1024, 1280 and 1440px in EN and TH: no sideways scroll, no element wider than the viewport, the header never scrolls.
 - `e2e/v30.spec.ts`: header on one line at 1024 and 1440px, the More menu between 768 and 1024, the search overlay (icon, Ctrl K, grouped results, arrows, Enter, Esc), Products and Ledger with fixed layout and headers aligned to cells at 1024, 1280 and 1440px.
+- `e2e/v31.spec.ts`: the real TikTok Finance statement (.xlsx) dropped on the nightly panel: detected type and period before confirm, one confirm, what TikTok really paid (308.46 and 272.46), the refund as a Return cost, the withdrawal as a payout that pays the oldest settled orders, the order from before the business outside the ledger, the advance balance on Payouts and My Balance, and a second drop that changes nothing.
 - `e2e/snapshots-375.spec.ts`: 375px visual baselines of Reports and Stock, plus a check that no stat value overflows its tile.
 
 ## Not automated
@@ -246,6 +250,22 @@ None.
 - `qa-output/shots/login__contributor__laptop__th.png`
 - `qa-output/shots/login__contributor__phone__en.png`
 - `qa-output/shots/login__contributor__phone__th.png`
+- `qa-output/shots/more-before__admin__desktop1280__en.png`
+- `qa-output/shots/more-before__admin__desktop1280__th.png`
+- `qa-output/shots/more-before__admin__desktop__en.png`
+- `qa-output/shots/more-before__admin__desktop__th.png`
+- `qa-output/shots/more-before__admin__laptop__en.png`
+- `qa-output/shots/more-before__admin__laptop__th.png`
+- `qa-output/shots/more-before__admin__phone__en.png`
+- `qa-output/shots/more-before__admin__phone__th.png`
+- `qa-output/shots/more-before__contributor__desktop1280__en.png`
+- `qa-output/shots/more-before__contributor__desktop1280__th.png`
+- `qa-output/shots/more-before__contributor__desktop__en.png`
+- `qa-output/shots/more-before__contributor__desktop__th.png`
+- `qa-output/shots/more-before__contributor__laptop__en.png`
+- `qa-output/shots/more-before__contributor__laptop__th.png`
+- `qa-output/shots/more-before__contributor__phone__en.png`
+- `qa-output/shots/more-before__contributor__phone__th.png`
 - `qa-output/shots/more-check-books__admin__desktop1280__en.png`
 - `qa-output/shots/more-check-books__admin__desktop1280__th.png`
 - `qa-output/shots/more-check-books__admin__desktop__en.png`

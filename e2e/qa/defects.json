@@ -205,5 +205,14 @@
     "fix": "My Balance lists every Money moved entry, each opening its edit page.",
     "commit": "022a802",
     "status": "fixed"
+  },
+  {
+    "id": "D24",
+    "route": "/import (Finance statement)",
+    "found": "v3.1 end-to-end run",
+    "description": "Migration 0026 added the Return cost category under an id that Registration and fees already held, so nothing was inserted and the loss on a return was dropped without a word.",
+    "fix": "Migration 0027 adds it under a free id; applying a return without the category now stops with an error instead of skipping the expense.",
+    "commit": "df9d6e2",
+    "status": "fixed"
   }
 ]

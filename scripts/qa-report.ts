@@ -34,7 +34,7 @@ const total = rows.length;
 const failed = rows.filter((r) => !r.pass);
 const shots = existsSync("qa-output/shots") ? readdirSync("qa-output/shots").sort() : [];
 
-let md = `# QA report · MikiSai Accounting v2.5 to v3.0\n\n`;
+let md = `# QA report · MikiSai Accounting v2.5 to v3.1\n\n`;
 md += `Generated ${new Date().toISOString()} from ${total} recorded checks across ${routes.length} routes. `;
 const open = defects.filter((d) => d.status !== "fixed");
 md += failed.length ? `**${failed.length} check(s) failing.**\n\n` : open.length ? `**All checks pass; ${open.length} defect(s) still open, listed below.**\n\n` : `**All checks pass; zero known defects.**\n\n`;
@@ -66,6 +66,7 @@ md += `- \`e2e/qa/exports.spec.ts\`: every report's XLSX body compared cell for 
 md += `- \`e2e/qa/admin-edits-all.spec.ts\`: the contributor creates an income, an expense, a payout and a transfer; the admin opens, edits and soft-deletes each, and the ledger row reads created by Sai · edited by Mike.\n`;
 md += `- \`e2e/qa/widths.spec.ts\`: every route at 375, 390, 768, 1024, 1280 and 1440px in EN and TH: no sideways scroll, no element wider than the viewport, the header never scrolls.\n`;
 md += `- \`e2e/v30.spec.ts\`: header on one line at 1024 and 1440px, the More menu between 768 and 1024, the search overlay (icon, Ctrl K, grouped results, arrows, Enter, Esc), Products and Ledger with fixed layout and headers aligned to cells at 1024, 1280 and 1440px.\n`;
+md += `- \`e2e/v31.spec.ts\`: the real TikTok Finance statement (.xlsx) dropped on the nightly panel: detected type and period before confirm, one confirm, what TikTok really paid (308.46 and 272.46), the refund as a Return cost, the withdrawal as a payout that pays the oldest settled orders, the order from before the business outside the ledger, the advance balance on Payouts and My Balance, and a second drop that changes nothing.\n`;
 md += `- \`e2e/snapshots-375.spec.ts\`: 375px visual baselines of Reports and Stock, plus a check that no stat value overflows its tile.\n`;
 md += `\n## Not automated\n\n- \`/import\` AI parsing (Gemini) is not called from tests; the page, its validation (empty input refused) and the review table are covered, the model call is exercised by hand.\n`;
 md += `\n## Screenshots after fixing\n\n${shots.map((s) => `- \`qa-output/shots/${s}\``).join("\n")}\n`;
