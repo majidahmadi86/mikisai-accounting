@@ -366,13 +366,13 @@ export function NightlyPanel({ settings, products, admin, defaultReceivedBy }: {
   return (
     <Card className="mb-4 p-5 sm:p-6">
       <p className="eyebrow">{t("nightly.eyebrow")}</p>
-      <p className="mt-1 font-display text-2xl text-plum">{t("nightly.title")}</p>
-      <InfoTip text={t("nightly.subtitle")} align="left" />
+      <p className="mt-1 flex items-center gap-2 font-display text-2xl text-plum">
+        {t("nightly.title")} <InfoTip text={`${t("nightly.subtitle")} ${t("nightly.anyZone")}`} align="left" />
+      </p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <DropZone id="nightly-orders" title={t("nightly.ordersTitle")} hint={t("nightly.ordersHint")} href={SELLER_CENTER_ORDERS} linkLabel={t("nightly.ordersLink")} disabled={reading} onFiles={add} />
         <DropZone id="nightly-finance" title={t("nightly.financeTitle")} hint={t("nightly.financeHint")} href={SELLER_CENTER_FINANCE} linkLabel={t("nightly.financeLink")} disabled={reading} onFiles={add} />
       </div>
-      <InfoTip text={t("nightly.anyZone")} align="left" />
       {reading ? <p className="mt-3 text-sm text-plum-soft">{t("import.readingTable")}…</p> : null}
       {error ? <p className="mt-3 text-sm text-berry">{error}</p> : null}
     </Card>

@@ -44,7 +44,7 @@ export function InfoTip({ text, label, className, align = "right" }: { text: str
         <InfoIcon className="h-4 w-4" />
       </button>
       {open ? (
-        <span id={id} role="tooltip" className={cn("absolute top-8 z-20 w-64 max-w-[calc(100vw-3rem)] rounded-xl border border-line bg-card px-3 py-2 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-plum shadow-[0_8px_24px_rgba(48,35,51,0.15)]", align === "left" ? "left-0" : "right-0")}>
+        <span id={id} role="tooltip" className={cn("absolute top-8 z-20 w-64 max-w-[calc(100vw-3rem)] rounded-xl border border-line bg-card px-3 py-2 text-left font-sans text-xs font-normal normal-case leading-relaxed tracking-normal text-plum shadow-[0_8px_24px_rgba(48,35,51,0.15)]", align === "left" ? "left-0" : "right-0")}>
           {text}
         </span>
       ) : null}

@@ -227,8 +227,9 @@ export function ImportWorkbench({ settings, defaultReceivedBy, products }: { set
 
       <Card className="p-5 sm:p-6">
         <p className="eyebrow">{t("import.screensEyebrow")}</p>
-        <p className="mt-1 font-display text-xl text-plum">{t("import.screensTitle")}</p>
-        <InfoTip text={t("import.screensHint")} align="left" />
+        <p className="mt-1 flex items-center gap-2 font-display text-xl text-plum">
+          {t("import.screensTitle")} <InfoTip text={t("import.screensHint")} align="left" />
+        </p>
         <div className="mt-3 grid gap-5 lg:grid-cols-2">
           <div className="space-y-3">
             <Field label={t("import.filesLabel")} htmlFor="files" hint={t("import.filesHint")}>
