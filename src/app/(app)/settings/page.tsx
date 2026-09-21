@@ -64,6 +64,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <p className="mt-2 text-xs text-plum-faint">{thb(snapshot.business.exposure_limit)}</p>
         </Card>
 
+        <Card className="p-5">
+          <p className="eyebrow">{tr("settings.startTitle")}</p>
+          <div className="mt-2 max-w-xs">
+            <Field label={tr("settings.startDate")} htmlFor="start_date" hint={tr("settings.startHint")}>
+              <Input id="start_date" name="start_date" type="date" defaultValue={snapshot.tiktokMoney.startDate} readOnly={!admin} />
+            </Field>
+          </div>
+        </Card>
+
         {sp.error && sp.error !== "denied" ? <p className="rounded-xl bg-berry-tint px-3 py-2 text-sm text-berry">{tr("common.error")}</p> : null}
         {sp.saved ? <p className="rounded-xl bg-success-tint px-3 py-2 text-sm text-success">{tr("settings.saved")}</p> : null}
         {admin ? (
