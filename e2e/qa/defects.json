@@ -178,5 +178,32 @@
     "fix": "None yet: a test artefact, but the ids are not plain words. Candidate for the next directive: translate the report-total labels.",
     "commit": "",
     "status": "open (transient, test data only)"
+  },
+  {
+    "id": "D21",
+    "route": "Add · Sale",
+    "found": "v3.0 revised, payout flow spec",
+    "description": "Expenses saved from the new Expense sheet carry no platform, and the sheet took its default platform from the last row, so a new sale could start on Other and never show up when matching a TikTok payout.",
+    "fix": "The default platform comes from the last sale.",
+    "commit": "6877fe6",
+    "status": "fixed"
+  },
+  {
+    "id": "D22",
+    "route": "/reports at 375 and 390px",
+    "found": "v3.0 revised QA sweep",
+    "description": "The plain-word column label Profit before other costs was wider than its phone card and pushed past the screen.",
+    "fix": "Labels wrap inside the card; the value keeps its width.",
+    "commit": "64b4d19",
+    "status": "fixed"
+  },
+  {
+    "id": "D23",
+    "route": "/ and /balance",
+    "found": "v3.0 revised, while executing the audit",
+    "description": "Removing Home's transfers list would have left transfers sent as profit share with no page listing them, so they could not be opened or edited.",
+    "fix": "My Balance lists every Money moved entry, each opening its edit page.",
+    "commit": "022a802",
+    "status": "fixed"
   }
 ]
