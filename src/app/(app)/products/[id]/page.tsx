@@ -1,10 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { adjustStock } from "@/app/(app)/settings/products-actions";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Field, Input } from "@/components/ui/Field";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
@@ -136,31 +134,6 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
         {p.notes ? <p className="border-t border-line px-5 py-4 text-sm text-plum-soft sm:px-6">{p.notes}</p> : null}
       </Card>
 
-      {admin ? (
-        <Card className="mt-4">
-          <CardHeader title={tr("inventory.adjust")} subtitle={tr("products.adjustDesc")} />
-          <form action={adjustStock} className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-4 sm:px-6 sm:pb-6">
-            <input type="hidden" name="product_id" value={p.id} />
-            <Field label={tr("inventory.qtyDelta")} htmlFor="adj-qty" hint={tr("products.qtyDeltaHint")}>
-              <Input id="adj-qty" name="qty" type="number" inputMode="numeric" step={1} required className="tabular" />
-            </Field>
-            <Field label={tr("inventory.unitCost")} htmlFor="adj-cost" hint={tr("inventory.unitCostHintSample")}>
-              <Input id="adj-cost" name="unit_cost" type="number" inputMode="decimal" step="0.01" min={0} className="tabular" />
-            </Field>
-            <Field label={tr("common.date")} htmlFor="adj-date">
-              <Input id="adj-date" name="date" type="date" defaultValue={today} required />
-            </Field>
-            <Field label={tr("common.note")} htmlFor="adj-note" hint={tr("inventory.adjustHint")}>
-              <Input id="adj-note" name="note" required minLength={3} />
-            </Field>
-            <div className="col-span-full">
-              <Button type="submit" variant="secondary">
-                {tr("inventory.adjustSave")}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      ) : null}
     </div>
   );
 }
