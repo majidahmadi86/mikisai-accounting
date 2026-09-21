@@ -94,6 +94,28 @@ export function cellText(value: ExcelJS.CellValue): string {
 }
 
 /** Reads the first worksheet that has any content. */
+/** Every sheet of a workbook as a grid, keyed by sheet name. The TikTok Finance statement spreads over several sheets. */
+export async function readXlsxSheets(bytes: Uint8Array): Promise<Record<string, Grid>> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
+  const out: Record<string, Grid> = {};
+  for (const sheet of workbook.worksheets) {
+    const grid: Grid = [];
+    let width = 0;
+    sheet.eachRow((row) => {
+      width = Math.max(width, row.cellCount);
+    });
+    for (let r = 1; r <= sheet.rowCount; r += 1) {
+      const row = sheet.getRow(r);
+      const cells: string[] = [];
+      for (let c = 1; c <= width; c += 1) cells.push(cellText(row.getCell(c).value));
+      grid.push(cells);
+    }
+    out[sheet.name] = grid;
+  }
+  return out;
+}
+
 export async function readXlsxGrid(bytes: Uint8Array): Promise<{ grid: Grid; sheetName: string | null }> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
