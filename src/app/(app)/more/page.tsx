@@ -5,12 +5,14 @@ import { ChevronRightIcon } from "@/components/ui/Icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { signOut } from "@/app/login/actions";
 import { requireSession } from "@/lib/auth";
+import { lastHealthRun } from "@/lib/health/run";
 import { getLocale, t } from "@/lib/i18n/server";
 
 export default async function MorePage({ searchParams }: PageProps<"/more">) {
   const [sp, session, locale] = await Promise.all([searchParams, requireSession(), getLocale()]);
   const tr = t(locale);
   const admin = session.profile.role === "admin";
+  const health = await lastHealthRun(session.supabase, session.profile.business_id);
 
   const items = [
     { href: "/reports", title: tr("more.reports") },
@@ -22,7 +24,8 @@ export default async function MorePage({ searchParams }: PageProps<"/more">) {
     { href: "/payouts", title: tr("more.payouts") },
     { href: "/customers", title: tr("more.customers") },
     { href: "/insights", title: tr("more.insights") },
-    { href: "/more/health", title: tr("health.title") },
+    { href: "/more/health", title: tr("health.title"), alert: Boolean(health && health.issues > 0) },
+    { href: "/more/before", title: tr("before.title") },
     ...(admin ? [{ href: "/more/check-books", title: tr("more.checkBooks") }, { href: "/audit", title: tr("more.audit") }, { href: "/more/deleted", title: tr("more.deleted") }] : []),
     { href: "/settings", title: tr("more.settings") },
     { href: "/more/help", title: tr("more.help") },
@@ -36,7 +39,10 @@ export default async function MorePage({ searchParams }: PageProps<"/more">) {
         {items.map((item) => (
           <Link key={item.href} href={item.href} className="flex min-h-16 items-center gap-4 px-5 py-3 transition-colors hover:bg-lavender-tint">
             <span className="min-w-0 flex-1">
-              <span className="block text-base font-medium text-plum">{item.title}</span>
+              <span className="block text-base font-medium text-plum">
+                {item.title}
+                {"alert" in item && item.alert ? <span aria-hidden="true" className="ml-2 inline-block h-2 w-2 rounded-full bg-berry align-middle" /> : null}
+              </span>
             </span>
             <ChevronRightIcon className="h-5 w-5 shrink-0 text-plum-faint" />
           </Link>
