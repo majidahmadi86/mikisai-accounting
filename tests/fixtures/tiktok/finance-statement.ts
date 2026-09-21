@@ -13,7 +13,7 @@ export const SKU_1 = "1734376099134211076";
 export const SKU_2 = "1734376099134276612";
 export const SKU_3 = "1734376099134342148";
 
-export const IDS = { pre: "579900000000000001", plain: "579900000000000101", heavy: "579900000000000102", bundle: "579900000000000103", noDetails: "579900000000000104", refund: "579900000000000105", disbursement: "7400000000000000001", recovery: "7400000000000000002", withdrawal: "8800000000000000001" } as const;
+export const IDS = { pre: "579800000000000001", plain: "579800000000000101", heavy: "579800000000000102", bundle: "579800000000000103", noDetails: "579800000000000104", refund: "579800000000000105", disbursement: "7400000000000000001", recovery: "7400000000000000002", withdrawal: "8800000000000000001" } as const;
 
 export const ORDER_HEADERS = [
   "Order/Adjustment ID", "Transaction type", "Order created time", "Order settled time", "Currency", "Total settlement amount", "Total Revenue", "Subtotal before discounts", "Seller discounts", "Refund subtotal before seller discounts", "Total Fees", "Transaction fee", "TikTok Shop commission fee", "Seller shipping fee", "Actual shipping fee", "Platform shipping fee discount", "Commerce growth fee", "Adjustment amount", "Related order ID", "Customer payment", "Customer refund", "Platform discount", "Estimated package weight", "Chargeable package weight", "Details of items sold",

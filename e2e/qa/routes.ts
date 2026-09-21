@@ -30,6 +30,7 @@ export const ROUTES: Route[] = [
   { path: "/insights", title: { en: /^Insights$/, th: /^วิเคราะห์$/ } },
   { path: "/more", title: { en: /^More$/, th: /^เพิ่มเติม$/ } },
   { path: "/more/health", title: { en: /^Data health$/, th: /^สุขภาพข้อมูล$/ } },
+  { path: "/more/before", title: { en: /^Before MikiSai$/, th: /^ก่อนเริ่ม MikiSai$/ } },
   { path: "/more/check-books", title: { en: /^Check books$/, th: /^ตรวจบัญชี$/ }, adminOnly: true },
   { path: "/audit", title: { en: /^Audit$/, th: /^ประวัติการแก้ไข$/ }, adminOnly: true },
   { path: "/more/deleted", title: { en: /^Recently deleted$/, th: /^ลบล่าสุด$/ }, adminOnly: true },
