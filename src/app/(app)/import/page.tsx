@@ -6,6 +6,7 @@ import { num, PLATFORMS, type PlatformSetting } from "@/lib/types";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { SyncQueue, type QueuedOrder } from "@/components/import/SyncQueue";
 import { NightlyPanel } from "@/components/import/NightlyPanel";
+import { InstallCard } from "@/components/pwa/InstallCard";
 import type { ReviewRow } from "@/lib/parse/schema";
 
 // The import module (file handling, review grid) is only loaded on this route.
@@ -16,6 +17,7 @@ const ImportWorkbench = dynamic(() => import("@/components/import/ImportWorkbenc
 export default async function ImportPage() {
   const [{ supabase, profile }, locale] = await Promise.all([requireSession(), getLocale()]);
   const tr = t(locale);
+  const admin = profile.role === "admin";
 
   const [{ data }, snapshot, { data: queueRows }] = await Promise.all([supabase.from("platform_settings").select("platform, commission_pct, fixed_fee"), getLedgerSnapshot(profile.business_id), supabase.from("sync_queue").select("id, order_ref, reasons, row").eq("status", "pending").order("created_at").limit(200)]);
   const queued: QueuedOrder[] = (queueRows ?? []).map((q) => ({ id: q.id as string, order_ref: q.order_ref as string, reasons: (q.reasons ?? []) as string[], row: q.row as ReviewRow }));
@@ -26,9 +28,15 @@ export default async function ImportPage() {
 
   return (
     <div>
-      <PageHeader title={tr("import.title")} subtitle={tr("import.subtitle")} />
-      <SyncQueue key={queued.map((q) => q.id).join(",")} queued={queued} settings={settings} products={snapshot.products.filter((p) => p.active)} />
-      <NightlyPanel settings={settings} products={snapshot.products.filter((p) => p.active)} admin={profile.role === "admin"} defaultReceivedBy="sai" />
+      <PageHeader title={tr("import.title")} subtitle={admin ? tr("import.subtitleAdmin") : tr("import.subtitleContributor")} />
+      {admin ? (
+        <>
+          <SyncQueue key={queued.map((q) => q.id).join(",")} queued={queued} settings={settings} products={snapshot.products.filter((p) => p.active)} />
+          <NightlyPanel settings={settings} products={snapshot.products.filter((p) => p.active)} admin defaultReceivedBy="sai" />
+        </>
+      ) : (
+        <InstallCard />
+      )}
       <ImportWorkbench settings={settings} defaultReceivedBy={profile.display_name === "Sai" ? "sai" : "mike"} products={snapshot.products.filter((p) => p.active)} />
     </div>
   );
