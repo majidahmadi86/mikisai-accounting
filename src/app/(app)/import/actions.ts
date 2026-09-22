@@ -1,6 +1,8 @@
 "use server";
 
+import { after } from "next/server";
 import { recordAudit } from "@/lib/audit";
+import { warmInsights } from "@/lib/insights/narrative";
 import { requireAdmin, requireSession } from "@/lib/auth";
 import { getLedgerSnapshot, ledgerChanged } from "@/lib/data/ledger";
 import { loadAuditForHealth, recordHealthRun, runHealth } from "@/lib/health/run";
@@ -37,12 +39,17 @@ export async function commitImport(input: unknown): Promise<CommitResult> {
   return { ok: true, inserted: result.inserted, cancellations: result.cancellations, payouts: result.payouts, skipped: result.skipped };
 }
 
-/** Every import runs the Data health checks, so the red dot on More is never a day behind. Never throws: health must not fail an import. */
+/**
+ * Every import runs the Data health checks, so the red dot on More is never a
+ * day behind, and brings Insights up to date after the response is sent (its
+ * numbers and the paragraph written from them). Never throws: neither may fail an import.
+ */
 async function healthAfterImport(session: Awaited<ReturnType<typeof requireSession>>): Promise<void> {
   try {
     const snapshot = await getLedgerSnapshot(session.profile.business_id);
     const audit = session.profile.role === "admin" ? await loadAuditForHealth(session.supabase, session.profile.business_id) : null;
     await recordHealthRun(session.supabase, session.profile.business_id, await runHealth(snapshot, audit, todayIso()), "page", session.userId);
+    after(() => warmInsights(session.profile.business_id, snapshot, todayIso()).catch((err) => console.error("[insights] after import", err)));
   } catch (err) {
     console.error("[health] after import", err);
   }

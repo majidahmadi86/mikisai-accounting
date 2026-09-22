@@ -1,4 +1,5 @@
 import { round2 } from "@/lib/money";
+import { remainingOn } from "@/lib/truth";
 import { addDays, daysBetween } from "@/lib/reports/period";
 import type { ReportInput, ReportTx } from "@/lib/reports/build";
 import { PLATFORMS, PRODUCT_LINES, type Platform, type ProductLine } from "@/lib/types";
@@ -153,7 +154,8 @@ export function buildCashForecast(tx: ReportTx[], today: string): CashForecastRo
   const lag = observedLagDays(tx, today);
   const horizon = addDays(today, 7);
   return PLATFORMS.map((platform): CashForecastRow => {
-    const waiting = tx.filter((t) => t.type === "income" && t.platform === platform && (t.settlement?.status ?? "pending") !== "received_in_bank");
+    // Still to come, the one definition (truth.remainingOn): each order's net less what already reached a partner.
+    const waiting = tx.filter((t) => t.platform === platform && remainingOn(t, today) > 0).map((t) => ({ ...t, net_amount: remainingOn(t, today) }));
     let next7 = 0;
     let later = 0;
     let overdue = 0;

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { warmInsights } from "@/lib/insights/narrative";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DownloadIcon } from "@/components/ui/Icons";
@@ -44,6 +46,8 @@ export default async function WeekPage({ searchParams }: PageProps<"/week">) {
   const period = weekOf(typeof sp.from === "string" ? sp.from : null, today);
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const w = weekFromSnapshot(snapshot, period, today);
+  // Opening the week also brings Insights up to date, after the page is sent.
+  after(() => warmInsights(session.profile.business_id, snapshot, today).catch((err) => console.error("[insights] on week open", err)));
   const prev = addDays(period.from, -7);
   const next = addDays(period.from, 7);
   const isCurrent = period.to >= today;
