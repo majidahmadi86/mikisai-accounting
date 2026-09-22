@@ -38,6 +38,23 @@ export default async function DataHealthPage() {
         </p>
       </Card>
 
+      <Card className="mb-4 px-5 py-4">
+        <p className="flex items-center gap-2 text-base font-medium text-plum">
+          {tr("health.cancellations")}
+          <InfoTip text={tr("health.cancellations.desc")} align="left" />
+        </p>
+        <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+          <div className="flex justify-between gap-3 sm:block">
+            <dt className="text-plum-soft">{tr("health.cancelledBefore")}</dt>
+            <dd className="font-medium text-plum tabular" data-testid="health-cancelled-before">{result.cancellations.beforeShipping}</dd>
+          </div>
+          <div className="flex justify-between gap-3 sm:block">
+            <dt className="text-plum-soft">{tr("health.cancelledAfter")}</dt>
+            <dd className="font-medium text-plum tabular" data-testid="health-cancelled-after">{result.cancellations.afterShipping}</dd>
+          </div>
+        </dl>
+      </Card>
+
       <div className="space-y-3">
         {result.checks.map((c) => (
           <Card key={c.key} tone={c.skipped ? "ivory" : c.count ? (c.key === "consistency" ? "berry" : "warning") : "card"} className="px-5 py-4">
@@ -72,7 +89,7 @@ export default async function DataHealthPage() {
                         <span className="mt-0.5 flex flex-wrap gap-x-4 text-xs">
                           {i.links.map((l) => (
                             <Link key={l.href} href={l.href} className="inline-flex min-h-8 items-center font-medium text-berry hover:underline">
-                              {tr(l.kind === "deleted" ? "health.backlogDeleted" : "health.backlogOrders")} →
+                              {tr(l.kind === "deleted" ? "health.backlogDeleted" : l.kind === "cleanup" ? "health.openCleanup" : "health.backlogOrders")} →
                             </Link>
                           ))}
                         </span>

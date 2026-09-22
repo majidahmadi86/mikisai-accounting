@@ -5,7 +5,7 @@ import { buildUnitsReport } from "@/lib/inventory/units";
 import { valueStock } from "@/lib/inventory/valuation";
 import { round2 } from "@/lib/money";
 import { buildReports } from "@/lib/reports/build";
-import { daysBetween, thisMonth } from "@/lib/reports/period";
+import { daysBetween, thisMonth, thisWeek } from "@/lib/reports/period";
 import type { Role } from "@/lib/types";
 import { buildInvestment } from "@/lib/investment";
 import { buildStockPage } from "@/lib/inventory/stock-page";
@@ -16,9 +16,11 @@ import { tiktokProblems, type TiktokStatus } from "@/lib/tiktok/status";
 import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 import { splitNoOrderRef } from "@/lib/ledger/order-ref";
+import { possibleDuplicates } from "@/lib/ledger/cleanup";
+import { buildWeek } from "@/lib/week";
 import { STATEMENT_KEYS, statementHealth, type MoneyInput } from "./tiktok-money";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "possible_duplicate", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = {
@@ -29,10 +31,11 @@ export type HealthIssue = {
   /** Numbers and text the page turns into a translated explanation (no order ID: reason; backlog: sold, bought, n). */
   meta?: Record<string, string | number>;
   /** Extra places to look, beyond href. */
-  links?: { href: string; kind: "deleted" | "orders" }[];
+  links?: { href: string; kind: "deleted" | "orders" | "cleanup" }[];
 };
 export type HealthCheck = { key: HealthKey; count: number; issues: HealthIssue[]; adminOnly: boolean; skipped: boolean };
-export type HealthResult = { ranAt: string; checks: HealthCheck[]; issues: number; ok: boolean };
+/** Cancellations are counted, not flagged: before shipping is not a sale, after shipping is a return. */
+export type HealthResult = { ranAt: string; checks: HealthCheck[]; issues: number; ok: boolean; cancellations: { beforeShipping: number; afterShipping: number } };
 
 export type AuditRowLite = { action: string; entity_type: string; entity_id: string | null; actor_user_id: string | null; created_at: string; before: Record<string, unknown> | null };
 
@@ -193,6 +196,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("payout_unmatched", unmatched),
     check("transfer_no_reason", noReason),
     check("duplicate_order_ids", duplicates),
+    check("possible_duplicate", possibleDuplicateRows(income, txLabel)),
     check("no_order_ref", ordersWithoutOrderRef(income, txLabel)),
     check("backlog_no_purchase", backlogWithoutPurchase(input)),
     check("late_contributor_edit", lateEdits, { adminOnly: true, skipped: !input.audit }),
@@ -210,7 +214,28 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     check("report_totals", totals),
   ];
   const issues = checks.reduce((a, c) => a + c.count, 0);
-  return { ranAt, checks, issues, ok: issues === 0 };
+  const gone = [...(input.cancelled ?? []), ...input.transactions.filter((t) => t.type === "income" && (t.status ?? "active") !== "active")];
+  const seen = new Set<string>();
+  const cancellations = { beforeShipping: 0, afterShipping: 0 };
+  for (const t of gone) {
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    if (t.tags?.includes("cancelled_before_shipping")) cancellations.beforeShipping += 1;
+    else cancellations.afterShipping += 1;
+  }
+  return { ranAt, checks, issues, ok: issues === 0, cancellations };
+}
+
+/**
+ * A sale typed by hand that an imported order already covers: same day or
+ * one either side, same quantity, amount within five baht. The rule the
+ * ledger cleanup uses, run on every check so a new import is caught at once.
+ */
+function possibleDuplicateRows(income: HealthInput["transactions"], label: (t: HealthInput["transactions"][number]) => string): HealthIssue[] {
+  const live = income.filter((t) => (t.status ?? "active") === "active" && !t.synthetic);
+  const byId = new Map(live.map((t) => [t.id, t]));
+  const rows = live.map((t) => ({ id: t.id, date: t.date, order_ref: t.order_ref?.trim() || null, quantity: t.quantity, gross_amount: t.gross_amount, net_amount: t.net_amount, status: "active" as const, tags: t.tags ?? [], note: t.note, items: [], imported: Boolean(t.order_ref?.trim()) }));
+  return possibleDuplicates(rows).map((m) => ({ id: m.remove, label: label(byId.get(m.remove)!), href: `/transactions/${m.remove}/edit`, detail: `#${m.order_ref}`, links: [{ href: "/more/cleanup", kind: "cleanup" as const }] }));
 }
 
 /** Live sales saved with no order ID: an import cannot recognise them, so the same order could be added twice. */
@@ -278,7 +303,9 @@ export function consistencyMismatches(input: TruthInput, today: string): HealthI
   const report = owesAmount(buildReports(input, period).owesHistory.at(-1)?.owes ?? null);
   const sheet = buildBalanceSheet(input, today).partnerBalance;
   const sheetOwes = owesAmount(Math.abs(sheet.mike) >= 1 ? (sheet.mike > 0 ? { from: "mike", to: "sai", amount: sheet.mike } : { from: "sai", to: "mike", amount: sheet.sai }) : null);
-  for (const [name, value, href] of [["My Balance", myBalance, "/balance"], ["Investment", investment, "/investment"], ["Who owes whom report", report, "/reports"], ["Balance sheet", sheetOwes, "/reports"]] as const) {
+  const weekInput = { transactions: input.transactions, cancelled: [], cashAdjustments: input.cashAdjustments ?? [], transfers: input.transfers, items: input.items, products: input.products, movements: input.movements, categories: [], facts: [], allocations: [] };
+  const week = owesAmount(buildWeek(weekInput, thisWeek(today), today, 0).cash.owes);
+  for (const [name, value, href] of [["My Balance", myBalance, "/balance"], ["This week", week, "/week"], ["Investment", investment, "/investment"], ["Who owes whom report", report, "/reports"], ["Balance sheet", sheetOwes, "/reports"]] as const) {
     if (value !== home) issues.push({ id: `owes:${name}`, label: `${name} disagrees with Home`, href, detail: `Home ${home} · ${name} ${value}` });
   }
   const positions = stockPositions(input);
