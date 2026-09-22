@@ -18,12 +18,13 @@ import { readXlsxSheets } from "@/lib/import/table";
 import { detectMapping, ordersFromRows, parseTable } from "@/lib/import/tiktok";
 import type { TransactionItemRow } from "@/lib/inventory/reports";
 import type { Product, StockMovement } from "@/lib/inventory/valuation";
-import { buildMyBalance } from "@/lib/my-balance";
+import { buildMyBalance, type BalanceTransferInput } from "@/lib/my-balance";
 import type { ReportTx } from "@/lib/reports/build";
 import { readStatement, type SkuEntry } from "@/lib/tiktok/statement";
 import { walletState, withoutMirrorTwins, type WalletEvent } from "@/lib/tiktok/wallet";
 import { planStatement, type LedgerOrder } from "@/lib/tiktok/statement-plan";
-import { withTiktokCash, normalizeLedger, stockPositions, whoOwesWhom, type TruthInput, type TruthTransfer } from "@/lib/truth";
+import { withTiktokCash, normalizeLedger, stillToCome, stockPositions, whoOwesWhom, type TruthInput, type TruthTransfer } from "@/lib/truth";
+import { buildBalanceSheet } from "@/lib/accounting/statements";
 import { buildWeek, weekOf, type WeekInput } from "@/lib/week";
 
 const DIR = join(__dirname, "fixtures", "week-2026-09-15");
@@ -97,15 +98,10 @@ async function build() {
   };
   let plan = planFor();
 
-  // Expected net of an order TikTok has not settled: what it paid per box in this statement (the median one-box
-  // settlement), times the boxes; the bag at its price less the statement's fee shares. What the app holds as net.
-  const oneBox = plan.facts.filter((f) => f.kind === "order" && f.boxes === 1 && !f.pre_business).map((f) => f.settlement_amount).sort((a, b) => a - b);
-  const perBox = oneBox[Math.floor(oneBox.length / 2)];
-  for (const t of all) {
-    if (t.type !== "income" || t.status !== "active") continue;
-    const lines = items.filter((i) => i.transaction_id === t.id);
-    t.net_amount = Math.round(lines.reduce((a, l) => a + (l.product_id === BAG ? l.qty * 69 * 0.78 : l.qty * perBox), 0) * 100) / 100;
-  }
+  // Expected net of each order as the ledger books it (ledger-nets.json: order number and amount only, read from
+  // the live ledger on 22 Sept); settled orders then take what the statement says TikTok paid.
+  const booked = JSON.parse(readFileSync(join(DIR, "ledger-nets.json"), "utf8")) as Record<string, number>;
+  for (const t of all) if (t.type === "income" && t.order_ref && booked[t.order_ref] != null) t.net_amount = booked[t.order_ref];
   plan = planFor();
   // What the statement does to the orders: settled ones carry TikTok's net; those a withdrawal paid are in the bank.
   const inBank = new Set(plan.wallet.withdrawals.flatMap((w) => w.orders.map((o) => o.order_ref)));
@@ -165,7 +161,6 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     const { input, plan } = await build();
     const w = buildWeek(input, WEEK, TODAY, 5);
     expect(Math.abs(w.tiktok.expected - 16050)).toBeLessThanOrEqual(50);
-    expect(w.tiktok.stillToCome).toBeCloseTo(w.tiktok.expected - w.tiktok.settled - w.tiktok.advanced, 2);
     expect(Math.round(plan.wallet.advanceBalance)).toBe(10307);
     expect(plan.wallet.disbursed).toBeCloseTo(20876, 2);
     expect(plan.wallet.recovered).toBeCloseTo(10569, 2);
@@ -211,9 +206,9 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     expect(w.profit.expected).toBeCloseTo(w.tiktok.expected - w.profit.costOfUnits - w.profit.otherCosts, 2);
   });
 
-  // The v3.3 directive expected this under 600. With its rules and the real files it is Sai sends Mike 712.51:
-  // costs 14,566 all paid by Sai; Sai received 2,462.58 settled by TikTok + 9,518.43 advanced (+ Mike's 2,005);
-  // half the result each. The figure is asserted as it is, and the question is with the founders.
+  // The v3.3 directive expected this under 600. With its rules, the real files and the booked nets it is Sai sends
+  // Mike 915.19 (915.185, rounded once for both sides): costs 14,566 all paid by Sai; Sai received 2,462.58 settled by TikTok + 9,923.79 advanced
+  // (+ Mike's 2,005); half the result each. Asserted as it is; the question is with the founders.
   it("v3.3 one net transfer: one direction, half of the difference between the two sides, the same on Home, My Balance and This week", async () => {
     const { input } = await build();
     const w = buildWeek(input, WEEK, TODAY, 5);
@@ -225,6 +220,23 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     expect(home!.from).not.toBe(home!.to);
     expect(home!.amount).toBeCloseTo(Math.abs(side("sai") - side("mike")) / 2, 2);
     expect(home).toMatchObject({ from: "sai", to: "mike" });
-    expect(home!.amount).toBeCloseTo(712.51, 2);
+    expect(home!.amount).toBeCloseTo(915.19, 2);
+  });
+
+  it("v3.4 still to come, one definition: My Balance 2,126.55 half, exposure 3,041.74, This week and the balance sheet the same", async () => {
+    const { input } = await build();
+    const mine = buildMyBalance({ transactions: input.transactions, transfers: input.transfers as BalanceTransferInput[], settings: [], exposureLimit: 3000, cashAdjustments: input.cashAdjustments }, "mike", TODAY);
+    console.log(`My Balance (Mike): still coming half mine ${mine.incomingTotal}; owed to me ${mine.owedToMe}; exposure ${mine.exposure} (${mine.exposurePct}% of 3,000, ${mine.level})`);
+    expect(Math.abs(mine.incomingTotal - 2126.55)).toBeLessThanOrEqual(1);
+    expect(Math.abs(mine.exposure - 3041.74)).toBeLessThanOrEqual(1);
+    expect(mine.exposure).toBeCloseTo(mine.owedToMe + mine.incomingTotal, 2);
+    const all = stillToCome(input.transactions, TODAY).total;
+    expect(mine.incomingTotal).toBeCloseTo(all / 2, 1);
+    const w = buildWeek(input, WEEK, TODAY, 5);
+    // Every unsettled order is from week 1, so the week's still to come is the whole of it.
+    expect(w.tiktok.stillToCome).toBeCloseTo(all, 2);
+    const truth = { ...input, payouts: [], categories: SEED_CATEGORIES } as unknown as TruthInput;
+    expect(buildBalanceSheet(truth, TODAY).receivables).toBeCloseTo(all, 2);
+    expect(whoOwesWhom(input, TODAY).owes).toEqual(w.cash.owes);
   });
 });
