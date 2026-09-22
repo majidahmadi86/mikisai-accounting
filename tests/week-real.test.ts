@@ -1,0 +1,166 @@
+/**
+ * The week of 15 to 21 September 2026 from the two real TikTok files
+ * (anonymized: no names, addresses, phones, usernames or bank accounts),
+ * through the same readers the app uses. v3.2 acceptance:
+ *   44 live orders, 52 boxes (38 of 1 kg packs, 14 of 500 g packs) + 1 bag,
+ *   6 cancelled before shipping kept out, backlog 8 boxes before the buffer,
+ *   TikTok expected 16,050 +/- 50 by the per-order settlement rules,
+ *   advance outstanding 10,307, samples in the ledger, and
+ *   Home = My Balance = This week to the satang.
+ */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { SEED_CATEGORIES, CATEGORY_ID } from "@/lib/fixtures/seed-data";
+import { BOX_1KG, BOX_500G, LIVE_PRODUCTS, SAMPLE_COSTS, SAMPLE_IDS } from "@/lib/fixtures/live-shaped";
+import { consistencyMismatches } from "@/lib/health/checks";
+import { readXlsxSheets } from "@/lib/import/table";
+import { detectMapping, ordersFromRows, parseTable } from "@/lib/import/tiktok";
+import type { TransactionItemRow } from "@/lib/inventory/reports";
+import type { Product, StockMovement } from "@/lib/inventory/valuation";
+import { buildMyBalance } from "@/lib/my-balance";
+import type { ReportTx } from "@/lib/reports/build";
+import { readStatement, type SkuEntry } from "@/lib/tiktok/statement";
+import { walletState, withoutMirrorTwins, type WalletEvent } from "@/lib/tiktok/wallet";
+import { planStatement, type LedgerOrder } from "@/lib/tiktok/statement-plan";
+import { normalizeLedger, whoOwesWhom, type TruthInput } from "@/lib/truth";
+import { buildWeek, weekOf, type WeekInput } from "@/lib/week";
+
+const DIR = join(__dirname, "fixtures", "week-2026-09-15");
+const TODAY = "2026-09-22";
+const WEEK = weekOf("2026-09-15", TODAY);
+const BAG = "00000000-0000-4000-8000-0000000000b6";
+
+// The listings as migration 0028 maps them.
+const SKU: Record<string, { product_id: string; multiplier: number }> = {
+  "1734376099134211076": { product_id: BOX_1KG, multiplier: 1 },
+  "1737509267160204292": { product_id: BOX_500G, multiplier: 1 },
+  "1734376099134342148": { product_id: BOX_1KG, multiplier: 3 },
+  "1737490537713730564": { product_id: BAG, multiplier: 1 },
+};
+
+const bag: Product = { ...LIVE_PRODUCTS[0], id: BAG, name: "Coconut sugar ตรามะลิ", name_th: "น้ำตาลมะพร้าว ตรามะลิ", variant: "1 kg bag", short_name: "1 kg bag", unit_label: "bag", default_cost: 0, default_price: 69, expected_net_per_unit: null };
+const products: Product[] = [...LIVE_PRODUCTS, bag];
+const at = (d: string) => `${d}T09:00:00Z`;
+
+async function build() {
+  const table = await parseTable(new Uint8Array(readFileSync(join(DIR, "orders.csv"))), "orders.csv");
+  const orders = ordersFromRows(table.rows, detectMapping(table.headers, "orders"));
+
+  const all: ReportTx[] = [];
+  const items: TransactionItemRow[] = [];
+  const movements: StockMovement[] = [];
+  for (const o of orders) {
+    const date = (o.created_at ?? "").slice(0, 10);
+    const lines = o.lines.map((l) => ({ ...SKU[(l.sku_id ?? "").trim()], qty: l.quantity }));
+    const qty = lines.reduce((a, l) => a + l.qty * l.multiplier, 0);
+    const gross = o.order_amount ?? 0;
+    const cancelled = o.status === "cancelled" && !o.shipped_at;
+    const id = `o-${o.order_id}`;
+    all.push({ id, type: "income", date, platform: "tiktok", product_line: "sugar", gross_amount: gross, net_amount: Math.round(gross * 78) / 100, quantity: qty, payer: null, received_by: "sai", category_id: null, customer_name: null, note: "", order_ref: o.order_id, status: cancelled ? "cancelled" : "active", tags: cancelled ? ["cancelled_before_shipping"] : [], created_at: at(date), settlement: { status: "pending", settled_at: null, payout_id: null, paid_amount: 0 } });
+    for (const l of lines) {
+      items.push({ transaction_id: id, product_id: l.product_id, qty: l.qty * l.multiplier, unit_price: gross / Math.max(1, qty), unit_cost: null });
+      if (!cancelled) movements.push({ id: `m-${id}-${l.product_id}`, product_id: l.product_id, qty: -l.qty * l.multiplier, kind: "sale", unit_cost: null, transaction_id: id, date, created_at: at(date) });
+    }
+  }
+
+  // The two purchase rows of the week, split between the variants as the admin counted them (30 + 14 = 44).
+  const buys = [
+    { id: "buy1", date: "2026-09-16", lines: [{ product_id: BOX_500G, qty: 12 }] },
+    { id: "buy2", date: "2026-09-20", lines: [{ product_id: BOX_1KG, qty: 30 }, { product_id: BOX_500G, qty: 2 }] },
+  ];
+  for (const b of buys) {
+    const qty = b.lines.reduce((a, l) => a + l.qty, 0);
+    all.push({ id: b.id, type: "expense", date: b.date, platform: "other", product_line: "sugar", gross_amount: qty * 260, net_amount: qty * 260, quantity: qty, payer: "sai", received_by: null, category_id: CATEGORY_ID.stock, customer_name: null, note: "", created_at: at(b.date), settlement: null });
+    for (const l of b.lines) {
+      items.push({ transaction_id: b.id, product_id: l.product_id, qty: l.qty, unit_price: 0, unit_cost: 260 });
+      movements.push({ id: `m-${b.id}-${l.product_id}`, product_id: l.product_id, qty: l.qty, kind: "purchase", unit_cost: 260, transaction_id: b.id, date: b.date, created_at: at(b.date) });
+    }
+  }
+  // Samples (restored: one row, 3 units at 296.67) and the office expense.
+  all.push({ id: "smp", type: "expense", date: "2026-09-14", platform: "other", product_line: "sugar", gross_amount: 890, net_amount: 890, quantity: 3, payer: "sai", received_by: null, category_id: CATEGORY_ID.samples, customer_name: null, note: "3 boxes of sample sugar products", created_at: at("2026-09-14"), settlement: null });
+  SAMPLE_IDS.forEach((pid, i) => {
+    items.push({ transaction_id: "smp", product_id: pid, qty: 1, unit_price: 0, unit_cost: SAMPLE_COSTS[i] });
+    movements.push({ id: `smp-in-${i}`, product_id: pid, qty: 1, kind: "purchase", unit_cost: SAMPLE_COSTS[i], transaction_id: "smp", date: "2026-09-14", created_at: at("2026-09-14") });
+    movements.push({ id: `smp-out-${i}`, product_id: pid, qty: -1, kind: "sample", unit_cost: null, transaction_id: "smp", date: "2026-09-14", created_at: at("2026-09-14") });
+  });
+  all.push({ id: "office", type: "expense", date: "2026-09-16", platform: "other", product_line: "sugar", gross_amount: 156, net_amount: 156, quantity: 1, payer: "sai", received_by: null, category_id: CATEGORY_ID.packaging, customer_name: null, note: "For paper and wrapping", created_at: at("2026-09-16"), settlement: null });
+
+  // The Finance statement, through the v3.1 planner.
+  const statement = readStatement(await readXlsxSheets(new Uint8Array(readFileSync(join(DIR, "income.xlsx")))))!;
+  const skus = new Map<string, SkuEntry>(Object.entries(SKU).map(([id, v]) => [`id:${id}`, v]));
+  const ledger = new Map<string, LedgerOrder>(all.filter((t) => t.type === "income").map((t) => [t.order_ref!, { id: t.id, order_ref: t.order_ref!, date: t.date, net_amount: t.net_amount, status: t.status ?? "active", settlement_status: "pending" }]));
+  const unsettled = all.filter((t) => t.type === "income" && t.status === "active" && !statement.rows.some((r) => r.type === "order" && r.id === t.order_ref)).map((t) => ({ order_ref: t.order_ref!, date: t.date, value: t.net_amount }));
+  const plan = planStatement({ statement, startDate: "2026-09-14", receivedBy: "sai", skus, fallbackProductId: BOX_1KG, ledger, knownFacts: new Set(), history: { settled: [], losses: [], events: [] }, knownPayouts: new Set(), unsettled });
+
+  const normal = normalizeLedger(all);
+  const input: WeekInput = {
+    transactions: normal.transactions,
+    cancelled: normal.cancelled,
+    cashAdjustments: normal.cashAdjustments,
+    transfers: [],
+    items,
+    products,
+    movements,
+    categories: SEED_CATEGORIES,
+    facts: plan.facts.map((f) => ({ order_ref: f.order_ref, kind: f.kind, transaction_id: f.transaction_id, settlement_amount: f.settlement_amount, revenue: f.revenue, boxes: f.boxes, fee_transaction: f.fee_transaction, fee_commission: f.fee_commission, fee_commerce_growth: f.fee_commerce_growth, fee_seller_shipping: f.fee_seller_shipping, pre_business: f.pre_business })),
+    allocations: plan.wallet.allocations,
+  };
+  return { input, plan, orders };
+}
+
+describe("This week, 15 to 21 September 2026, from the real files", () => {
+  it("sold: 44 live orders, 38 x 1 kg + 14 x 500 g = 52 boxes, 1 bag; 6 cancelled before shipping kept out", async () => {
+    const { input } = await build();
+    const w = buildWeek(input, WEEK, TODAY, 5);
+    expect(WEEK).toMatchObject({ from: "2026-09-15", to: "2026-09-21" });
+    expect(w.sold.orders).toBe(44);
+    const qty = (id: string) => w.sold.variants.find((v) => v.product_id === id)?.qty ?? 0;
+    expect(qty(BOX_1KG)).toBe(38);
+    expect(qty(BOX_500G)).toBe(14);
+    expect(qty(BOX_1KG) + qty(BOX_500G)).toBe(52);
+    expect(qty(BAG)).toBe(1);
+    expect(w.sold.cancelledBeforeShipping).toBe(6);
+  });
+
+  it("buy: backlog 8 boxes before the buffer, per variant; the bag is bought to order", async () => {
+    const { input } = await build();
+    const w = buildWeek(input, WEEK, TODAY, 5);
+    const line = (id: string) => w.buy.find((b) => b.product_id === id);
+    expect((line(BOX_1KG)?.backlog ?? 0) + (line(BOX_500G)?.backlog ?? 0)).toBe(8);
+    expect(line(BOX_1KG)).toMatchObject({ backlog: 8, buffer: 5, toBuy: 13 });
+    expect(line(BOX_500G)).toMatchObject({ backlog: 0, toBuy: 5 });
+    expect(line(BAG)).toMatchObject({ backlog: 1, toBuy: 6 });
+  });
+
+  it("TikTok will pay about 16,050 by the per-order rules; advance outstanding 10,307", async () => {
+    const { input, plan } = await build();
+    const w = buildWeek(input, WEEK, TODAY, 5);
+    expect(Math.abs(w.tiktok.expected - 16050)).toBeLessThanOrEqual(50);
+    expect(w.tiktok.stillToCome).toBeCloseTo(w.tiktok.expected - w.tiktok.settled - w.tiktok.advanced, 2);
+    expect(Math.round(plan.wallet.advanceBalance)).toBe(10307);
+    expect(plan.wallet.disbursed).toBeCloseTo(20876, 2);
+    expect(plan.wallet.recovered).toBeCloseTo(10569, 2);
+  });
+
+  it("stored events from v3.1 held each recovery twice: the replay drops the Withdrawal records copy", () => {
+    const d = (kind: "advance_disbursement" | "advance_recovery", date: string, amount: number, mirror = false): WalletEvent => ({ kind, reference: `${kind}-${date}-${mirror}`, date, amount, mirror });
+    const events = [d("advance_disbursement", "2026-09-16", 8600), d("advance_recovery", "2026-09-18", -769), d("advance_recovery", "2026-09-18", -769, true), d("advance_recovery", "2026-09-21", -4437), d("advance_recovery", "2026-09-21", -4437, true), d("advance_recovery", "2026-09-22", -100, true)];
+    expect(withoutMirrorTwins(events).map((e) => e.amount)).toEqual([8600, -769, -4437, -100]);
+    expect(walletState({ settled: [], losses: [], events, unsettled: [] }).advanceBalance).toBe(8600 - 769 - 4437 - 100);
+  });
+
+  it("samples are in the ledger, and Home = My Balance = This week to the satang, with no page disagreeing", async () => {
+    const { input } = await build();
+    expect(input.transactions.find((t) => t.id === "smp")).toMatchObject({ net_amount: 890, category_id: CATEGORY_ID.samples });
+    expect(input.items.filter((i) => i.transaction_id === "smp").map((i) => i.unit_cost)).toEqual(SAMPLE_COSTS);
+    const home = whoOwesWhom(input, TODAY).owes;
+    const mine = buildMyBalance({ transactions: input.transactions, transfers: [], settings: [], exposureLimit: 0, cashAdjustments: input.cashAdjustments }, "mike", TODAY);
+    const myBalance = mine.owedToMe > 0 ? { from: "sai", to: "mike", amount: mine.owedToMe } : mine.iOwe > 0 ? { from: "mike", to: "sai", amount: mine.iOwe } : null;
+    const week = buildWeek(input, WEEK, TODAY, 5).cash.owes;
+    expect(myBalance).toEqual(home);
+    expect(week).toEqual(home);
+    const truth: TruthInput = { transactions: input.transactions, transfers: [], payouts: [], categories: SEED_CATEGORIES, products, movements: input.movements, items: input.items as TransactionItemRow[], cashAdjustments: input.cashAdjustments } as unknown as TruthInput;
+    expect(consistencyMismatches(truth, TODAY)).toEqual([]);
+  });
+});
