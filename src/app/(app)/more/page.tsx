@@ -27,7 +27,7 @@ export default async function MorePage({ searchParams }: PageProps<"/more">) {
     { href: "/insights", title: tr("more.insights") },
     { href: "/more/health", title: tr("health.title"), alert: Boolean(health && health.issues > 0) },
     { href: "/more/before", title: tr("before.title") },
-    ...(admin ? [{ href: "/more/check-books", title: tr("more.checkBooks") }, { href: "/audit", title: tr("more.audit") }, { href: "/more/deleted", title: tr("more.deleted") }] : []),
+    ...(admin ? [{ href: "/more/check-books", title: tr("more.checkBooks") }, { href: "/more/cleanup", title: tr("more.cleanup") }, { href: "/audit", title: tr("more.audit") }, { href: "/more/deleted", title: tr("more.deleted") }] : []),
     { href: "/settings", title: tr("more.settings") },
     { href: "/more/help", title: tr("more.help") },
   ];

@@ -15,6 +15,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "reconcile:items": "tsx scripts/reconcile-items.ts",
+    "clean:ledger": "tsx --require ./scripts/preload-server-only.cjs scripts/clean-ledger.ts",
     "test:qa": "playwright test e2e/qa --workers=1",
     "qa:report": "tsx scripts/qa-report.ts"
   },
