@@ -1359,7 +1359,7 @@ const en = {
   "week.costOfUnits": "Cost of the units sold",
   "week.otherCosts": "Other costs",
   "week.cash": "Cash position",
-  "week.cashTip": "The same figure as Home and My Balance: money in the bank, less what each of you paid, after the money you moved.",
+  "week.cashTip": "The same figure as Home and My Balance: what each of you paid out and received, including the TikTok advance Sai holds for the business, netted into one transfer.",
   "week.holds": "{name} holds",
   "week.sends": "{from} sends {to} {amount}",
   "week.even": "You are even",
@@ -1406,6 +1406,11 @@ const en = {
   "health.cancelledAfter": "Cancelled or returned after shipping",
   "health.statement_duplicates": "Duplicate TikTok statement rows",
   "health.statement_duplicates.desc": "A statement row stored twice: an advance copied from Withdrawal records next to its Order details row, or the same order twice. Each would count its money twice; the wallet already ignores copies, and this says if one ever comes back.",
+  "dashboard.ofWhichAdvanced": "of which {amount} advanced by TikTok ahead of settlement",
+  "week.oneTransfer": "This already nets what each of you paid and received. Only one transfer is needed.",
+  "week.side": "{name}'s side: paid {paid}, received {received}",
+  "week.sideAdvanced": "(of which {amount} advanced by TikTok ahead of settlement)",
+  "week.sentDone": "Recorded: the one transfer is in the ledger, and the cash position is even.",
 } as const;
 
 export type DictionaryKey = keyof typeof en;
@@ -2768,7 +2773,7 @@ const th: Record<DictionaryKey, string> = {
   "week.costOfUnits": "ต้นทุนสินค้าที่ขาย",
   "week.otherCosts": "ค่าใช้จ่ายอื่น",
   "week.cash": "เงินอยู่ที่ใคร",
-  "week.cashTip": "ตัวเลขเดียวกับหน้าแรกและยอดของฉัน: เงินในธนาคาร หักที่แต่ละคนจ่ายไป หลังเงินที่โอนระหว่างกัน",
+  "week.cashTip": "ตัวเลขเดียวกับหน้าแรกและยอดของฉัน: สิ่งที่แต่ละคนจ่ายและได้รับ รวมเงินล่วงหน้าจาก TikTok ที่ไซถือไว้ให้ธุรกิจ หักลบเป็นการโอนครั้งเดียว",
   "week.holds": "{name} ถืออยู่",
   "week.sends": "{from} โอนให้ {to} {amount}",
   "week.even": "เท่ากันแล้ว",
@@ -2815,6 +2820,11 @@ const th: Record<DictionaryKey, string> = {
   "health.cancelledAfter": "ยกเลิกหรือคืนหลังจัดส่ง",
   "health.statement_duplicates": "แถวรายการ TikTok ซ้ำ",
   "health.statement_duplicates.desc": "แถวรายการเดินบัญชีที่บันทึกซ้ำ: เงินล่วงหน้าที่คัดลอกจากรายการถอนเงินซ้ำกับแถวในรายละเอียดคำสั่งซื้อ หรือคำสั่งซื้อเดียวกันสองครั้ง จะทำให้นับเงินสองครั้ง ระบบไม่นับสำเนาอยู่แล้ว และจะแจ้งถ้ากลับมาอีก",
+  "dashboard.ofWhichAdvanced": "ในจำนวนนี้ {amount} เป็นเงินที่ TikTok จ่ายล่วงหน้าก่อนชำระ",
+  "week.oneTransfer": "ตัวเลขนี้หักลบสิ่งที่แต่ละคนจ่ายและได้รับแล้ว โอนเพียงครั้งเดียวก็พอ",
+  "week.side": "ฝั่ง{name}: จ่ายไป {paid} ได้รับ {received}",
+  "week.sideAdvanced": "(ในจำนวนนี้ {amount} เป็นเงินที่ TikTok จ่ายล่วงหน้าก่อนชำระ)",
+  "week.sentDone": "บันทึกแล้ว: การโอนครั้งเดียวอยู่ในบัญชีแล้ว และยอดเงินเท่ากันแล้ว",
 };
 
 export const dictionaries: Record<Locale, Record<DictionaryKey, string>> = { en, th };
