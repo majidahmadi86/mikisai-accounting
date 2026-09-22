@@ -40,6 +40,17 @@ Profit = Revenue (you received) - Cost of units sold (moving average) - Operatin
 - Quantities: a sale cannot be saved without a product and a whole-unit quantity. Import reads "x2", "จำนวน 2" and kg or box variants deterministically (`src/lib/inventory/quantity.ts`): "20 kg" or "2 กล่อง" is the 10 kg box times two. A missing quantity is red in review and blocks confirm. When you receive per unit is outside 0.6x to 1.6x the standard price the app warns "Amount looks like N units, not M" without blocking.
 - Data health (More → Data health): automated checks with counts, rows and one-tap open; runs on page load and daily via the Vercel cron in `vercel.json` hitting `/api/health/daily` with `CRON_SECRET`. Home shows the last run.
 
+## Clean ledger, real variants, one weekly page (v3.2)
+
+- **This week** (`/week`, the first tab): sold per variant (cancellations before shipping kept out), what TikTok will pay (expected by per-order rules: what it paid, else what it paid for the same product and price, else the fee shares), bought and who paid, expected profit, the one cash figure with Mark as sent, and the buy list per variant (backlog plus the buffer set in Settings, default 5). Weeks run Monday to Sunday; picking a day starts the week there, so 15 to 21 September lines up with TikTok's statement. XLSX and PDF export. On Mondays the Home card opens last week.
+- **Clean the ledger** (More, admin): checks sales against the stored TikTok Orders files. Exact duplicates keep the imported row; a typed row with no order ID that matches an imported one (date +/- 1 day, same quantity, amount within 5 baht) is merged into it with its note; cancellations with no Shipped time become "Cancelled before shipping"; sales move to the variant their listing really is. Unmatched typed rows are listed, never deleted. Every change is audited. `npm run clean:ledger -- 2026-09-15` prints the plan as a dry run.
+- **Cancellations**: an Orders file cancellation with no Shipped time is not a sale (no revenue, no stock out, no return); one with a Shipped time goes through the return flow. Data health counts the two apart and runs a Possible duplicate check after every import.
+- **Variants**: TikTok listings map to their real variant (1 kg packs, 500 g packs, the ตรามะลิ 1 kg bag). Purchases booked on one variant of a two-variant product get a one-time split prompt on Stock.
+- **Advance**: the statement lists each advance recovery twice (Order details and Withdrawal records, different references). The reader pairs them by day and amount, and the wallet replay ignores copies stored before v3.2.
+- **Delete guard**: when another row has the same amount and date, Delete asks "Delete only this one?"; only that row goes.
+- **Consistency gate**: `npm run build` first runs `tests/consistency.test.ts` and `tests/truth.test.ts`; the build fails if Home, My Balance, This week or any other page would show a different who-owes-whom.
+- **Real-week fixture**: `tests/fixtures/week-2026-09-15/` holds the 15 to 21 September Orders and Finance files, anonymized (no names, addresses, phones, usernames, tracking numbers or bank accounts).
+
 ## The TikTok Finance statement (v3.1)
 
 The real Seller Center export (Finance, Income, .xlsx) is read exactly as TikTok writes it, and every number still reaches the app through `src/lib/truth.ts`.
