@@ -81,7 +81,9 @@ export type AdvanceCashLite = { id: string; date: string; amount: number; receiv
 /**
  * v3.3: when TikTok money counts as cash Sai holds for the business. TikTok
  * pays into its wallet and the wallet goes to Sai's bank, so:
- *   - an order TikTok has settled counts in full, withdrawn or not;
+ *   - an order the Finance statement says TikTok settled counts in full,
+ *     withdrawn or not (an Orders file or a screenshot cannot say it was
+ *     settled: only the statement can);
  *   - the advance outstanding, allocated to unsettled business orders (70% of
  *     each order's expected net, oldest first, capped by the outstanding
  *     total), counts as received on those orders, exactly like a partial
@@ -91,13 +93,13 @@ export type AdvanceCashLite = { id: string; date: string; amount: number; receiv
  * passes the order's net; when the order settles, only what was not advanced
  * is new cash. Revenue and profit never change here: only cash.
  */
-export function withTiktokCash<T extends ReportTx>(all: T[], allocations: { order_ref: string; amount: number }[]): T[] {
+export function withTiktokCash<T extends ReportTx>(all: T[], allocations: { order_ref: string; amount: number }[], settledByStatement: Set<string>): T[] {
   const alloc = new Map(allocations.map((a) => [a.order_ref, a.amount]));
   return all.map((t) => {
     const s = t.settlement;
-    if (t.type !== "income" || t.platform !== "tiktok" || !s) return t;
-    if (s.status === "settled_not_withdrawn") return { ...t, settlement: { ...s, paid_amount: t.net_amount } };
-    const share = s.status === "pending" && t.order_ref ? (alloc.get(t.order_ref) ?? 0) : 0;
+    if (t.type !== "income" || t.platform !== "tiktok" || !s || s.status === "received_in_bank") return t;
+    if (t.order_ref && settledByStatement.has(t.order_ref)) return { ...t, settlement: { ...s, paid_amount: t.net_amount } };
+    const share = t.order_ref ? (alloc.get(t.order_ref) ?? 0) : 0;
     if (share <= 0) return t;
     const paid = Math.max(0, s.paid_amount ?? 0);
     const advanced = round2(Math.min(share, Math.max(0, t.net_amount - paid)));

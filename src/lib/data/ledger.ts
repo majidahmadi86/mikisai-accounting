@@ -151,13 +151,15 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
       const storedEvents = (we.data ?? []).map((e) => ({ id: e.id as string, kind: e.kind as WalletEvent["kind"], reference: e.reference as string, date: e.event_date as string, amount: num(e.amount), bank_suffix: (e.bank_suffix as string) ?? "", received_by: e.received_by as Person, mirror: String(e.kind).startsWith("advance") && Boolean(e.status) }));
       const kept = new Set(withoutMirrorTwins(storedEvents));
       const duplicates = storedEvents.filter((e) => !kept.has(e)).map((e) => ({ id: e.id, kind: e.kind as string, date: e.date, amount: e.amount }));
+      // Only the Finance statement can say TikTok settled an order.
+      const settledByStatement = new Set(facts.filter((f) => f.kind === "order" && f.settled_date).map((f) => f.order_ref));
       const wallet = walletState({
         settled: facts.filter((f) => f.kind === "order" && f.settled_date).map((f) => ({ order_ref: f.order_ref, date: f.settled_date as string, net: f.settlement_amount, business: !f.pre_business })),
         losses: facts.filter((f) => f.kind === "refund" && f.settled_date && !f.pre_business && f.settlement_amount < 0).map((f) => ({ order_ref: f.order_ref, date: f.settled_date as string, loss: Math.abs(f.settlement_amount) })),
         events: storedEvents,
-        unsettled: allTransactions.filter((t) => t.type === "income" && t.platform === "tiktok" && t.status === "active" && t.order_ref && (t.settlement?.status ?? "pending") === "pending").map((t) => ({ order_ref: t.order_ref as string, date: t.date, value: t.net_amount, paid: t.settlement?.paid_amount ?? 0 })),
+        unsettled: allTransactions.filter((t) => t.type === "income" && t.platform === "tiktok" && t.status === "active" && t.order_ref && !settledByStatement.has(t.order_ref) && (t.settlement?.status ?? "pending") !== "received_in_bank").map((t) => ({ order_ref: t.order_ref as string, date: t.date, value: t.net_amount, paid: t.settlement?.paid_amount ?? 0 })),
       });
-      const normalized = normalizeLedger(withTiktokCash(allTransactions, wallet.allocations), clawbacks);
+      const normalized = normalizeLedger(withTiktokCash(allTransactions, wallet.allocations, settledByStatement), clawbacks);
 
       return {
         transactions: normalized.transactions,
