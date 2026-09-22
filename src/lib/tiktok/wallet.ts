@@ -31,7 +31,7 @@ export function withoutMirrorTwins(events: WalletEvent[]): WalletEvent[] {
     return false;
   });
 }
-export type UnsettledOrder = { order_ref: string; date: string; value: number };
+export type UnsettledOrder = { order_ref: string; date: string; value: number; /** Already paid on this order (a partial payout): the advance never takes it past its net. */ paid?: number };
 
 export type WithdrawalResult = {
   reference: string;
@@ -151,7 +151,7 @@ export function walletState(input: { settled: SettledOrder[]; losses: ReturnLoss
   const allocations: AdvanceAllocation[] = [];
   for (const o of [...input.unsettled].sort((a, b) => a.date.localeCompare(b.date) || a.order_ref.localeCompare(b.order_ref))) {
     if (pool <= 0) break;
-    const share = Math.min(pool, round2(o.value * ADVANCE_SHARE));
+    const share = Math.min(pool, round2(o.value * ADVANCE_SHARE), Math.max(0, round2(o.value - (o.paid ?? 0))));
     if (share <= 0) continue;
     allocations.push({ order_ref: o.order_ref, date: o.date, amount: share });
     pool = round2(pool - share);

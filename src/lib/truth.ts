@@ -78,6 +78,33 @@ export type AdvanceCashLite = { id: string; date: string; amount: number; receiv
  * cash flow must see it), but it is never a sale: it enters here, as a
  * synthetic cash row, and nowhere else.
  */
+/**
+ * v3.3: when TikTok money counts as cash Sai holds for the business. TikTok
+ * pays into its wallet and the wallet goes to Sai's bank, so:
+ *   - an order TikTok has settled counts in full, withdrawn or not;
+ *   - the advance outstanding, allocated to unsettled business orders (70% of
+ *     each order's expected net, oldest first, capped by the outstanding
+ *     total), counts as received on those orders, exactly like a partial
+ *     payout. The remainder belongs to orders from before the business and to
+ *     Sai alone, so it is not here.
+ * Both are written as the order's paid part, so paid plus advanced never
+ * passes the order's net; when the order settles, only what was not advanced
+ * is new cash. Revenue and profit never change here: only cash.
+ */
+export function withTiktokCash<T extends ReportTx>(all: T[], allocations: { order_ref: string; amount: number }[]): T[] {
+  const alloc = new Map(allocations.map((a) => [a.order_ref, a.amount]));
+  return all.map((t) => {
+    const s = t.settlement;
+    if (t.type !== "income" || t.platform !== "tiktok" || !s) return t;
+    if (s.status === "settled_not_withdrawn") return { ...t, settlement: { ...s, paid_amount: t.net_amount } };
+    const share = s.status === "pending" && t.order_ref ? (alloc.get(t.order_ref) ?? 0) : 0;
+    if (share <= 0) return t;
+    const paid = Math.max(0, s.paid_amount ?? 0);
+    const advanced = round2(Math.min(share, Math.max(0, t.net_amount - paid)));
+    return { ...t, settlement: { ...s, paid_amount: round2(paid + advanced), advanced } };
+  });
+}
+
 export function advanceCashRows(cash: AdvanceCashLite[]): ReportTx[] {
   return cash.map((c) => ({
     id: c.id,
@@ -156,6 +183,8 @@ export type WhoOwesWhom = Balance & {
   fairShareOfCosts: number;
   /** Income received from platforms per partner (no transfers). */
   fromPlatforms: Record<Person, number>;
+  /** Of fromPlatforms: the TikTok advance allocated to unsettled orders, received ahead of settlement. */
+  advancedFromPlatforms: Record<Person, number>;
   /** Transfers received from the other partner. */
   fromPartner: Record<Person, number>;
 };
@@ -177,7 +206,9 @@ export function whoOwesWhom(input: Pick<TruthInput, "transactions" | "transfers"
   const fromPartner: Record<Person, number> = { mike: 0, sai: 0 };
   for (const tr of transfers) fromPartner[tr.to_person] = round2(fromPartner[tr.to_person] + tr.amount);
   const fromPlatforms: Record<Person, number> = { mike: round2(balance.received.mike - fromPartner.mike), sai: round2(balance.received.sai - fromPartner.sai) };
-  return { ...balance, asOf, fairShareOfCosts: round2(balance.expenses / 2), fromPlatforms, fromPartner };
+  const advancedFromPlatforms: Record<Person, number> = { mike: 0, sai: 0 };
+  for (const t of txs) if (t.type === "income" && t.received_by && t.settlement && t.settlement.status !== "received_in_bank" && (t.settlement.advanced ?? 0) > 0) advancedFromPlatforms[t.received_by] = round2(advancedFromPlatforms[t.received_by] + (t.settlement.advanced ?? 0));
+  return { ...balance, asOf, fairShareOfCosts: round2(balance.expenses / 2), fromPlatforms, advancedFromPlatforms, fromPartner };
 }
 
 export type Contribution = { id: string; date: string; who: Person; kind: "expense" | "transfer"; amount: number; reason: TransferReason | null; category_id: string | null; note: string; transaction_id: string | null; transfer_id: string | null };

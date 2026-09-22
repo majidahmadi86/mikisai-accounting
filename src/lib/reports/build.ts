@@ -33,7 +33,7 @@ export type ReportTx = {
   /** A cash adjustment row built by truth.normalizeLedger, never a real order. */
   synthetic?: boolean;
   created_at: string;
-  settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null; paid_amount?: number } | null;
+  settlement: { status: SettlementStatus; settled_at: string | null; payout_id: string | null; paid_amount?: number; /** Of paid_amount: the TikTok advance allocated to this order ahead of settlement (v3.3). */ advanced?: number } | null;
   created_by?: string | null;
   updated_by?: string | null;
 };

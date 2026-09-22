@@ -22,6 +22,7 @@ export function BalanceBanner({ balance, tr }: { balance: WhoOwesWhom; tr: Trans
             <dt className="eyebrow">{tr(`common.${p}`)}</dt>
             <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.fromPlatforms")}</dd>
             <dd className="font-medium text-base tabular text-plum sm:text-lg">{thb(balance.fromPlatforms[p])}</dd>
+            {balance.advancedFromPlatforms[p] > 0 ? <dd className="text-xs text-plum-soft" data-testid={`advanced-${p}`}>{tr("dashboard.ofWhichAdvanced", { amount: thb(balance.advancedFromPlatforms[p]) })}</dd> : null}
             <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.fromPartner")}</dd>
             <dd className="font-medium text-base tabular text-plum sm:text-lg">{thb(balance.fromPartner[p])}</dd>
             <dd className="mt-1 text-xs text-plum-soft">{tr("dashboard.putIn")}</dd>
