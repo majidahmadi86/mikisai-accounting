@@ -1404,6 +1404,8 @@ const en = {
   "health.cancellations.desc": "Counted, not problems. Cancelled before shipping is not a sale: no revenue, no stock out. Cancelled after shipping goes through the return flow.",
   "health.cancelledBefore": "Cancelled before shipping",
   "health.cancelledAfter": "Cancelled or returned after shipping",
+  "health.statement_duplicates": "Duplicate TikTok statement rows",
+  "health.statement_duplicates.desc": "A statement row stored twice: an advance copied from Withdrawal records next to its Order details row, or the same order twice. Each would count its money twice; the wallet already ignores copies, and this says if one ever comes back.",
 } as const;
 
 export type DictionaryKey = keyof typeof en;
@@ -2811,6 +2813,8 @@ const th: Record<DictionaryKey, string> = {
   "health.cancellations.desc": "นับไว้ ไม่ใช่ปัญหา ยกเลิกก่อนจัดส่งไม่นับเป็นการขาย ไม่มีรายได้ ไม่ตัดสต็อก ยกเลิกหลังจัดส่งจะเข้าขั้นตอนคืนสินค้า",
   "health.cancelledBefore": "ยกเลิกก่อนจัดส่ง",
   "health.cancelledAfter": "ยกเลิกหรือคืนหลังจัดส่ง",
+  "health.statement_duplicates": "แถวรายการ TikTok ซ้ำ",
+  "health.statement_duplicates.desc": "แถวรายการเดินบัญชีที่บันทึกซ้ำ: เงินล่วงหน้าที่คัดลอกจากรายการถอนเงินซ้ำกับแถวในรายละเอียดคำสั่งซื้อ หรือคำสั่งซื้อเดียวกันสองครั้ง จะทำให้นับเงินสองครั้ง ระบบไม่นับสำเนาอยู่แล้ว และจะแจ้งถ้ากลับมาอีก",
 };
 
 export const dictionaries: Record<Locale, Record<DictionaryKey, string>> = { en, th };

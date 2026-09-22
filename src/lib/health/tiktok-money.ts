@@ -6,7 +6,7 @@
 import { round2 } from "@/lib/money";
 import { daysBetween } from "@/lib/reports/period";
 
-export const STATEMENT_KEYS = ["net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week"] as const;
+export const STATEMENT_KEYS = ["statement_duplicates", "net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week"] as const;
 export type StatementHealthKey = (typeof STATEMENT_KEYS)[number];
 
 export type MoneyIssue = { id: string; label: string; href: string | null; detail?: string; meta?: Record<string, string | number> };
@@ -17,6 +17,8 @@ export type MoneyInput = {
   allocations: { order_ref: string; date: string; amount: number }[];
   facts: MoneyFact[];
   periods: { from: string; to: string }[];
+  /** Stored statement rows that repeat another: a wallet copy of an advance, or the same order twice. */
+  duplicates?: { id: string; kind: string; date: string; amount: number }[];
 };
 export type MoneyOrder = { id: string; order_ref?: string | null; date: string; net_amount: number; platform: string; type: string; status?: string; settlement: { status: string } | null };
 
@@ -43,9 +45,17 @@ export function coverageGaps(periods: { from: string; to: string }[], startDate:
 }
 
 export function statementHealth(money: MoneyInput | undefined, orders: MoneyOrder[], cross: { missing_from_orders?: unknown; missing_from_statement?: unknown } | undefined, today: string): Record<StatementHealthKey, MoneyIssue[]> {
-  const out: Record<StatementHealthKey, MoneyIssue[]> = { net_fixed: [], no_statement_10d: [], statement_cross: [], advance_estimated: [], statement_gaps: [], overweight_week: [], returns_week: [] };
+  const out: Record<StatementHealthKey, MoneyIssue[]> = { statement_duplicates: [], net_fixed: [], no_statement_10d: [], statement_cross: [], advance_estimated: [], statement_gaps: [], overweight_week: [], returns_week: [] };
   if (!money) return out;
   const weekAgo = addDays(today, -WEEK);
+
+  // The same statement row stored twice counts its money twice.
+  const seen = new Map<string, number>();
+  for (const f of money.facts) seen.set(`${f.order_ref}:${f.kind}`, (seen.get(`${f.order_ref}:${f.kind}`) ?? 0) + 1);
+  out.statement_duplicates = [
+    ...(money.duplicates ?? []).map((d) => ({ id: d.id, label: `${d.date} · ${d.kind.replace("_", " ")} · ${baht(d.amount)}`, href: "/payouts", meta: { amount: d.amount } })),
+    ...Array.from(seen).filter(([, n]) => n > 1).map(([key, n]) => ({ id: key, label: `#${key.split(":")[0]}`, href: `/search?q=${key.split(":")[0]}`, detail: `${n}x` })),
+  ];
   const business = money.facts.filter((f) => !f.pre_business);
   const recent = (f: MoneyFact) => Boolean(f.settled_date && f.settled_date > weekAgo);
 

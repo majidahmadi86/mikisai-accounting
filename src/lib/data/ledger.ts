@@ -6,7 +6,7 @@ import type { Product, StockMovement } from "@/lib/inventory/valuation";
 import type { TransactionItemRow } from "@/lib/inventory/reports";
 import { num, type Business, type Clawback, type Customer, type ImportRun, type InternalTransfer, type Payout, type Person, type PlatformSetting, type SettlementStatus, type Transaction } from "@/lib/types";
 import { normalizeLedger, type ClawbackLite } from "@/lib/truth";
-import { walletState } from "@/lib/tiktok/wallet";
+import { walletState, withoutMirrorTwins } from "@/lib/tiktok/wallet";
 import { loadTiktokStatus } from "@/lib/tiktok/load-status";
 import type { TiktokStatus } from "@/lib/tiktok/status";
 
@@ -28,6 +28,8 @@ export type TiktokMoney = {
   advancePreBusiness: number;
   facts: StatementFactLite[];
   periods: { from: string; to: string }[];
+  /** Stored statement rows that repeat another (Data health: Duplicate TikTok statement rows). */
+  duplicates: { id: string; kind: string; date: string; amount: number }[];
 };
 
 export type LedgerSnapshot = {
@@ -119,7 +121,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("tiktok_sku_map").select("sku_key, sku_name").eq("business_id", businessId).is("product_id", null).order("created_at"),
         admin.from("payout_allocations").select("payout_id, amount").eq("business_id", businessId),
         admin.from("order_statements").select("order_ref, kind, transaction_id, settled_date, settlement_amount, revenue, fee_transaction, fee_commission, fee_commerce_growth, fee_seller_shipping, chargeable_weight_g, boxes, overweight, pre_business, ledger_net_before").eq("business_id", businessId),
-        admin.from("wallet_events").select("kind, reference, event_date, amount, bank_suffix, received_by, status").eq("business_id", businessId),
+        admin.from("wallet_events").select("id, kind, reference, event_date, amount, bank_suffix, received_by, status").eq("business_id", businessId),
         admin.from("tiktok_statements").select("period_from, period_to").eq("business_id", businessId).order("period_from"),
         admin.from("businesses").select("start_date, buy_buffer").eq("id", businessId).maybeSingle(),
       ]);
@@ -146,10 +148,13 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
       const clawbacks: ClawbackLite[] = (cb.data ?? []).map((c) => ({ ...(c as Clawback), amount: num(c.amount) }));
       // The TikTok wallet, replayed from the stored statements: the advance balance and the advance cash that reached the bank.
       const facts: StatementFactLite[] = (os.data ?? []).map((f) => ({ order_ref: f.order_ref as string, kind: f.kind as "order" | "refund", transaction_id: (f.transaction_id as string | null) ?? null, settled_date: (f.settled_date as string | null) ?? null, settlement_amount: num(f.settlement_amount), revenue: num(f.revenue), fee_transaction: num(f.fee_transaction), fee_commission: num(f.fee_commission), fee_commerce_growth: num(f.fee_commerce_growth), fee_seller_shipping: num(f.fee_seller_shipping), chargeable_weight_g: f.chargeable_weight_g == null ? null : num(f.chargeable_weight_g), boxes: num(f.boxes) || 1, overweight: Boolean(f.overweight), pre_business: Boolean(f.pre_business), ledger_net_before: f.ledger_net_before == null ? null : num(f.ledger_net_before) }));
+      const storedEvents = (we.data ?? []).map((e) => ({ id: e.id as string, kind: e.kind as "earnings", reference: e.reference as string, date: e.event_date as string, amount: num(e.amount), bank_suffix: (e.bank_suffix as string) ?? "", received_by: e.received_by as Person, mirror: String(e.kind).startsWith("advance") && Boolean(e.status) }));
+      const kept = new Set(withoutMirrorTwins(storedEvents));
+      const duplicates = storedEvents.filter((e) => !kept.has(e)).map((e) => ({ id: e.id, kind: e.kind as string, date: e.date, amount: e.amount }));
       const wallet = walletState({
         settled: facts.filter((f) => f.kind === "order" && f.settled_date).map((f) => ({ order_ref: f.order_ref, date: f.settled_date as string, net: f.settlement_amount, business: !f.pre_business })),
         losses: facts.filter((f) => f.kind === "refund" && f.settled_date && !f.pre_business && f.settlement_amount < 0).map((f) => ({ order_ref: f.order_ref, date: f.settled_date as string, loss: Math.abs(f.settlement_amount) })),
-        events: (we.data ?? []).map((e) => ({ kind: e.kind as "earnings", reference: e.reference as string, date: e.event_date as string, amount: num(e.amount), bank_suffix: (e.bank_suffix as string) ?? "", received_by: e.received_by as Person, mirror: String(e.kind).startsWith("advance") && Boolean(e.status) })),
+        events: storedEvents,
         unsettled: allTransactions.filter((t) => t.type === "income" && t.platform === "tiktok" && t.status === "active" && t.order_ref && (t.settlement?.status ?? "pending") === "pending").map((t) => ({ order_ref: t.order_ref as string, date: t.date, value: t.net_amount })),
       });
       const normalized = normalizeLedger(allTransactions, clawbacks, wallet.advanceCash);
@@ -179,7 +184,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         skusAwaiting: (sk.data ?? []) as { sku_key: string; sku_name: string }[],
         payoutCoverage: (pa.data ?? []).reduce<Record<string, number>>((acc, a) => ({ ...acc, [a.payout_id as string]: Math.round(((acc[a.payout_id as string] ?? 0) + num(a.amount)) * 100) / 100 }), {}),
         tiktok,
-        tiktokMoney: { startDate: (sd.data?.start_date as string | undefined) ?? "2026-09-15", buyBuffer: sd.data?.buy_buffer == null ? 5 : num(sd.data.buy_buffer), advanceBalance: wallet.advanceBalance, disbursed: wallet.disbursed, recovered: wallet.recovered, allocations: wallet.allocations, advancePreBusiness: wallet.advancePreBusiness, facts, periods: (st.data ?? []).map((p) => ({ from: p.period_from as string, to: p.period_to as string })) },
+        tiktokMoney: { startDate: (sd.data?.start_date as string | undefined) ?? "2026-09-15", buyBuffer: sd.data?.buy_buffer == null ? 5 : num(sd.data.buy_buffer), advanceBalance: wallet.advanceBalance, disbursed: wallet.disbursed, recovered: wallet.recovered, allocations: wallet.allocations, advancePreBusiness: wallet.advancePreBusiness, facts, duplicates, periods: (st.data ?? []).map((p) => ({ from: p.period_from as string, to: p.period_to as string })) },
         fetchedAt: new Date().toISOString(),
       };
     },

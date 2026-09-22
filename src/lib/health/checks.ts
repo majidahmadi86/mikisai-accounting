@@ -20,7 +20,7 @@ import { possibleDuplicates } from "@/lib/ledger/cleanup";
 import { buildWeek } from "@/lib/week";
 import { STATEMENT_KEYS, statementHealth, type MoneyInput } from "./tiktok-money";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "possible_duplicate", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "possible_duplicate", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "statement_duplicates", "net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = {
