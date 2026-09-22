@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BalanceIcon, HomeIcon, LedgerIcon, MoreIcon, PlusIcon } from "@/components/ui/Icons";
+import { HomeIcon, LedgerIcon, MoreIcon, PlusIcon, WeekIcon } from "@/components/ui/Icons";
 import { useQuickEntry } from "@/components/quick-entry/QuickEntryProvider";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/cn";
 
-const MORE_ROUTES = ["/more", "/import", "/payouts", "/customers", "/settings", "/insights", "/audit", "/reports", "/products", "/stock", "/investment"];
+const MORE_ROUTES = ["/more", "/import", "/payouts", "/customers", "/settings", "/insights", "/audit", "/reports", "/products", "/stock", "/investment", "/balance"];
 
 function Tab({ href, label, icon, active }: { href: string; label: string; icon: React.ReactNode; active: boolean }) {
   return (
@@ -22,7 +22,7 @@ function Tab({ href, label, icon, active }: { href: string; label: string; icon:
   );
 }
 
-/** Phone navigation: Home · Ledger · Add · My Balance · More. Reports moved under More. Hidden from md up. */
+/** Phone navigation: This week · Home · Add · Ledger · More. My Balance is under More; its figure is on This week. Hidden from md up. */
 export function TabBar({ alert = false }: { alert?: boolean }) {
   const t = useT();
   const pathname = usePathname();
@@ -32,8 +32,8 @@ export function TabBar({ alert = false }: { alert?: boolean }) {
   return (
     <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-ivory/95 backdrop-blur md:hidden pb-safe">
       <div className="mx-auto flex max-w-lg items-stretch px-2">
+        <Tab href="/week" label={t("nav.week")} icon={<WeekIcon />} active={pathname.startsWith("/week")} />
         <Tab href="/" label={t("nav.home")} icon={<HomeIcon />} active={pathname === "/"} />
-        <Tab href="/transactions" label={t("nav.ledger")} icon={<LedgerIcon />} active={pathname.startsWith("/transactions")} />
         <div className="flex flex-1 items-center justify-center">
           <button
             type="button"
@@ -44,7 +44,7 @@ export function TabBar({ alert = false }: { alert?: boolean }) {
             <PlusIcon className="h-7 w-7" />
           </button>
         </div>
-        <Tab href="/balance" label={t("nav.balance")} icon={<BalanceIcon />} active={pathname.startsWith("/balance")} />
+        <Tab href="/transactions" label={t("nav.ledger")} icon={<LedgerIcon />} active={pathname.startsWith("/transactions")} />
         <Tab
           href="/more"
           label={t("nav.more")}

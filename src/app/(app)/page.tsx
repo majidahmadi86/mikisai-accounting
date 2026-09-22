@@ -11,6 +11,7 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
 import { productLine } from "@/lib/search";
 import { formatDateTime, todayIso } from "@/lib/money";
+import { addDays } from "@/lib/reports/period";
 import { stockPositions, whoOwesWhom } from "@/lib/truth";
 
 type Tr = ReturnType<typeof t>;
@@ -73,8 +74,21 @@ function NightlyRoutine({ last, lastImport, tr, locale }: { last: LedgerSnapshot
         </div>
         <ButtonLink href="/import">{tr("nightly.routineGo")}</ButtonLink>
       </div>
+      <WeekLink tr={tr} />
       <LastImportLine lastImport={lastImport} tr={tr} locale={locale} />
     </Card>
+  );
+}
+
+/** The routine card's way into the week. On a Monday it opens last week, the one just finished. */
+function WeekLink({ tr }: { tr: Tr }) {
+  const today = todayIso();
+  const monday = new Date(`${today}T00:00:00Z`).getUTCDay() === 1;
+  const href = monday ? `/week?from=${addDays(today, -7)}` : "/week";
+  return (
+    <Link href={href} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-berry hover:underline">
+      {monday ? tr("week.monday") : tr("week.open")} →
+    </Link>
   );
 }
 
@@ -89,6 +103,7 @@ function PaidForRoutine({ lastImport, tr, locale }: { lastImport: LedgerSnapshot
         </div>
         <AddButton label={tr("home.paidForGo")} kind="expense" stockFirst />
       </div>
+      <WeekLink tr={tr} />
       <LastImportLine lastImport={lastImport} tr={tr} locale={locale} />
     </Card>
   );

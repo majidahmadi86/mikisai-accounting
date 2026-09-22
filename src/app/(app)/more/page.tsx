@@ -15,6 +15,7 @@ export default async function MorePage({ searchParams }: PageProps<"/more">) {
   const health = await lastHealthRun(session.supabase, session.profile.business_id);
 
   const items = [
+    { href: "/balance", title: tr("nav.balance") },
     { href: "/reports", title: tr("more.reports") },
     { href: "/products", title: tr("nav.products") },
     { href: "/stock", title: tr("stock.title") },

@@ -31,7 +31,7 @@ export type ExportTable = {
   emphasis?: number[];
 };
 
-export const REPORT_IDS = ["movements", "units", "pl", "cashflow", "balance", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
+export const REPORT_IDS = ["movements", "week", "units", "pl", "cashflow", "balance", "product", "platform", "category", "settlement", "owes", "customers", "stock", "lowstock", "profit", "plan", "samples"] as const;
 export type ReportId = (typeof REPORT_IDS)[number];
 
 export function isReportId(v: unknown): v is ReportId {

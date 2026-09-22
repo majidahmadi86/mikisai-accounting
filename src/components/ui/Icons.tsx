@@ -190,3 +190,13 @@ export function TrashIcon(p: IconProps) {
     </Svg>
   );
 }
+
+export function WeekIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M8 3v4M16 3v4" />
+      <path d="M8 14h2M12 14h2M16 14h0" />
+    </Svg>
+  );
+}

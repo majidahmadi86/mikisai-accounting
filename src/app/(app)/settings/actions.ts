@@ -36,7 +36,9 @@ export async function savePlatformSettings(formData: FormData) {
   // The first day of the business: TikTok orders created before it stay outside every business number.
   const start = formData.get("start_date");
   const startDate = typeof start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : null;
-  const { error: bErr } = await supabase.from("businesses").update({ exposure_limit: exposure.data, ...(startDate ? { start_date: startDate } : {}) }).eq("id", profile.business_id);
+  const bufferRaw = Number(formData.get("buy_buffer"));
+  const buffer = Number.isInteger(bufferRaw) && bufferRaw >= 0 && bufferRaw <= 1000 ? bufferRaw : null;
+  const { error: bErr } = await supabase.from("businesses").update({ exposure_limit: exposure.data, ...(startDate ? { start_date: startDate } : {}), ...(buffer !== null ? { buy_buffer: buffer } : {}) }).eq("id", profile.business_id);
   if (bErr) redirect("/settings?error=save");
 
   ledgerChanged(profile.business_id);

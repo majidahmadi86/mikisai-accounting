@@ -24,6 +24,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const links = [
+    { href: "/week", label: tr("nav.week") },
     { href: "/", label: tr("nav.home") },
     { href: "/transactions", label: tr("nav.ledger") },
     { href: "/products", label: tr("nav.products") },
