@@ -17,6 +17,8 @@ import { shortProductName } from "@/lib/inventory/units";
 import { productLine } from "@/lib/search";
 import { formatDate, thb, todayIso } from "@/lib/money";
 import { cn } from "@/lib/cn";
+import { purchasesToSplit } from "@/lib/inventory/variant-split";
+import { splitPurchases } from "./split-actions";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -43,6 +45,11 @@ export default async function StockPage({ searchParams }: PageProps<"/stock">) {
   const exportQs = qs.toString();
   const linkClass = "inline-flex min-h-9 items-center gap-1 rounded-full border border-line bg-card px-3 text-xs font-medium text-plum-soft hover:border-berry hover:text-berry";
   const kindName = (k: keyof typeof kindTone) => tr(`stock.kind.${k}`);
+  const splits = admin ? purchasesToSplit(snapshot.transactions, snapshot.items, snapshot.products, snapshot.categories) : [];
+  const productName = (id: string) => {
+    const p = snapshot.products.find((x) => x.id === id);
+    return p ? shortProductName(p, locale) : "?";
+  };
 
   return (
     <div>
@@ -62,6 +69,26 @@ export default async function StockPage({ searchParams }: PageProps<"/stock">) {
       />
       {sp.saved ? <p className="mb-4 rounded-xl bg-success-tint px-4 py-3 text-sm text-success">{tr("common.saved")}</p> : null}
       {sp.error ? <p className="mb-4 rounded-xl bg-berry-tint px-4 py-3 text-sm text-berry">{sp.error === "denied" ? tr("roles.denied") : tr("common.error")}</p> : null}
+
+      {splits.length ? (
+        <Card tone="warning" className="mb-4 px-5 py-4">
+          <h2 className="text-lg text-plum">{tr("split.title", { n: splits.reduce((a, r) => a + r.qty, 0), from: productName(splits[0].from), to: productName(splits[0].to) })}</h2>
+          <p className="mt-1 text-sm text-plum-soft">{tr("split.hint", { from: productName(splits[0].from), to: productName(splits[0].to) })}</p>
+          <form action={splitPurchases} className="mt-3 space-y-3" data-testid="variant-split">
+            {splits.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-end gap-3 border-t border-line pt-3">
+                <p className="min-w-0 flex-1 basis-48 text-sm text-plum">
+                  {tr("split.row", { date: formatDate(r.date, locale), n: r.qty, amount: thb(r.amount) })}
+                </p>
+                <Field label={tr("split.to", { name: productName(r.to) })} htmlFor={`to_${r.id}`}>
+                  <Input id={`to_${r.id}`} name={`to_${r.id}`} type="number" inputMode="numeric" min={0} max={r.qty} step={1} required className="w-28 tabular" />
+                </Field>
+              </div>
+            ))}
+            <Button type="submit" className="min-h-11">{tr("split.save")}</Button>
+          </form>
+        </Card>
+      ) : null}
 
       <div className="grid gap-3 md:grid-cols-2">
         {cards.map((c) => {
