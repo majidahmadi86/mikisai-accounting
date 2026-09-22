@@ -179,6 +179,41 @@ function cashTxAsOf(t: ReportTx, asOf: string) {
   };
 }
 
+/**
+ * v3.4: still to come, one definition. For every order a platform has not
+ * paid in full as of a day: its expected net less what already reached a
+ * partner (paid in part, TikTok's advance allocated to it, or settled by the
+ * statement, which counts as paid in full). My Balance halves it, This week
+ * shows it for the week's orders, the balance sheet holds it as receivables
+ * and the reconciliation line moves with it: one number, everywhere.
+ */
+export function remainingOn(t: ReportTx, asOf = "9999-12-31"): number {
+  if (t.type !== "income" || t.synthetic || t.date > asOf || !t.settlement) return 0;
+  const settledOn = t.settlement.settled_at?.slice(0, 10) ?? null;
+  if (t.settlement.status === "received_in_bank" && (!settledOn || settledOn <= asOf)) return 0;
+  const paidOn = settledOn ?? t.date;
+  const paid = t.settlement.status === "received_in_bank" || paidOn > asOf ? 0 : Math.min(t.net_amount, Math.max(0, t.settlement.paid_amount ?? 0));
+  return round2(Math.max(0, t.net_amount - paid));
+}
+
+export type StillToCome = { total: number; orders: number; byPlatform: Record<string, { total: number; orders: number }> };
+
+export function stillToCome(transactions: ReportTx[], asOf = "9999-12-31"): StillToCome {
+  const byPlatform: StillToCome["byPlatform"] = {};
+  let total = 0;
+  let orders = 0;
+  for (const t of transactions) {
+    const rest = remainingOn(t, asOf);
+    if (rest <= 0) continue;
+    total = round2(total + rest);
+    orders += 1;
+    const b = (byPlatform[t.platform] ??= { total: 0, orders: 0 });
+    b.total = round2(b.total + rest);
+    b.orders += 1;
+  }
+  return { total, orders, byPlatform };
+}
+
 export type WhoOwesWhom = Balance & {
   asOf: string;
   /** Half of every expense paid so far: what each partner should have covered. Display only. */

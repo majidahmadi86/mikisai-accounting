@@ -10,7 +10,8 @@ import { CATEGORY_ID } from "@/lib/fixtures/seed-data";
 import { LIVE_TODAY, liveLedger } from "@/lib/fixtures/live-shaped";
 import { buildMyBalance } from "@/lib/my-balance";
 import { thisWeek } from "@/lib/reports/period";
-import { whoOwesWhom, type TruthInput } from "@/lib/truth";
+import { stillToCome, whoOwesWhom, withTiktokCash, type TruthInput } from "@/lib/truth";
+import { buildBalanceSheet } from "@/lib/accounting/statements";
 import { buildWeek } from "@/lib/week";
 
 const live = (): TruthInput => ({ ...liveLedger(), items: liveLedger().items ?? [] });
@@ -62,5 +63,23 @@ describe("consistency gate: Home = My Balance = This week, and every other page"
     const e = everywhere({ ...input, transactions: [...input.transactions, odd] }, LIVE_TODAY);
     expect(e.myBalance).toEqual(e.home);
     expect(e.week).toEqual(e.home);
+  });
+
+  it("still to come is one number: My Balance halves, This week, the balance sheet; exposure = owed to me + still coming", () => {
+    const input = live();
+    const coming = stillToCome(input.transactions, LIVE_TODAY).total;
+    expect(coming).toBeGreaterThan(0);
+    const mike = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 3000 }, "mike", LIVE_TODAY);
+    const sai = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 3000 }, "sai", LIVE_TODAY);
+    expect(mike.incomingTotal + sai.incomingTotal).toBeCloseTo(coming, 1);
+    expect(mike.exposure).toBeCloseTo(mike.owedToMe + mike.incomingTotal, 2);
+    const w = buildWeek({ transactions: input.transactions, cancelled: [], cashAdjustments: [], transfers: input.transfers, items: input.items, products: input.products, movements: input.movements, categories: [], facts: [], allocations: [] }, { key: "custom", from: "0001-01-01", to: LIVE_TODAY }, LIVE_TODAY, 5);
+    expect(w.tiktok.stillToCome).toBeCloseTo(coming, 2);
+    expect(buildBalanceSheet(input, LIVE_TODAY).receivables).toBeCloseTo(coming, 2);
+    // An advance on an order leaves only the rest still to come.
+    const first = input.transactions.find((t) => t.type === "income")!;
+    const advanced = withTiktokCash(input.transactions, [{ order_ref: first.order_ref!, amount: 100 }], new Set());
+    expect(stillToCome(advanced, LIVE_TODAY).total).toBeCloseTo(coming - 100, 2);
+    expect(consistencyMismatches(input, LIVE_TODAY)).toEqual([]);
   });
 });

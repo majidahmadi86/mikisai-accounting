@@ -1,4 +1,4 @@
-import { cancellations, whoOwesWhom, type Cancellations, type TruthTransfer } from "@/lib/truth";
+import { cancellations, stillToCome, whoOwesWhom, type Cancellations, type TruthTransfer } from "@/lib/truth";
 import type { ExpenseCategory } from "@/lib/categories";
 import { valueStock, type Product, type StockMovement, type Valuation } from "@/lib/inventory/valuation";
 import { round2 } from "@/lib/money";
@@ -187,7 +187,7 @@ export function buildCashFlow(input: StatementsInput, period: Period): CashFlow 
 /** Everything the business owns and owes at the end of a day, from the first entry onwards. */
 export function buildBalanceSheet(input: StatementsInput, asOf: string): BalanceSheet {
   const balance = whoOwesWhom({ transactions: input.transactions, transfers: input.transfers as TruthTransfer[], cashAdjustments: input.cashAdjustments }, asOf);
-  const receivables = balance.pendingTotal;
+  const receivables = stillToCome([...input.transactions, ...(input.cashAdjustments ?? [])], asOf).total;
   const valuation = valueStock(input.products, movementsUpTo(input.movements, asOf));
   const inventory = valuation.totalValue;
   const backlog = valuation.totalBacklogValue;

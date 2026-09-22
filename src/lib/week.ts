@@ -12,7 +12,7 @@ import { valueStock, type Product, type StockMovement } from "@/lib/inventory/va
 import { round2 } from "@/lib/money";
 import { addDays, thisWeek, type Period } from "@/lib/reports/period";
 import type { ReportTx } from "@/lib/reports/build";
-import { whoOwesWhom, type TruthTransfer, type WhoOwesWhom } from "@/lib/truth";
+import { stillToCome, whoOwesWhom, type TruthTransfer, type WhoOwesWhom } from "@/lib/truth";
 import type { Person } from "@/lib/types";
 
 export { thisWeek };
@@ -200,7 +200,7 @@ export function buildWeek(input: WeekInput, period: Period, today: string, buffe
   return {
     period,
     sold: { orders: sales.length, variants: variantLines(soldLines, products), cancelledBeforeShipping },
-    tiktok: { expected, settled, advanced, stillToCome: round2(expected - settled - advanced), estimatedOrders },
+    tiktok: { expected, settled, advanced, stillToCome: stillToCome(sales.filter((t) => t.platform === "tiktok"), today).total, estimatedOrders },
     bought: { variants: variantLines(boughtLines, products), amount: round2(purchaseRows.reduce((a, t) => a + t.net_amount, 0)), byPerson, other, otherTotal },
     profit: { expectedIncome: expected, costOfUnits, otherCosts: otherTotal, expected: round2(expected - costOfUnits - otherTotal) },
     cash: { holdings: balance.holdings, owes: balance.owes, paid: balance.putIn, received: balance.received, advanced: balance.advancedFromPlatforms, reason: transferReason(input.transactions, balance.owes, today) },

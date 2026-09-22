@@ -10,7 +10,7 @@ import type { Role } from "@/lib/types";
 import { buildInvestment } from "@/lib/investment";
 import { buildStockPage } from "@/lib/inventory/stock-page";
 import { buildMyBalance } from "@/lib/my-balance";
-import { inventoryValue, stockPositions, whoOwesWhom, type ClawbackLite, type TruthInput, type TruthTransfer } from "@/lib/truth";
+import { inventoryValue, stillToCome, stockPositions, whoOwesWhom, type ClawbackLite, type TruthInput, type TruthTransfer } from "@/lib/truth";
 import type { ReportTx } from "@/lib/reports/build";
 import { tiktokProblems, type TiktokStatus } from "@/lib/tiktok/status";
 import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
@@ -307,6 +307,19 @@ export function consistencyMismatches(input: TruthInput, today: string): HealthI
   const week = owesAmount(buildWeek(weekInput, thisWeek(today), today, 0).cash.owes);
   for (const [name, value, href] of [["My Balance", myBalance, "/balance"], ["This week", week, "/week"], ["Investment", investment, "/investment"], ["Who owes whom report", report, "/reports"], ["Balance sheet", sheetOwes, "/reports"]] as const) {
     if (value !== home) issues.push({ id: `owes:${name}`, label: `${name} disagrees with Home`, href, detail: `Home ${home} · ${name} ${value}` });
+  }
+  // Still to come, one definition: My Balance (both halves), This week (TikTok, all dates), the balance sheet.
+  const coming = stillToCome([...input.transactions, ...(input.cashAdjustments ?? [])], today);
+  const halves = round2(mine.incomingTotal + buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0, cashAdjustments: input.cashAdjustments }, "sai", today).incomingTotal);
+  const allWeeks = buildWeek(weekInput, { key: "custom", from: "0001-01-01", to: today }, today, 0).tiktok.stillToCome;
+  const receivables = buildBalanceSheet(input, today).receivables;
+  for (const [name, value, expected, href] of [
+    ["My Balance still coming", halves, coming.total, "/balance"],
+    ["This week still to come", allWeeks, coming.byPlatform.tiktok?.total ?? 0, "/week"],
+    ["Balance sheet receivables", receivables, coming.total, "/reports"],
+    ["My Balance exposure", mine.exposure, round2(mine.owedToMe + mine.incomingTotal), "/balance"],
+  ] as const) {
+    if (Math.abs(value - expected) >= 0.02) issues.push({ id: `coming:${name}`, label: `${name} disagrees`, href, detail: `${expected.toFixed(2)} · ${value.toFixed(2)}` });
   }
   const positions = stockPositions(input);
   const page = buildStockPage({ products: input.products, movements: input.movements, items: input.items, names: new Map() });

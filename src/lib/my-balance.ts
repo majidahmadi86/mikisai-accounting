@@ -1,4 +1,4 @@
-import { clawbackPending, whoOwesWhom, type ClawbackLite } from "./truth";
+import { clawbackPending, remainingOn, stillToCome, whoOwesWhom, type ClawbackLite } from "./truth";
 import { round2 } from "./money";
 import { addDays } from "./reports/period";
 import type { ReportTransfer, ReportTx } from "./reports/build";
@@ -68,15 +68,6 @@ export type MyBalance = {
 
 const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
 
-/** Whether an income row is still with the platform on a given day. */
-function waitingOn(t: ReportTx, asOf: string): boolean {
-  if (t.type !== "income" || t.date > asOf) return false;
-  const status = t.settlement?.status ?? "pending";
-  if (status !== "received_in_bank") return true;
-  const settledAt = t.settlement?.settled_at?.slice(0, 10) ?? null;
-  return !!settledAt && settledAt > asOf;
-}
-
 /**
  * Expected arrivals for one waiting order. With the early-payout feature on
  * (daily_payout_pct below 100) part of the order lands the same day it was
@@ -103,7 +94,8 @@ export function timingFor(settings: PayoutTiming[], platform: Platform): PayoutT
 export function buildIncoming(transactions: ReportTx[], settings: PayoutTiming[], today: string): IncomingRow[] {
   return PLATFORMS.map((platform): IncomingRow => {
     const timing = timingFor(settings, platform);
-    const waiting = transactions.filter((t) => t.platform === platform && waitingOn(t, today));
+    // What is still to come on each order: its net less what already arrived (paid in part, advanced, or settled).
+    const waiting = transactions.filter((t) => t.platform === platform && remainingOn(t, today) > 0).map((t) => ({ ...t, net_amount: remainingOn(t, today) }));
     const arrivals = waiting.flatMap((t) => arrivalsFor(t, timing)).sort((a, b) => a.date.localeCompare(b.date));
     const total = sum(waiting.map((t) => t.net_amount));
     const future = arrivals.filter((a) => a.date >= today);
@@ -134,8 +126,7 @@ export function exposureLevel(exposure: number, limit: number): ExposureLevel {
 export function exposureOn(input: MyBalanceInput, me: Person, asOf: string): number {
   const b = whoOwesWhom(input, asOf);
   const owed = Math.max(0, -b.delta[me]);
-  const waiting = sum(input.transactions.filter((t) => waitingOn(t, asOf)).map((t) => t.net_amount));
-  return round2(owed + waiting / 2);
+  return round2(owed + stillToCome(input.transactions, asOf).total / 2);
 }
 
 export function buildMyBalance(input: MyBalanceInput, me: Person, today: string): MyBalance {
