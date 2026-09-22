@@ -23,7 +23,7 @@ import type { ReportTx } from "@/lib/reports/build";
 import { readStatement, type SkuEntry } from "@/lib/tiktok/statement";
 import { walletState, withoutMirrorTwins, type WalletEvent } from "@/lib/tiktok/wallet";
 import { planStatement, type LedgerOrder } from "@/lib/tiktok/statement-plan";
-import { normalizeLedger, whoOwesWhom, type TruthInput } from "@/lib/truth";
+import { withTiktokCash, normalizeLedger, stockPositions, whoOwesWhom, type TruthInput, type TruthTransfer } from "@/lib/truth";
 import { buildWeek, weekOf, type WeekInput } from "@/lib/week";
 
 const DIR = join(__dirname, "fixtures", "week-2026-09-15");
@@ -64,10 +64,11 @@ async function build() {
     }
   }
 
-  // The two purchase rows of the week, split between the variants as the admin counted them (30 + 14 = 44).
+  // The week's purchases as corrected in v3.3: 38 x 1 kg and 14 x 500 g, dates and amounts kept.
   const buys = [
-    { id: "buy1", date: "2026-09-16", lines: [{ product_id: BOX_500G, qty: 12 }] },
-    { id: "buy2", date: "2026-09-20", lines: [{ product_id: BOX_1KG, qty: 30 }, { product_id: BOX_500G, qty: 2 }] },
+    { id: "buy1", date: "2026-09-16", lines: [{ product_id: BOX_1KG, qty: 12 }] },
+    { id: "buy2", date: "2026-09-20", lines: [{ product_id: BOX_1KG, qty: 26 }, { product_id: BOX_500G, qty: 6 }] },
+    { id: "buy3", date: "2026-09-21", lines: [{ product_id: BOX_500G, qty: 8 }] },
   ];
   for (const b of buys) {
     const qty = b.lines.reduce((a, l) => a + l.qty, 0);
@@ -93,12 +94,23 @@ async function build() {
   const unsettled = all.filter((t) => t.type === "income" && t.status === "active" && !statement.rows.some((r) => r.type === "order" && r.id === t.order_ref)).map((t) => ({ order_ref: t.order_ref!, date: t.date, value: t.net_amount }));
   const plan = planStatement({ statement, startDate: "2026-09-14", receivedBy: "sai", skus, fallbackProductId: BOX_1KG, ledger, knownFacts: new Set(), history: { settled: [], losses: [], events: [] }, knownPayouts: new Set(), unsettled });
 
-  const normal = normalizeLedger(all);
+  // What the statement does to the orders: settled ones carry TikTok's net; those a withdrawal paid are in the bank.
+  const inBank = new Set(plan.wallet.withdrawals.flatMap((w) => w.orders.map((o) => o.order_ref)));
+  for (const st of plan.settle) {
+    const t = all.find((x) => x.id === st.transaction_id);
+    if (!t) continue;
+    t.net_amount = st.net;
+    t.settlement = inBank.has(st.order_ref) ? { status: "received_in_bank", settled_at: `${st.settled_date ?? t.date}T00:00:00Z`, payout_id: null, paid_amount: st.net } : { status: "settled_not_withdrawn", settled_at: `${st.settled_date ?? t.date}T00:00:00Z`, payout_id: null, paid_amount: 0 };
+  }
+  // Mike sent Sai 2,005 on 16 Sept for his half of what she paid.
+  const transfers: TruthTransfer[] = [{ id: "tr1", date: "2026-09-16", from_person: "mike", to_person: "sai", amount: 2005, reason: "my_half_of_costs", kind: "settlement", note: "", created_at: at("2026-09-16") } as TruthTransfer];
+
+  const normal = normalizeLedger(withTiktokCash(all, plan.wallet.allocations));
   const input: WeekInput = {
     transactions: normal.transactions,
     cancelled: normal.cancelled,
     cashAdjustments: normal.cashAdjustments,
-    transfers: [],
+    transfers,
     items,
     products,
     movements,
@@ -123,12 +135,15 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     expect(w.sold.cancelledBeforeShipping).toBe(6);
   });
 
-  it("buy: backlog 8 boxes before the buffer, per variant; the bag is bought to order", async () => {
+  it("v3.3 stock: 1 kg bought 38 sold 38, 500 g bought 14 sold 14, nothing on hand and nothing owed; the bag is bought to order", async () => {
     const { input } = await build();
+    const truth = { ...input, payouts: [], categories: SEED_CATEGORIES } as unknown as TruthInput;
+    const pos = (id: string) => stockPositions(truth).find((p) => p.product.id === id)!;
+    expect(pos(BOX_1KG)).toMatchObject({ bought: 38, sold: 38, onHand: 0, backlog: 0 });
+    expect(pos(BOX_500G)).toMatchObject({ bought: 14, sold: 14, onHand: 0, backlog: 0 });
     const w = buildWeek(input, WEEK, TODAY, 5);
     const line = (id: string) => w.buy.find((b) => b.product_id === id);
-    expect((line(BOX_1KG)?.backlog ?? 0) + (line(BOX_500G)?.backlog ?? 0)).toBe(8);
-    expect(line(BOX_1KG)).toMatchObject({ backlog: 8, buffer: 5, toBuy: 13 });
+    expect(line(BOX_1KG)).toMatchObject({ backlog: 0, toBuy: 5 });
     expect(line(BOX_500G)).toMatchObject({ backlog: 0, toBuy: 5 });
     expect(line(BAG)).toMatchObject({ backlog: 1, toBuy: 6 });
   });
@@ -155,12 +170,41 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     expect(input.transactions.find((t) => t.id === "smp")).toMatchObject({ net_amount: 890, category_id: CATEGORY_ID.samples });
     expect(input.items.filter((i) => i.transaction_id === "smp").map((i) => i.unit_cost)).toEqual(SAMPLE_COSTS);
     const home = whoOwesWhom(input, TODAY).owes;
-    const mine = buildMyBalance({ transactions: input.transactions, transfers: [], settings: [], exposureLimit: 0, cashAdjustments: input.cashAdjustments }, "mike", TODAY);
+    const mine = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0, cashAdjustments: input.cashAdjustments }, "mike", TODAY);
     const myBalance = mine.owedToMe > 0 ? { from: "sai", to: "mike", amount: mine.owedToMe } : mine.iOwe > 0 ? { from: "mike", to: "sai", amount: mine.iOwe } : null;
     const week = buildWeek(input, WEEK, TODAY, 5).cash.owes;
     expect(myBalance).toEqual(home);
     expect(week).toEqual(home);
-    const truth: TruthInput = { transactions: input.transactions, transfers: [], payouts: [], categories: SEED_CATEGORIES, products, movements: input.movements, items: input.items as TransactionItemRow[], cashAdjustments: input.cashAdjustments } as unknown as TruthInput;
+    const truth: TruthInput = { transactions: input.transactions, transfers: input.transfers, payouts: [], categories: SEED_CATEGORIES, products, movements: input.movements, items: input.items as TransactionItemRow[], cashAdjustments: input.cashAdjustments } as unknown as TruthInput;
     expect(consistencyMismatches(truth, TODAY)).toEqual([]);
+  });
+
+  it("v3.3 advance: 10,307 outstanding, 70% of each unsettled business order oldest first, the rest before the business; cash, never profit", async () => {
+    const { input, plan } = await build();
+    const allocated = plan.wallet.allocations.reduce((a, x) => a + x.amount, 0);
+    console.log(`advance outstanding ${plan.wallet.advanceBalance}; allocated to ${plan.wallet.allocations.length} unsettled business orders ${allocated.toFixed(2)}; before the business (Sai alone) ${plan.wallet.advancePreBusiness.toFixed(2)}`);
+    expect(Math.round(plan.wallet.advanceBalance)).toBe(10307);
+    expect(allocated + plan.wallet.advancePreBusiness).toBeCloseTo(10307, 2);
+    // Never more than 70% of an order, never on an order TikTok has settled: paid + advanced <= net.
+    for (const a of plan.wallet.allocations) {
+      const t = input.transactions.find((x) => x.order_ref === a.order_ref)!;
+      expect(a.amount).toBeLessThanOrEqual(Math.round(t.net_amount * 70) / 100 + 0.01);
+      expect(t.settlement?.status).toBe("pending");
+    }
+    const balance = whoOwesWhom(input, TODAY);
+    expect(balance.advancedFromPlatforms.sai).toBeCloseTo(allocated, 2);
+    // Profit never includes it.
+    const w = buildWeek(input, WEEK, TODAY, 5);
+    expect(w.profit.expected).toBeCloseTo(w.tiktok.expected - w.profit.costOfUnits - w.profit.otherCosts, 2);
+  });
+
+  it("v3.3 one net transfer: under 600 either way, one direction stated, the same on Home, My Balance and This week", async () => {
+    const { input } = await build();
+    const w = buildWeek(input, WEEK, TODAY, 5);
+    const home = whoOwesWhom(input, TODAY).owes;
+    console.log(`week-1 net transfer: ${home ? `${home.from} sends ${home.to} ${home.amount.toFixed(2)}` : "even"}; reason ${w.cash.reason}; Sai paid ${w.cash.paid.sai} received ${w.cash.received.sai} (advanced ${w.cash.advanced.sai}); Mike paid ${w.cash.paid.mike} received ${w.cash.received.mike}`);
+    expect(w.cash.owes).toEqual(home);
+    expect(home === null || home.amount < 600).toBe(true);
+    expect(home === null || home.from !== home.to).toBe(true);
   });
 });
