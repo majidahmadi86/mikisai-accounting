@@ -65,15 +65,6 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         </Card>
 
         <Card className="p-5">
-          <p className="eyebrow">{tr("settings.bufferTitle")}</p>
-          <div className="mt-2 max-w-xs">
-            <Field label={tr("settings.buffer")} htmlFor="buy_buffer" hint={tr("settings.bufferHint")}>
-              <Input id="buy_buffer" name="buy_buffer" type="number" inputMode="numeric" min={0} max={1000} step={1} defaultValue={snapshot.tiktokMoney.buyBuffer} readOnly={!admin} className="tabular" />
-            </Field>
-          </div>
-        </Card>
-
-        <Card className="p-5">
           <p className="eyebrow">{tr("settings.startTitle")}</p>
           <div className="mt-2 max-w-xs">
             <Field label={tr("settings.startDate")} htmlFor="start_date" hint={tr("settings.startHint")}>

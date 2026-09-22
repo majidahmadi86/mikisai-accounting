@@ -7,7 +7,7 @@
 import type { ExpenseCategory } from "@/lib/categories";
 import { categoryLabel } from "@/lib/categories";
 import { fifoBacklog } from "@/lib/inventory/backlog";
-import { salePriceFor } from "@/lib/inventory/product-stats";
+import { bufferFor, salePriceFor } from "@/lib/inventory/product-stats";
 import { valueStock, type Product, type StockMovement } from "@/lib/inventory/valuation";
 import { round2 } from "@/lib/money";
 import { addDays, thisWeek, type Period } from "@/lib/reports/period";
@@ -120,7 +120,7 @@ export function transferReason(transactions: ReportTx[], owes: WhoOwesWhom["owes
   return bySender + 0.005 < total / 2 ? "my_half_of_costs" : "profit_share";
 }
 
-export function buildWeek(input: WeekInput, period: Period, today: string, buffer: number): WeekReport {
+export function buildWeek(input: WeekInput, period: Period, today: string): WeekReport {
   const products = new Map(input.products.map((p) => [p.id, p]));
   const itemsOf = new Map<string, WeekInput["items"]>();
   for (const i of input.items) itemsOf.set(i.transaction_id, [...(itemsOf.get(i.transaction_id) ?? []), i]);
@@ -188,13 +188,18 @@ export function buildWeek(input: WeekInput, period: Period, today: string, buffe
   // 5. Cash: the one who-owes-whom, as of today.
   const balance = whoOwesWhom({ transactions: input.transactions, transfers: input.transfers, cashAdjustments: input.cashAdjustments }, today);
 
-  // 6. Buy: per variant, what is owed to customers plus the buffer.
+  // 6. Buy: per variant, what is owed to customers plus that product's buffer. Every active product sold in the
+  // last 30 days is listed, even with nothing owed, so a variant never drops off the list between weeks.
   const backlog = fifoBacklog(input.movements);
-  const sellable = input.products.filter((p) => p.active && p.default_price > 0);
-  const buy = sellable
-    .map((p) => ({ product_id: p.id, name: nameOf(p), unit: p.unit_label, backlog: backlog.get(p.id)?.backlog ?? 0 }))
-    .filter((b) => b.backlog > 0 || soldLines.some((l) => l.product_id === b.product_id))
-    .map((b) => ({ ...b, buffer, toBuy: b.backlog + buffer }))
+  const monthAgo = addDays(today, -29);
+  const soldLately = new Set(input.movements.filter((m) => m.kind === "sale" && m.date >= monthAgo && m.date <= today).map((m) => m.product_id));
+  const buy = input.products
+    .filter((p) => p.active && ((backlog.get(p.id)?.backlog ?? 0) > 0 || soldLately.has(p.id)))
+    .map((p) => {
+      const owed = backlog.get(p.id)?.backlog ?? 0;
+      const buffer = bufferFor(p);
+      return { product_id: p.id, name: nameOf(p), unit: p.unit_label, backlog: owed, buffer, toBuy: owed + buffer };
+    })
     .sort((a, b) => b.toBuy - a.toBuy || a.name.localeCompare(b.name));
 
   return {

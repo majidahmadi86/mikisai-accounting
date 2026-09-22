@@ -17,6 +17,8 @@ export type Product = {
   /** Optional per-platform list prices: { tiktok, shopee, fb }. */
   list_prices: Record<string, number>;
   low_stock_threshold: number;
+  /** Units the weekly buy list adds above what customers are owed; null means the default for the unit (v3.4). */
+  buffer_units?: number | null;
   active: boolean;
   photo_path: string | null;
   notes: string;

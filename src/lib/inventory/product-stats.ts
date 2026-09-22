@@ -126,3 +126,9 @@ export function marginVsPlan(rows: { product: Product; qty: number; grossMargin:
     };
   });
 }
+
+/** The weekly buy buffer: what the admin set, else 5 for boxes and 0 for anything else. */
+export function bufferFor(p: { unit_label: string; buffer_units?: number | null }): number {
+  if (p.buffer_units != null && p.buffer_units >= 0) return p.buffer_units;
+  return p.unit_label === "box" ? 5 : 0;
+}

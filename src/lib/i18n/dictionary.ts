@@ -1364,7 +1364,7 @@ const en = {
   "week.sends": "{from} sends {to} {amount}",
   "week.even": "You are even",
   "week.buy": "Buy this week",
-  "week.buyTip": "Per variant: what customers are still owed plus the buffer set in Settings.",
+  "week.buyTip": "Every product sold in the last 30 days: what customers are still owed plus its buffer (set on Products).",
   "week.buyLine": "{name}: owed {backlog} + buffer {buffer}",
   "week.nothingToBuy": "Nothing to buy",
   "week.section": "Section",
@@ -1372,9 +1372,6 @@ const en = {
   "week.count": "Count",
   "week.open": "This week",
   "week.monday": "It is Monday: see last week",
-  "settings.bufferTitle": "Weekly buy list",
-  "settings.buffer": "Buffer per variant",
-  "settings.bufferHint": "Units the buy list adds above what customers are still owed.",
   "cleanup.title": "Clean the ledger",
   "cleanup.subtitle": "Checked against {n} TikTok Orders file(s) already imported. Nothing changes until you apply.",
   "cleanup.before": "Now",
@@ -1411,6 +1408,8 @@ const en = {
   "week.side": "{name}'s side: paid {paid}, received {received}",
   "week.sideAdvanced": "(of which {amount} advanced by TikTok ahead of settlement)",
   "week.sentDone": "Recorded: the one transfer is in the ledger, and the cash position is even.",
+  "products.buffer": "Buy buffer",
+  "products.bufferFor": "Weekly buy buffer for {name}; empty means 5 for boxes, 0 for anything else",
 } as const;
 
 export type DictionaryKey = keyof typeof en;
@@ -2778,7 +2777,7 @@ const th: Record<DictionaryKey, string> = {
   "week.sends": "{from} โอนให้ {to} {amount}",
   "week.even": "เท่ากันแล้ว",
   "week.buy": "ต้องซื้อสัปดาห์นี้",
-  "week.buyTip": "แยกตามแบบสินค้า: จำนวนที่ยังค้างส่งลูกค้า บวกจำนวนสำรองที่ตั้งไว้ในหน้าตั้งค่า",
+  "week.buyTip": "สินค้าทุกตัวที่ขายใน 30 วันที่ผ่านมา: จำนวนที่ยังค้างส่งลูกค้า บวกจำนวนสำรองของสินค้านั้น (ตั้งได้ที่หน้าสินค้า)",
   "week.buyLine": "{name}: ค้างส่ง {backlog} + สำรอง {buffer}",
   "week.nothingToBuy": "ไม่ต้องซื้อ",
   "week.section": "หมวด",
@@ -2786,9 +2785,6 @@ const th: Record<DictionaryKey, string> = {
   "week.count": "จำนวน",
   "week.open": "สัปดาห์นี้",
   "week.monday": "วันนี้วันจันทร์: ดูสัปดาห์ที่แล้ว",
-  "settings.bufferTitle": "รายการที่ต้องซื้อรายสัปดาห์",
-  "settings.buffer": "จำนวนสำรองต่อแบบสินค้า",
-  "settings.bufferHint": "จำนวนที่เพิ่มจากที่ยังค้างส่งลูกค้าในรายการที่ต้องซื้อ",
   "cleanup.title": "จัดระเบียบบัญชี",
   "cleanup.subtitle": "ตรวจกับไฟล์ออเดอร์ TikTok ที่นำเข้าแล้ว {n} ไฟล์ จะไม่เปลี่ยนอะไรจนกว่าคุณกดใช้",
   "cleanup.before": "ตอนนี้",
@@ -2825,6 +2821,8 @@ const th: Record<DictionaryKey, string> = {
   "week.side": "ฝั่ง{name}: จ่ายไป {paid} ได้รับ {received}",
   "week.sideAdvanced": "(ในจำนวนนี้ {amount} เป็นเงินที่ TikTok จ่ายล่วงหน้าก่อนชำระ)",
   "week.sentDone": "บันทึกแล้ว: การโอนครั้งเดียวอยู่ในบัญชีแล้ว และยอดเงินเท่ากันแล้ว",
+  "products.buffer": "จำนวนสำรอง",
+  "products.bufferFor": "จำนวนสำรองรายสัปดาห์ของ {name} เว้นว่างคือ 5 สำหรับกล่อง 0 สำหรับอย่างอื่น",
 };
 
 export const dictionaries: Record<Locale, Record<DictionaryKey, string>> = { en, th };

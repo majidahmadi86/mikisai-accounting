@@ -125,3 +125,23 @@ export async function adjustStock(formData: FormData) {
   ledgerChanged(profile.business_id);
   redirect(`${back}?saved=1`);
 }
+
+/**
+ * The weekly buy buffer for one product, edited inline on Products (admin).
+ * Empty goes back to the default for the unit: 5 for boxes, 0 for anything else.
+ */
+export async function saveProductBuffer(productId: string, raw: string): Promise<{ ok: boolean }> {
+  if (!UUID.test(productId)) return { ok: false };
+  const session = await requireSession();
+  if (session.profile.role !== "admin") {
+    await recordDenied(session, "product", productId);
+    return { ok: false };
+  }
+  const trimmed = raw.trim();
+  const value = trimmed === "" ? null : Number(trimmed);
+  if (value !== null && (!Number.isInteger(value) || value < 0 || value > 1000)) return { ok: false };
+  const { error } = await session.supabase.from("products").update({ buffer_units: value }).eq("id", productId).eq("business_id", session.profile.business_id);
+  if (error) return { ok: false };
+  ledgerChanged(session.profile.business_id);
+  return { ok: true };
+}

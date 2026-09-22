@@ -18,8 +18,6 @@ export type StatementFactLite = { order_ref: string; kind: "order" | "refund"; t
 
 export type TiktokMoney = {
   startDate: string;
-  /** Units the weekly buy list adds above the backlog, per variant. */
-  buyBuffer: number;
   advanceBalance: number;
   disbursed: number;
   recovered: number;
@@ -123,7 +121,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("order_statements").select("order_ref, kind, transaction_id, settled_date, settlement_amount, revenue, fee_transaction, fee_commission, fee_commerce_growth, fee_seller_shipping, chargeable_weight_g, boxes, overweight, pre_business, ledger_net_before").eq("business_id", businessId),
         admin.from("wallet_events").select("id, kind, reference, event_date, amount, bank_suffix, received_by, status").eq("business_id", businessId),
         admin.from("tiktok_statements").select("period_from, period_to").eq("business_id", businessId).order("period_from"),
-        admin.from("businesses").select("start_date, buy_buffer").eq("id", businessId).maybeSingle(),
+        admin.from("businesses").select("start_date").eq("id", businessId).maybeSingle(),
       ]);
 
       const allTransactions: LedgerTransaction[] = (tx.data ?? []).map((row) => {
@@ -177,7 +175,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         })),
         customers: (cu.data ?? []) as Customer[],
         categories: (ec.data ?? []) as ExpenseCategory[],
-        products: (pr.data ?? []).map((p) => ({ ...(p as Product), name_th: p.name_th ?? "", list_prices: (p.list_prices ?? {}) as Record<string, number>, photo_path: p.photo_path ?? null, notes: p.notes ?? "", stock_mode: (p.stock_mode ?? "buy_to_order") as Product["stock_mode"], short_name: p.short_name ?? "", expected_net_per_unit: p.expected_net_per_unit == null ? null : num(p.expected_net_per_unit), default_cost: num(p.default_cost), default_price: num(p.default_price), low_stock_threshold: num(p.low_stock_threshold) })),
+        products: (pr.data ?? []).map((p) => ({ ...(p as Product), name_th: p.name_th ?? "", list_prices: (p.list_prices ?? {}) as Record<string, number>, photo_path: p.photo_path ?? null, notes: p.notes ?? "", stock_mode: (p.stock_mode ?? "buy_to_order") as Product["stock_mode"], short_name: p.short_name ?? "", expected_net_per_unit: p.expected_net_per_unit == null ? null : num(p.expected_net_per_unit), default_cost: num(p.default_cost), default_price: num(p.default_price), low_stock_threshold: num(p.low_stock_threshold), buffer_units: p.buffer_units == null ? null : num(p.buffer_units) })),
         movements: (mv.data ?? []).map((m) => ({ ...(m as StockMovement), qty: num(m.qty), unit_cost: m.unit_cost == null ? null : num(m.unit_cost) })),
         items: (it.data ?? []).map((i) => ({ id: i.id as string, transaction_id: i.transaction_id as string, product_id: i.product_id as string, qty: num(i.qty), unit_price: num(i.unit_price), unit_cost: i.unit_cost == null ? null : num(i.unit_cost) })),
         business: { id: businessId, name: bz.data?.name ?? "MikiSai", exposure_limit: bz.data ? num(bz.data.exposure_limit) : 3000 },
@@ -186,7 +184,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         skusAwaiting: (sk.data ?? []) as { sku_key: string; sku_name: string }[],
         payoutCoverage: (pa.data ?? []).reduce<Record<string, number>>((acc, a) => ({ ...acc, [a.payout_id as string]: Math.round(((acc[a.payout_id as string] ?? 0) + num(a.amount)) * 100) / 100 }), {}),
         tiktok,
-        tiktokMoney: { startDate: (sd.data?.start_date as string | undefined) ?? "2026-09-15", buyBuffer: sd.data?.buy_buffer == null ? 5 : num(sd.data.buy_buffer), advanceBalance: wallet.advanceBalance, disbursed: wallet.disbursed, recovered: wallet.recovered, allocations: wallet.allocations, advancePreBusiness: wallet.advancePreBusiness, facts, duplicates, periods: (st.data ?? []).map((p) => ({ from: p.period_from as string, to: p.period_to as string })) },
+        tiktokMoney: { startDate: (sd.data?.start_date as string | undefined) ?? "2026-09-15", advanceBalance: wallet.advanceBalance, disbursed: wallet.disbursed, recovered: wallet.recovered, allocations: wallet.allocations, advancePreBusiness: wallet.advancePreBusiness, facts, duplicates, periods: (st.data ?? []).map((p) => ({ from: p.period_from as string, to: p.period_to as string })) },
         fetchedAt: new Date().toISOString(),
       };
     },

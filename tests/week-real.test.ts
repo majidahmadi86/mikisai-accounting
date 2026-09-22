@@ -133,7 +133,7 @@ async function build() {
 describe("This week, 15 to 21 September 2026, from the real files", () => {
   it("sold: 44 live orders, 38 x 1 kg + 14 x 500 g = 52 boxes, 1 bag; 6 cancelled before shipping kept out", async () => {
     const { input } = await build();
-    const w = buildWeek(input, WEEK, TODAY, 5);
+    const w = buildWeek(input, WEEK, TODAY);
     expect(WEEK).toMatchObject({ from: "2026-09-15", to: "2026-09-21" });
     expect(w.sold.orders).toBe(44);
     const qty = (id: string) => w.sold.variants.find((v) => v.product_id === id)?.qty ?? 0;
@@ -144,22 +144,22 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     expect(w.sold.cancelledBeforeShipping).toBe(6);
   });
 
-  it("v3.3 stock: 1 kg bought 38 sold 38, 500 g bought 14 sold 14, nothing on hand and nothing owed; the bag is bought to order", async () => {
+  it("v3.3 stock: 1 kg bought 38 sold 38, 500 g bought 14 sold 14, nothing on hand and nothing owed; the bag is bought to order with no buffer unless set", async () => {
     const { input } = await build();
     const truth = { ...input, payouts: [], categories: SEED_CATEGORIES } as unknown as TruthInput;
     const pos = (id: string) => stockPositions(truth).find((p) => p.product.id === id)!;
     expect(pos(BOX_1KG)).toMatchObject({ bought: 38, sold: 38, onHand: 0, backlog: 0 });
     expect(pos(BOX_500G)).toMatchObject({ bought: 14, sold: 14, onHand: 0, backlog: 0 });
-    const w = buildWeek(input, WEEK, TODAY, 5);
+    const w = buildWeek(input, WEEK, TODAY);
     const line = (id: string) => w.buy.find((b) => b.product_id === id);
     expect(line(BOX_1KG)).toMatchObject({ backlog: 0, toBuy: 5 });
     expect(line(BOX_500G)).toMatchObject({ backlog: 0, toBuy: 5 });
-    expect(line(BAG)).toMatchObject({ backlog: 1, toBuy: 6 });
+    expect(line(BAG)).toMatchObject({ backlog: 1, buffer: 0, toBuy: 1 });
   });
 
   it("TikTok will pay about 16,050 by the per-order rules; advance outstanding 10,307", async () => {
     const { input, plan } = await build();
-    const w = buildWeek(input, WEEK, TODAY, 5);
+    const w = buildWeek(input, WEEK, TODAY);
     expect(Math.abs(w.tiktok.expected - 16050)).toBeLessThanOrEqual(50);
     expect(Math.round(plan.wallet.advanceBalance)).toBe(10307);
     expect(plan.wallet.disbursed).toBeCloseTo(20876, 2);
@@ -180,7 +180,7 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     const home = whoOwesWhom(input, TODAY).owes;
     const mine = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0, cashAdjustments: input.cashAdjustments }, "mike", TODAY);
     const myBalance = mine.owedToMe > 0 ? { from: "sai", to: "mike", amount: mine.owedToMe } : mine.iOwe > 0 ? { from: "mike", to: "sai", amount: mine.iOwe } : null;
-    const week = buildWeek(input, WEEK, TODAY, 5).cash.owes;
+    const week = buildWeek(input, WEEK, TODAY).cash.owes;
     expect(myBalance).toEqual(home);
     expect(week).toEqual(home);
     const truth: TruthInput = { transactions: input.transactions, transfers: input.transfers, payouts: [], categories: SEED_CATEGORIES, products, movements: input.movements, items: input.items as TransactionItemRow[], cashAdjustments: input.cashAdjustments } as unknown as TruthInput;
@@ -202,7 +202,7 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     const balance = whoOwesWhom(input, TODAY);
     expect(balance.advancedFromPlatforms.sai).toBeCloseTo(allocated, 2);
     // Profit never includes it.
-    const w = buildWeek(input, WEEK, TODAY, 5);
+    const w = buildWeek(input, WEEK, TODAY);
     expect(w.profit.expected).toBeCloseTo(w.tiktok.expected - w.profit.costOfUnits - w.profit.otherCosts, 2);
   });
 
@@ -211,7 +211,7 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
   // (+ Mike's 2,005); half the result each. Asserted as it is; the question is with the founders.
   it("v3.3 one net transfer: one direction, half of the difference between the two sides, the same on Home, My Balance and This week", async () => {
     const { input } = await build();
-    const w = buildWeek(input, WEEK, TODAY, 5);
+    const w = buildWeek(input, WEEK, TODAY);
     const home = whoOwesWhom(input, TODAY).owes;
     console.log(`week-1 net transfer: ${home ? `${home.from} sends ${home.to} ${home.amount.toFixed(2)}` : "even"}; reason ${w.cash.reason}; Sai paid ${w.cash.paid.sai} received ${w.cash.received.sai} (advanced ${w.cash.advanced.sai}); Mike paid ${w.cash.paid.mike} received ${w.cash.received.mike}`);
     expect(w.cash.owes).toEqual(home);
@@ -232,7 +232,7 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     expect(mine.exposure).toBeCloseTo(mine.owedToMe + mine.incomingTotal, 2);
     const all = stillToCome(input.transactions, TODAY).total;
     expect(mine.incomingTotal).toBeCloseTo(all / 2, 1);
-    const w = buildWeek(input, WEEK, TODAY, 5);
+    const w = buildWeek(input, WEEK, TODAY);
     // Every unsettled order is from week 1, so the week's still to come is the whole of it.
     expect(w.tiktok.stillToCome).toBeCloseTo(all, 2);
     const truth = { ...input, payouts: [], categories: SEED_CATEGORIES } as unknown as TruthInput;

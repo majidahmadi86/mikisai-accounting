@@ -304,14 +304,14 @@ export function consistencyMismatches(input: TruthInput, today: string): HealthI
   const sheet = buildBalanceSheet(input, today).partnerBalance;
   const sheetOwes = owesAmount(Math.abs(sheet.mike) >= 1 ? (sheet.mike > 0 ? { from: "mike", to: "sai", amount: sheet.mike } : { from: "sai", to: "mike", amount: sheet.sai }) : null);
   const weekInput = { transactions: input.transactions, cancelled: [], cashAdjustments: input.cashAdjustments ?? [], transfers: input.transfers, items: input.items, products: input.products, movements: input.movements, categories: [], facts: [], allocations: [] };
-  const week = owesAmount(buildWeek(weekInput, thisWeek(today), today, 0).cash.owes);
+  const week = owesAmount(buildWeek(weekInput, thisWeek(today), today).cash.owes);
   for (const [name, value, href] of [["My Balance", myBalance, "/balance"], ["This week", week, "/week"], ["Investment", investment, "/investment"], ["Who owes whom report", report, "/reports"], ["Balance sheet", sheetOwes, "/reports"]] as const) {
     if (value !== home) issues.push({ id: `owes:${name}`, label: `${name} disagrees with Home`, href, detail: `Home ${home} · ${name} ${value}` });
   }
   // Still to come, one definition: My Balance (both halves), This week (TikTok, all dates), the balance sheet.
   const coming = stillToCome([...input.transactions, ...(input.cashAdjustments ?? [])], today);
   const halves = round2(mine.incomingTotal + buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0, cashAdjustments: input.cashAdjustments }, "sai", today).incomingTotal);
-  const allWeeks = buildWeek(weekInput, { key: "custom", from: "0001-01-01", to: today }, today, 0).tiktok.stillToCome;
+  const allWeeks = buildWeek(weekInput, { key: "custom", from: "0001-01-01", to: today }, today).tiktok.stillToCome;
   const receivables = buildBalanceSheet(input, today).receivables;
   for (const [name, value, expected, href] of [
     ["My Balance still coming", halves, coming.total, "/balance"],

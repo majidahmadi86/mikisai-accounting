@@ -5,6 +5,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { StockPill } from "@/components/products/StockPill";
+import { BufferInput } from "@/components/products/BufferInput";
+import { bufferFor } from "@/lib/inventory/product-stats";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
 import { ExpandableRow } from "@/components/ui/ExpandableRow";
 import { OpenIcon } from "@/components/ui/Icons";
@@ -75,6 +77,12 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                     <span className="block text-xs text-plum-faint">{thb(r.avgCost)}</span>
                   </span>
                 </Link>
+                {r.product.active ? (
+                  <div className="flex items-center justify-between gap-3 border-t border-line/60 px-4 py-1.5 text-xs text-plum-soft">
+                    <span>{tr("products.buffer")}</span>
+                    {admin ? <BufferInput productId={r.product.id} value={r.product.buffer_units ?? null} fallback={bufferFor({ unit_label: r.product.unit_label })} label={tr("products.bufferFor", { name: productLine(r.product, locale) })} /> : <span className="tabular text-plum">{bufferFor(r.product)}</span>}
+                  </div>
+                ) : null}
               </StackedItem>
             ))}
           </StackedList>
@@ -94,6 +102,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                 </Th>
                 <Th kind="money" priority="secondary">
                   {tr("products.standardPrice")}
+                </Th>
+                <Th kind="num" priority="secondary">
+                  {tr("products.buffer")}
                 </Th>
                 <Th kind="money">{tr("reports.value")}</Th>
                 <Th kind="action" icons={2}>
@@ -120,6 +131,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                         { label: tr("reports.avgCost"), value: <span className="tabular">{thb(r.avgCost)}</span>, priority: "secondary" },
                         { label: tr("products.standardPrice"), value: <span className="tabular">{thb(r.product.default_price)}</span>, priority: "secondary" },
                         { label: tr("products.standardCost"), value: <span className="tabular">{thb(r.product.default_cost)}</span>, priority: "tertiary" },
+                        { label: tr("products.buffer"), value: admin ? <BufferInput productId={r.product.id} value={r.product.buffer_units ?? null} fallback={bufferFor({ unit_label: r.product.unit_label })} label={tr("products.bufferFor", { name: productLine(r.product, locale) })} /> : <span className="tabular">{bufferFor(r.product)}</span>, priority: "secondary" },
                       ]}
                     />
                   }
@@ -141,6 +153,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                   </Td>
                   <Td kind="money" priority="secondary" className="text-plum-soft">
                     {thb(r.product.default_price)}
+                  </Td>
+                  <Td kind="num" priority="secondary">
+                    {admin ? <BufferInput productId={r.product.id} value={r.product.buffer_units ?? null} fallback={bufferFor({ unit_label: r.product.unit_label })} label={tr("products.bufferFor", { name: productLine(r.product, locale) })} /> : <span className="tabular">{bufferFor(r.product)}</span>}
                   </Td>
                   <Td kind="money" className="font-medium">
                     {thb(r.value)}

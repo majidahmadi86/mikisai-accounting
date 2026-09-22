@@ -26,7 +26,7 @@ function everywhere(input: TruthInput, today: string) {
   const home = whoOwesWhom(input, today).owes;
   const mine = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0 }, "mike", today);
   const myBalance = mine.owedToMe > 0 ? { from: "sai", to: "mike", amount: mine.owedToMe } : mine.iOwe > 0 ? { from: "mike", to: "sai", amount: mine.iOwe } : null;
-  const week = buildWeek({ transactions: input.transactions, cancelled: [], cashAdjustments: [], transfers: input.transfers, items: input.items, products: input.products, movements: input.movements, categories: [], facts: [], allocations: [] }, thisWeek(today), today, 5).cash.owes;
+  const week = buildWeek({ transactions: input.transactions, cancelled: [], cashAdjustments: [], transfers: input.transfers, items: input.items, products: input.products, movements: input.movements, categories: [], facts: [], allocations: [] }, thisWeek(today), today).cash.owes;
   return { home, myBalance, week };
 }
 
@@ -73,7 +73,7 @@ describe("consistency gate: Home = My Balance = This week, and every other page"
     const sai = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 3000 }, "sai", LIVE_TODAY);
     expect(mike.incomingTotal + sai.incomingTotal).toBeCloseTo(coming, 1);
     expect(mike.exposure).toBeCloseTo(mike.owedToMe + mike.incomingTotal, 2);
-    const w = buildWeek({ transactions: input.transactions, cancelled: [], cashAdjustments: [], transfers: input.transfers, items: input.items, products: input.products, movements: input.movements, categories: [], facts: [], allocations: [] }, { key: "custom", from: "0001-01-01", to: LIVE_TODAY }, LIVE_TODAY, 5);
+    const w = buildWeek({ transactions: input.transactions, cancelled: [], cashAdjustments: [], transfers: input.transfers, items: input.items, products: input.products, movements: input.movements, categories: [], facts: [], allocations: [] }, { key: "custom", from: "0001-01-01", to: LIVE_TODAY }, LIVE_TODAY);
     expect(w.tiktok.stillToCome).toBeCloseTo(coming, 2);
     expect(buildBalanceSheet(input, LIVE_TODAY).receivables).toBeCloseTo(coming, 2);
     // An advance on an order leaves only the rest still to come.

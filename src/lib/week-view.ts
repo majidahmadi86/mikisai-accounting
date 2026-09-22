@@ -27,7 +27,7 @@ export function weekInput(s: LedgerSnapshot): WeekInput {
 }
 
 export function weekFromSnapshot(s: LedgerSnapshot, period: Period, today: string): WeekReport {
-  return buildWeek(weekInput(s), period, today, s.tiktokMoney.buyBuffer);
+  return buildWeek(weekInput(s), period, today);
 }
 
 export type WeekLine = { section: string; label: string; count: number | null; amount: number | null };
