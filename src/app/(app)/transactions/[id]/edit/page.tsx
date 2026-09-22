@@ -44,6 +44,8 @@ export default async function EditTransactionPage({ params, searchParams }: Page
   const lastEdit = history.find((h) => h.action === "update");
 
   const update = updateTransaction.bind(null, id);
+  // Two rows with the same amount on the same day: deleting one must never take the other.
+  const twin = snapshot.transactions.some((t) => t.id !== id && t.type === tx.type && t.date === tx.date && Math.abs(t.net_amount - tx.net_amount) < 0.005);
 
   return (
     <div className="max-w-2xl">
@@ -51,7 +53,7 @@ export default async function EditTransactionPage({ params, searchParams }: Page
         eyebrow={tx.type === "income" ? tr("common.income") : tr("common.expense")}
         title={tr("transactions.editTitle")}
         subtitle={tr("transactions.editSubtitle")}
-        action={admin ? <SoftDeleteButton entity="transaction" id={id} afterHref="/transactions" /> : null}
+        action={admin ? <SoftDeleteButton entity="transaction" id={id} afterHref="/transactions" confirmOnly={twin} /> : null}
       />
       <Card className="p-5 sm:p-6">
         <TransactionForm
