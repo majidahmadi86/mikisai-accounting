@@ -1329,6 +1329,9 @@ const en = {
   "settings.startTitle": "Business start",
   "settings.startDate": "First day of MikiSai",
   "settings.startHint": "TikTok orders created before this day are kept apart under Before MikiSai and are in no business number.",
+  "import.field.shipped_at": "Shipped time",
+  "products.unit.bag": "bag",
+  "orders.cancelledBeforeShipping": "Cancelled before shipping",
 } as const;
 
 export type DictionaryKey = keyof typeof en;
@@ -2661,6 +2664,9 @@ const th: Record<DictionaryKey, string> = {
   "settings.startTitle": "วันเริ่มธุรกิจ",
   "settings.startDate": "วันแรกของ MikiSai",
   "settings.startHint": "ออเดอร์ TikTok ที่สั่งก่อนวันนี้จะแยกไว้ที่ก่อนเริ่ม MikiSai และไม่นับในตัวเลขใดของธุรกิจ",
+  "import.field.shipped_at": "เวลาที่จัดส่ง",
+  "products.unit.bag": "ถุง",
+  "orders.cancelledBeforeShipping": "ยกเลิกก่อนจัดส่ง",
 };
 
 export const dictionaries: Record<Locale, Record<DictionaryKey, string>> = { en, th };

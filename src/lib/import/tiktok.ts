@@ -21,6 +21,7 @@ export const FIELD_KEYS = [
   "paid_at",
   "delivered_at",
   "cancelled_at",
+  "shipped_at",
   "sku_id",
   "sku_name",
   "variant",
@@ -87,6 +88,10 @@ const SYNONYMS: Record<FieldKey, Synonyms> = {
   delivered_at: {
     names: ["deliveredtime", "deliverytime", "deliveredat", "เวลาที่จัดส่งสำเร็จ", "เวลาจัดส่งสำเร็จ", "delivered"],
     avoid: ["option", "method", "fee", "ค่า"],
+  },
+  shipped_at: {
+    names: ["shippedtime", "shiptime", "shippedat", "เวลาที่จัดส่ง", "เวลาจัดส่ง"],
+    avoid: ["fee", "provider", "option", "ค่า", "สำเร็จ"],
   },
   cancelled_at: {
     names: ["cancelledtime", "canceledtime", "cancellationtime", "cancelledat", "canceledat", "เวลาที่ยกเลิก", "เวลายกเลิก"],
@@ -272,7 +277,7 @@ export function detectMapping(headers: string[], fileType: ImportFileType): Colu
   return mapping;
 }
 
-const DATE_FIELDS: FieldKey[] = ["created_at", "paid_at", "delivered_at", "cancelled_at"];
+const DATE_FIELDS: FieldKey[] = ["created_at", "paid_at", "delivered_at", "cancelled_at", "shipped_at"];
 
 /** Orders need an id, a status, one date and a quantity; finance needs an id, a settled date and the settled amount. */
 export function mappingIsUsable(mapping: ColumnMapping, fileType: ImportFileType): { ok: boolean; missing: FieldKey[] } {
@@ -332,6 +337,8 @@ export type ImportedOrder = {
   paid_at: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
+  /** When the parcel left. A cancellation with no shipped time was never a sale. */
+  shipped_at: string | null;
   buyer_name: string | null;
   lines: ImportedOrderLine[];
   quantity: number;
@@ -441,6 +448,7 @@ export function ordersFromRows(rows: Record<string, string>[], mapping: ColumnMa
       created_at: firstDate(group.rows, mapping, "created_at"),
       paid_at: firstDate(group.rows, mapping, "paid_at"),
       delivered_at: firstDate(group.rows, mapping, "delivered_at"),
+      shipped_at: firstDate(group.rows, mapping, "shipped_at"),
       cancelled_at: firstDate(group.rows, mapping, "cancelled_at"),
       buyer_name: firstText(group.rows, mapping, "buyer_name"),
       lines,
