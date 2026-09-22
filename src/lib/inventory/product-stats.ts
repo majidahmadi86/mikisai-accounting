@@ -3,7 +3,7 @@ import { addDays } from "@/lib/reports/period";
 import type { TransactionItemRow } from "./reports";
 import { type Product, type ProductStock, type StockMovement } from "./valuation";
 
-export const UNIT_LABELS = ["box", "pack", "piece", "bottle"] as const;
+export const UNIT_LABELS = ["box", "bag", "pack", "piece", "bottle"] as const;
 export type UnitLabel = (typeof UNIT_LABELS)[number];
 
 export type ListPrices = Partial<Record<"tiktok" | "shopee" | "fb", number>>;
