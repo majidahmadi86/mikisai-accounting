@@ -29,7 +29,6 @@ export function AppShell({
     { href: "/transactions", label: tr("nav.ledger") },
     { href: "/products", label: tr("nav.products") },
     { href: "/stock", label: tr("nav.stock") },
-    { href: "/balance", label: tr("nav.balance") },
     { href: "/reports", label: tr("nav.reports") },
     { href: "/insights", label: tr("nav.insights"), collapse: true },
     { href: "/more", label: tr("nav.more"), collapse: true, alert },

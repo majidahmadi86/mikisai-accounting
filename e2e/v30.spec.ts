@@ -23,7 +23,7 @@ for (const width of [1024, 1440]) {
     await page.setViewportSize({ width, height: 800 });
     await login(page, "admin");
     const nav = page.locator("header nav");
-    for (const name of ["Home", "Ledger", "Products", "Stock", "My Balance", "Reports", "Insights", "More"]) await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
+    for (const name of ["This week", "Home", "Ledger", "Products", "Stock", "Reports", "Insights", "More"]) await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
     await expect(page.locator("header input")).toHaveCount(0);
     const tops = await nav.locator("a").evaluateAll((els) => Array.from(new Set(els.filter((e) => (e as HTMLElement).offsetWidth > 0).map((e) => Math.round(e.getBoundingClientRect().top)))));
     expect(tops, "nav links share one line").toHaveLength(1);
