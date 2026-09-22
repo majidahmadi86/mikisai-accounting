@@ -140,11 +140,11 @@ export async function commitRows(db: SupabaseClient, businessId: string, payload
   let cancellations = 0;
   for (const { id, row } of inserted) {
     if (row.order_status === "active") continue;
-    const outcome = await applyOrderStatus(db, id, { status: row.order_status, date: row.date, reason: `from ${source}`, refund_amount: row.refund_amount }, null);
+    const outcome = await markStatus(db, id, row.order_status, row.date, source, row.refund_amount);
     if (outcome.ok) cancellations += 1;
   }
   for (const change of status_changes) {
-    const outcome = await applyOrderStatus(db, change.transaction_id, { status: change.order_status, date: change.date, reason: `from ${source}`, refund_amount: change.refund_amount }, null);
+    const outcome = await markStatus(db, change.transaction_id, change.order_status, change.date, source, change.refund_amount);
     if (outcome.ok && outcome.changed) cancellations += 1;
   }
 
@@ -196,4 +196,18 @@ export async function commitRows(db: SupabaseClient, businessId: string, payload
     },
   });
   return { ok: true, inserted: inserted.length, cancellations, payouts: payoutsMade, skipped, transaction_ids: inserted.map((t) => t.id) };
+}
+
+/**
+ * A cancellation from an import is one TikTok cancelled before the parcel
+ * left (a shipped one arrives as refunded): not a sale, so no revenue, no
+ * stock out and no return. A refund goes through the return flow.
+ */
+async function markStatus(db: SupabaseClient, id: string, status: "cancelled" | "refunded", date: string, source: string, refund: number | null): Promise<{ ok: boolean; changed: boolean }> {
+  if (status === "cancelled") {
+    const { data, error } = await db.rpc("mark_cancelled_before_shipping", { p_id: id, p_date: date });
+    return { ok: !error, changed: !error && Boolean((data as { changed?: boolean } | null)?.changed) };
+  }
+  const outcome = await applyOrderStatus(db, id, { status, date, reason: `from ${source}`, refund_amount: refund }, null);
+  return { ok: outcome.ok, changed: outcome.ok && outcome.changed };
 }

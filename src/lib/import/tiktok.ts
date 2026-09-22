@@ -437,6 +437,11 @@ export function ordersFromRows(rows: Record<string, string>[], mapping: ColumnMa
       const returned = group.rows.reduce((sum, row) => sum + (parseMoney(row[returnHeader]) ?? 0), 0);
       if (returned >= quantity) status = "refunded";
     }
+    // TikTok fills the returned quantity on a cancellation too. What decides is
+    // whether the parcel left: no shipped time means it was never a sale, a
+    // shipped time means the goods went out and come back through a return.
+    const shipped_at = firstDate(group.rows, mapping, "shipped_at");
+    if (hasWord(raw_status, CANCEL_WORDS) && !hasWord(raw_status, REFUND_WORDS)) status = shipped_at ? "refunded" : "cancelled";
 
     const subtotals = lines.map((l) => l.subtotal).filter((v): v is number => v !== null);
     const order_amount = firstMoney(group.rows, mapping, "order_amount") ?? (subtotals.length ? round2(subtotals.reduce((a, b) => a + b, 0)) : null);
@@ -448,7 +453,7 @@ export function ordersFromRows(rows: Record<string, string>[], mapping: ColumnMa
       created_at: firstDate(group.rows, mapping, "created_at"),
       paid_at: firstDate(group.rows, mapping, "paid_at"),
       delivered_at: firstDate(group.rows, mapping, "delivered_at"),
-      shipped_at: firstDate(group.rows, mapping, "shipped_at"),
+      shipped_at,
       cancelled_at: firstDate(group.rows, mapping, "cancelled_at"),
       buyer_name: firstText(group.rows, mapping, "buyer_name"),
       lines,
