@@ -185,7 +185,7 @@ export function planStatement(input: StatementPlanInput): StatementPlan {
       if (knownEvents.has(`advance_disbursement:${w.reference}`) || knownEvents.has(`advance_recovery:${w.reference}`)) continue;
       kind = w.amount >= 0 ? "advance_disbursement" : "advance_recovery";
     }
-    if (kind === "withdrawal" && !/success|complete|paid|สำเร็จ/i.test(w.status || "success")) continue;
+    if (kind === "withdrawal" && !/success|complete|paid|transferred|โอนแล้ว|สำเร็จ/i.test(w.status || "success")) continue;
     const key = `${kind}:${w.reference}`;
     if (knownEvents.has(key)) {
       plan.alreadyKnown += 1;
