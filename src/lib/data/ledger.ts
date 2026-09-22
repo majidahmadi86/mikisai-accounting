@@ -119,7 +119,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         admin.from("tiktok_sku_map").select("sku_key, sku_name").eq("business_id", businessId).is("product_id", null).order("created_at"),
         admin.from("payout_allocations").select("payout_id, amount").eq("business_id", businessId),
         admin.from("order_statements").select("order_ref, kind, transaction_id, settled_date, settlement_amount, revenue, fee_transaction, fee_commission, fee_commerce_growth, fee_seller_shipping, chargeable_weight_g, boxes, overweight, pre_business, ledger_net_before").eq("business_id", businessId),
-        admin.from("wallet_events").select("kind, reference, event_date, amount, bank_suffix, received_by").eq("business_id", businessId),
+        admin.from("wallet_events").select("kind, reference, event_date, amount, bank_suffix, received_by, status").eq("business_id", businessId),
         admin.from("tiktok_statements").select("period_from, period_to").eq("business_id", businessId).order("period_from"),
         admin.from("businesses").select("start_date, buy_buffer").eq("id", businessId).maybeSingle(),
       ]);
@@ -149,7 +149,7 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
       const wallet = walletState({
         settled: facts.filter((f) => f.kind === "order" && f.settled_date).map((f) => ({ order_ref: f.order_ref, date: f.settled_date as string, net: f.settlement_amount, business: !f.pre_business })),
         losses: facts.filter((f) => f.kind === "refund" && f.settled_date && !f.pre_business && f.settlement_amount < 0).map((f) => ({ order_ref: f.order_ref, date: f.settled_date as string, loss: Math.abs(f.settlement_amount) })),
-        events: (we.data ?? []).map((e) => ({ kind: e.kind as "earnings", reference: e.reference as string, date: e.event_date as string, amount: num(e.amount), bank_suffix: (e.bank_suffix as string) ?? "", received_by: e.received_by as Person })),
+        events: (we.data ?? []).map((e) => ({ kind: e.kind as "earnings", reference: e.reference as string, date: e.event_date as string, amount: num(e.amount), bank_suffix: (e.bank_suffix as string) ?? "", received_by: e.received_by as Person, mirror: String(e.kind).startsWith("advance") && Boolean(e.status) })),
         unsettled: allTransactions.filter((t) => t.type === "income" && t.platform === "tiktok" && t.status === "active" && t.order_ref && (t.settlement?.status ?? "pending") === "pending").map((t) => ({ order_ref: t.order_ref as string, date: t.date, value: t.net_amount })),
       });
       const normalized = normalizeLedger(allTransactions, clawbacks, wallet.advanceCash);

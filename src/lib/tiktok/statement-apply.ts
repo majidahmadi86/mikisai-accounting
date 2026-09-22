@@ -19,7 +19,7 @@ export async function statementContext(db: Db, businessId: string, statement: St
     db.from("businesses").select("start_date").eq("id", businessId).maybeSingle(),
     db.from("tiktok_sku_map").select("sku_key, product_id, multiplier").eq("business_id", businessId),
     db.from("order_statements").select("order_ref, kind, settled_date, settlement_amount, pre_business").eq("business_id", businessId),
-    db.from("wallet_events").select("kind, reference, event_date, amount, bank_suffix, received_by").eq("business_id", businessId),
+    db.from("wallet_events").select("kind, reference, event_date, amount, bank_suffix, received_by, status").eq("business_id", businessId),
     db.from("payouts").select("external_ref").eq("business_id", businessId).eq("platform", "tiktok").not("external_ref", "is", null).is("deleted_at", null),
     db.from("transactions").select("order_ref, date, net_amount, settlements!inner(status, deleted_at)").eq("business_id", businessId).eq("type", "income").eq("platform", "tiktok").eq("status", "active").is("deleted_at", null).eq("settlements.status", "pending").is("settlements.deleted_at", null),
   ]);
@@ -39,7 +39,7 @@ export async function statementContext(db: Db, businessId: string, statement: St
   const facts = factRows.data ?? [];
   const settled: SettledOrder[] = facts.filter((f) => f.kind === "order" && f.settled_date).map((f) => ({ order_ref: f.order_ref as string, date: f.settled_date as string, net: num(f.settlement_amount), business: !f.pre_business }));
   const losses: ReturnLoss[] = facts.filter((f) => f.kind === "refund" && f.settled_date && !f.pre_business && num(f.settlement_amount) < 0).map((f) => ({ order_ref: f.order_ref as string, date: f.settled_date as string, loss: Math.abs(num(f.settlement_amount)) }));
-  const events: WalletEvent[] = (eventRows.data ?? []).map((e) => ({ kind: e.kind as WalletEvent["kind"], reference: e.reference as string, date: e.event_date as string, amount: num(e.amount), bank_suffix: (e.bank_suffix as string) ?? "", received_by: e.received_by as Person }));
+  const events: WalletEvent[] = (eventRows.data ?? []).map((e) => ({ kind: e.kind as WalletEvent["kind"], reference: e.reference as string, date: e.event_date as string, amount: num(e.amount), bank_suffix: (e.bank_suffix as string) ?? "", received_by: e.received_by as Person, mirror: String(e.kind).startsWith("advance") && Boolean(e.status) }));
 
   return {
     statement,

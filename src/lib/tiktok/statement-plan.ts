@@ -175,6 +175,12 @@ export function planStatement(input: StatementPlanInput): StatementPlan {
   }
 
   // The wallet sheet: earnings and withdrawals. "/" rows mirror the early-settlement rows above and are only kept when Order details did not carry them.
+  // A wallet mirror row repeats an advance row of Order details. Disbursements
+  // share the reference; recoveries do not (the wallet shows its own id), so a
+  // mirror also matches an advance of the same day and amount, each used once.
+  const advanceRows = input.statement.rows
+    .filter((r) => r.type === "advance_disbursement" || r.type === "advance_recovery")
+    .map((r) => ({ date: r.settled ?? r.created ?? "", amount: r.adjustment !== 0 ? r.adjustment : r.settlement, used: false }));
   for (const w of input.statement.wallet) {
     const date = w.success ?? w.requested ?? "";
     if (!date) continue;
@@ -182,7 +188,9 @@ export function planStatement(input: StatementPlanInput): StatementPlan {
     if (w.kind === "earnings") kind = "earnings";
     else if (w.kind === "withdrawal") kind = "withdrawal";
     else {
-      if (knownEvents.has(`advance_disbursement:${w.reference}`) || knownEvents.has(`advance_recovery:${w.reference}`)) continue;
+      const twin = advanceRows.find((a) => !a.used && a.date === date && Math.abs(a.amount - w.amount) < 0.01);
+      if (twin) twin.used = true;
+      if (twin || knownEvents.has(`advance_disbursement:${w.reference}`) || knownEvents.has(`advance_recovery:${w.reference}`)) continue;
       kind = w.amount >= 0 ? "advance_disbursement" : "advance_recovery";
     }
     if (kind === "withdrawal" && !/success|complete|paid|transferred|โอนแล้ว|สำเร็จ/i.test(w.status || "success")) continue;
@@ -192,7 +200,7 @@ export function planStatement(input: StatementPlanInput): StatementPlan {
       continue;
     }
     knownEvents.add(key);
-    const e = { kind, reference: w.reference, date, amount: w.amount, bank_suffix: w.bank.replace(/\D/g, "").slice(-4), received_by: input.receivedBy, status: w.status };
+    const e = { kind, reference: w.reference, date, amount: w.amount, bank_suffix: w.bank.replace(/\D/g, "").slice(-4), received_by: input.receivedBy, status: w.status, mirror: w.kind === "mirror" };
     events.push(e);
     plan.walletEvents.push(e);
   }

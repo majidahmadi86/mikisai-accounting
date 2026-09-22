@@ -13,7 +13,24 @@ import type { Person } from "@/lib/types";
 
 export type SettledOrder = { order_ref: string; date: string; net: number; business: boolean };
 export type ReturnLoss = { order_ref: string; date: string; loss: number };
-export type WalletEvent = { kind: "earnings" | "withdrawal" | "advance_disbursement" | "advance_recovery"; reference: string; date: string; amount: number; bank_suffix?: string; received_by?: Person };
+export type WalletEvent = { kind: "earnings" | "withdrawal" | "advance_disbursement" | "advance_recovery"; reference: string; date: string; amount: number; bank_suffix?: string; received_by?: Person; /** An advance read from Withdrawal records (it has a status): the copy of an Order details row. */ mirror?: boolean };
+
+/**
+ * TikTok lists every advance twice: in Order details and again in Withdrawal
+ * records, where a recovery carries its own reference. Up to v3.1 both were
+ * stored, so recoveries counted double. A mirror that has an Order details
+ * twin (same kind, day and amount) is dropped, each twin used once.
+ */
+export function withoutMirrorTwins(events: WalletEvent[]): WalletEvent[] {
+  const originals = events.filter((e) => !e.mirror && e.kind.startsWith("advance")).map((e) => ({ e, used: false }));
+  return events.filter((e) => {
+    if (!e.mirror) return true;
+    const twin = originals.find((o) => !o.used && o.e.kind === e.kind && o.e.date === e.date && Math.abs(o.e.amount - e.amount) < 0.01);
+    if (!twin) return true;
+    twin.used = true;
+    return false;
+  });
+}
 export type UnsettledOrder = { order_ref: string; date: string; value: number };
 
 export type WithdrawalResult = {
@@ -63,7 +80,7 @@ export function walletState(input: { settled: SettledOrder[]; losses: ReturnLoss
   const steps: Step[] = [
     ...input.settled.map((o): Step => ({ t: "settle", date: o.date, o })),
     ...input.losses.map((l): Step => ({ t: "loss", date: l.date, l })),
-    ...input.events.map((e): Step => ({ t: e.kind, date: e.date, e })),
+    ...withoutMirrorTwins(input.events).map((e): Step => ({ t: e.kind, date: e.date, e })),
   ].sort((a, b) => a.date.localeCompare(b.date) || ORDER[a.t] - ORDER[b.t]);
 
   const queue: SettledOrder[] = [];
