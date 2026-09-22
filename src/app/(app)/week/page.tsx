@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AddButton } from "@/components/nav/AddButton";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { InfoTip } from "@/components/ui/InfoTip";
@@ -10,6 +10,7 @@ import { getLocale, t } from "@/lib/i18n/server";
 import { formatDate, thb, todayIso } from "@/lib/money";
 import { addDays } from "@/lib/reports/period";
 import { weekOf } from "@/lib/week";
+import { markWeekSent } from "./actions";
 import { unitsText, weekFromSnapshot } from "@/lib/week-view";
 import { cn } from "@/lib/cn";
 
@@ -65,6 +66,8 @@ export default async function WeekPage({ searchParams }: PageProps<"/week">) {
         }
       />
 
+      {sp.sent === "1" ? <p className="mb-4 rounded-xl bg-success-tint px-4 py-3 text-sm text-success">{tr("week.sentDone")}</p> : null}
+      {sp.sent === "error" ? <p className="mb-4 rounded-xl bg-berry-tint px-4 py-3 text-sm text-berry">{tr("common.error")}</p> : null}
       <form method="get" className="mb-5 flex flex-wrap items-center gap-2">
         <Link href={`/week?from=${prev}`} className={pill} aria-label={tr("week.previous")}>
           ← {tr("week.previous")}
@@ -121,14 +124,24 @@ export default async function WeekPage({ searchParams }: PageProps<"/week">) {
         </Section>
 
         <Section title={tr("week.cash")} tip={tr("week.cashTip")}>
-          <Row label={tr("week.holds", { name: tr("common.sai") })} value={thb(w.cash.holdings.sai)} />
-          <Row label={tr("week.holds", { name: tr("common.mike") })} value={thb(w.cash.holdings.mike)} />
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-lavender-tint px-4 py-3">
-            <p className="text-base font-medium text-plum" data-testid="week-owes">
+          <div className="mt-1 rounded-xl bg-lavender-tint px-4 py-3">
+            <p className="text-lg font-medium text-plum" data-testid="week-owes">
               {w.cash.owes ? tr("week.sends", { from: tr(`common.${w.cash.owes.from}`), to: tr(`common.${w.cash.owes.to}`), amount: thb(w.cash.owes.amount) }) : tr("week.even")}
             </p>
-            {w.cash.owes ? <AddButton label={tr("balance.markSent")} kind="transfer" transfer={{ from: w.cash.owes.from, amount: w.cash.owes.amount, reason: "profit_share" }} withIcon={false} /> : null}
+            <p className="mt-1 text-xs text-plum-soft">{tr("week.oneTransfer")}</p>
+            {w.cash.owes ? (
+              <form action={markWeekSent} className="mt-3">
+                <input type="hidden" name="from" value={period.from} />
+                <Button type="submit" className="min-h-11">{tr("balance.markSent")}</Button>
+              </form>
+            ) : null}
           </div>
+          {(["sai", "mike"] as const).map((p) => (
+            <p key={p} className="mt-2 text-sm text-plum-soft" data-testid={`week-side-${p}`}>
+              {tr("week.side", { name: tr(`common.${p}`), paid: thb(w.cash.paid[p]), received: thb(w.cash.received[p]) })}
+              {w.cash.advanced[p] > 0 ? ` ${tr("week.sideAdvanced", { amount: thb(w.cash.advanced[p]) })}` : ""}
+            </p>
+          ))}
         </Section>
 
         <Section title={tr("week.buy")} tip={tr("week.buyTip")}>

@@ -51,7 +51,16 @@ export type WeekReport = {
   tiktok: { expected: number; settled: number; advanced: number; stillToCome: number; estimatedOrders: number };
   bought: { variants: VariantLine[]; amount: number; byPerson: Record<Person, number>; other: { label: string; amount: number }[]; otherTotal: number };
   profit: { expectedIncome: number; costOfUnits: number; otherCosts: number; expected: number };
-  cash: { holdings: Record<Person, number>; owes: WhoOwesWhom["owes"] };
+  cash: {
+    holdings: Record<Person, number>;
+    owes: WhoOwesWhom["owes"];
+    /** Each side, for transparency: what they paid out (costs and transfers sent) and what reached them (platforms, advance included, and transfers). */
+    paid: Record<Person, number>;
+    received: Record<Person, number>;
+    advanced: Record<Person, number>;
+    /** The reason the one transfer is recorded with, never asked. */
+    reason: "profit_share" | "my_half_of_costs";
+  };
   buy: { product_id: string; name: string; unit: string; backlog: number; buffer: number; toBuy: number }[];
 };
 
@@ -96,6 +105,19 @@ function variantLines(entries: { product_id: string; qty: number }[], products: 
   const sum = new Map<string, number>();
   for (const e of entries) sum.set(e.product_id, (sum.get(e.product_id) ?? 0) + e.qty);
   return Array.from(sum, ([product_id, qty]) => ({ product_id, name: nameOf(products.get(product_id)), unit: products.get(product_id)?.unit_label ?? "box", qty })).sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
+}
+
+/**
+ * The one transfer's reason, from the same numbers as its amount (everything
+ * to today): when the sender has paid less than half of all costs, the money
+ * settles their half of the costs; otherwise it shares out profit.
+ */
+export function transferReason(transactions: ReportTx[], owes: WhoOwesWhom["owes"], today: string): "profit_share" | "my_half_of_costs" {
+  if (!owes) return "profit_share";
+  const costs = transactions.filter((t) => t.type === "expense" && t.date <= today && !t.synthetic);
+  const total = costs.reduce((a, t) => a + t.net_amount, 0);
+  const bySender = costs.filter((t) => t.payer === owes.from).reduce((a, t) => a + t.net_amount, 0);
+  return bySender + 0.005 < total / 2 ? "my_half_of_costs" : "profit_share";
 }
 
 export function buildWeek(input: WeekInput, period: Period, today: string, buffer: number): WeekReport {
@@ -181,7 +203,7 @@ export function buildWeek(input: WeekInput, period: Period, today: string, buffe
     tiktok: { expected, settled, advanced, stillToCome: round2(expected - settled - advanced), estimatedOrders },
     bought: { variants: variantLines(boughtLines, products), amount: round2(purchaseRows.reduce((a, t) => a + t.net_amount, 0)), byPerson, other, otherTotal },
     profit: { expectedIncome: expected, costOfUnits, otherCosts: otherTotal, expected: round2(expected - costOfUnits - otherTotal) },
-    cash: { holdings: balance.holdings, owes: balance.owes },
+    cash: { holdings: balance.holdings, owes: balance.owes, paid: balance.putIn, received: balance.received, advanced: balance.advancedFromPlatforms, reason: transferReason(input.transactions, balance.owes, today) },
     buy,
   };
 }
