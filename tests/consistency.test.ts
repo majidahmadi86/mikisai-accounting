@@ -54,4 +54,13 @@ describe("consistency gate: Home = My Balance = This week, and every other page"
     expect(b.week).toEqual(b.home);
     expect(b.myBalance).toEqual(b.home);
   });
+
+  it("the two sides round as one: a half-satang never splits Home from My Balance", () => {
+    // Mike holds 0.005 more than half of a result with a half satang in it.
+    const input = live();
+    const odd = { ...input.transactions[0], id: "odd", type: "expense" as const, date: "2026-09-16", gross_amount: 0.01, net_amount: 0.01, quantity: 1, payer: "sai" as const, received_by: null, category_id: CATEGORY_ID.packaging, settlement: null, order_ref: null };
+    const e = everywhere({ ...input, transactions: [...input.transactions, odd] }, LIVE_TODAY);
+    expect(e.myBalance).toEqual(e.home);
+    expect(e.week).toEqual(e.home);
+  });
 });

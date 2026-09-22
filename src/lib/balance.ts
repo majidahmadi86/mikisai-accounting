@@ -105,10 +105,9 @@ export function computeBalance(transactions: BalanceTransaction[], transfers: Ba
 
   const netProfit = settledIncome - expenses;
   const target = netProfit / 2;
-  const delta: Record<Person, number> = {
-    mike: round2(holdings.mike - target),
-    sai: round2(holdings.sai - target),
-  };
+  // Rounded once: the two sides are always exact opposites, so every page names the same amount to the satang.
+  const mikeDelta = round2(holdings.mike - target);
+  const delta: Record<Person, number> = { mike: mikeDelta, sai: mikeDelta === 0 ? 0 : -mikeDelta };
 
   let owes: Balance["owes"] = null;
   if (Math.abs(delta.mike) >= 1) {
