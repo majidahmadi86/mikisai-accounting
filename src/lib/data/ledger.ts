@@ -70,7 +70,25 @@ export function ledgerTag(businessId: string): string {
  * client is safe here: every query is scoped by it explicitly. The cache is
  * tagged per business and expired by ledgerChanged() after every mutation.
  */
+/**
+ * The ledger's version: the newest audit row (transactions, settlements,
+ * payouts, transfers, stock, products all write one) and the newest statement
+ * or wallet row. Every change to money writes one of these (the audit trigger
+ * runs inside Postgres, so edits made outside the app count too), so two
+ * pages rendered from the same version can never disagree.
+ */
+async function ledgerVersion(businessId: string): Promise<string> {
+  const admin = createAdminClient();
+  const [a, s, w] = await Promise.all([
+    admin.from("audit_log").select("created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("order_statements").select("created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("wallet_events").select("created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  return [a.data?.created_at, s.data?.created_at, w.data?.created_at].map((v) => v ?? "0").join("|");
+}
+
 export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnapshot> {
+  const version = await ledgerVersion(businessId);
   return unstable_cache(
     async () => {
       const admin = createAdminClient();
@@ -163,11 +181,11 @@ export async function getLedgerSnapshot(businessId: string): Promise<LedgerSnaps
         fetchedAt: new Date().toISOString(),
       };
     },
-    ["ledger-snapshot", businessId],
-    // Writes made through the app expire the tag immediately. The short
-    // revalidate is a safety net for changes made outside the app (SQL,
-    // scripts such as reset:ledger), so the site never lags by more than a minute.
-    { tags: [ledgerTag(businessId)], revalidate: 60 },
+    // The version is part of the key: a cached copy is only ever reused for exactly the data it was built from.
+    // Before, a copy up to a minute old was served first and refreshed behind the scenes, so the first page
+    // opened after a change (usually Home) could show an older balance than the next page (My Balance).
+    ["ledger-snapshot", businessId, version],
+    { tags: [ledgerTag(businessId)], revalidate: 3600 },
   )();
 }
 
