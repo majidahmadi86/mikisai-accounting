@@ -17,7 +17,6 @@ import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { photoUrl } from "@/lib/inventory/photos";
 import { valueStock } from "@/lib/inventory/valuation";
-import { productName } from "@/lib/labels";
 import { productLine } from "@/lib/search";
 import { thb } from "@/lib/money";
 import { cn } from "@/lib/cn";
@@ -65,8 +64,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                   {r.product.photo_path ? <Image src={photoUrl(r.product.photo_path)} alt="" width={48} height={48} unoptimized className="h-12 w-12 shrink-0 rounded-xl object-cover" /> : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-lavender-tint font-display text-lg text-berry">{productFullName(r.product, locale).slice(0, 1)}</span>}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-plum">{productLine(r.product, locale)}</span>
-                    <span className="block truncate text-xs text-plum-faint">
-                      {r.product.variant || productName(tr, r.product.product_line)} · {thb(r.product.default_price)}
+                    <span className="block text-xs text-plum-faint [overflow-wrap:anywhere]">
+                      {displayName(r.product)} · {thb(r.product.default_price)}
                     </span>
                     <span className="mt-1 flex flex-wrap gap-1.5">
                       <StockPill row={r} tr={tr} />
@@ -141,6 +140,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                     <Link href={`/products/${r.product.id}`} className="hover:underline">
                       {productLine(r.product, locale)}
                     </Link>
+                    <span className="block truncate text-xs font-normal text-plum-faint">{displayName(r.product)}</span>
                     {!r.product.active ? <Pill tone="neutral" className="ml-2">{tr("settings.inactive")}</Pill> : null}
                   </Td>
                   <Td kind="status" align="right">
