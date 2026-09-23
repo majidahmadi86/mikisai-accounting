@@ -28,7 +28,7 @@ test("v2.3 products and income edit at 375px", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Products" })).toBeVisible();
   await page.screenshot({ path: `${OUT}/products-list-375.png` });
 
-  await page.getByRole("link", { name: /1 kg x 10 packs/ }).first().click();
+  await page.getByRole("link", { name: /1 kg packs/ }).first().click();
   await page.waitForURL(/\/products\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Average vs standard")).toBeVisible();
   await page.screenshot({ path: `${OUT}/product-detail-375.png` });
