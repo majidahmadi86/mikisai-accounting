@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SEED_CATEGORIES, CATEGORY_ID } from "@/lib/fixtures/seed-data";
-import { BOX_1KG, BOX_500G, LIVE_PRODUCTS, SAMPLE_COSTS, SAMPLE_IDS } from "@/lib/fixtures/live-shaped";
+import { BOX_1KG, BOX_500G, LIVE_PRODUCTS } from "@/lib/fixtures/live-shaped";
 import { consistencyMismatches } from "@/lib/health/checks";
 import { readXlsxSheets } from "@/lib/import/table";
 import { detectMapping, ordersFromRows, parseTable } from "@/lib/import/tiktok";
@@ -31,6 +31,7 @@ const DIR = join(__dirname, "fixtures", "week-2026-09-15");
 const TODAY = "2026-09-22";
 const WEEK = weekOf("2026-09-15", TODAY);
 const BAG = "00000000-0000-4000-8000-0000000000b6";
+const ROCK = "00000000-0000-4000-8000-0000000000b7";
 
 // The listings as migration 0028 maps them.
 const SKU: Record<string, { product_id: string; multiplier: number }> = {
@@ -40,9 +41,17 @@ const SKU: Record<string, { product_id: string; multiplier: number }> = {
   "1737490537713730564": { product_id: BAG, multiplier: 1 },
 };
 
-const bag: Product = { ...LIVE_PRODUCTS[0], id: BAG, name: "Coconut sugar ตรามะลิ", name_th: "น้ำตาลมะพร้าว ตรามะลิ", variant: "1 kg bag", short_name: "1 kg bag", unit_label: "bag", default_cost: 0, default_price: 69, expected_net_per_unit: null };
-const products: Product[] = [...LIVE_PRODUCTS, bag];
+// The Mali bag as v3.5 names it: sold by the bag, bought by the box of ten.
+const bag: Product = { ...LIVE_PRODUCTS[0], id: BAG, name: "Coconut sugar Mali", name_en: "Mali brand · 100% pure coconut sugar · 1 kg bag (box of 10 bags)", name_th: "น้ำตาลมะพร้าวแท้ 100% ตรามะลิ หอมหวานละมุนจากอัมพวา บรรจุ 1 กก. (1 กล่อง 10 ถุง)", variant: "", short_name: "Mali 1 kg bag", unit_label: "bag", purchase_unit_label: "box", units_per_purchase_unit: 10, default_cost: 29.67, default_price: 69, expected_net_per_unit: null };
+const rock: Product = { ...LIVE_PRODUCTS[0], id: ROCK, name: "Red Rose rock sugar", name_en: "Red Rose brand (Rung Nirand) · premium selected rock sugar", name_th: "น้ำตาลกรวดคัดพิเศษ ตรากุหลาบแดง (รุ่งนิรันดร์)", variant: "", short_name: "Rock sugar", unit_label: "bag", purchase_unit_label: "box", units_per_purchase_unit: 1, default_cost: 296.63, default_price: 0, expected_net_per_unit: null };
+const products: Product[] = [...LIVE_PRODUCTS, bag, rock];
 const at = (d: string) => `${d}T09:00:00Z`;
+
+const SAMPLE_LINES = [
+  { product_id: BOX_1KG, qty: 1, unit_cost: 296.67 },
+  { product_id: BAG, qty: 10, unit_cost: 29.67 },
+  { product_id: ROCK, qty: 1, unit_cost: 296.63 },
+];
 
 async function build() {
   const table = await parseTable(new Uint8Array(readFileSync(join(DIR, "orders.csv"))), "orders.csv");
@@ -81,10 +90,11 @@ async function build() {
   }
   // Samples (restored: one row, 3 units at 296.67) and the office expense.
   all.push({ id: "smp", type: "expense", date: "2026-09-14", platform: "other", product_line: "sugar", gross_amount: 890, net_amount: 890, quantity: 3, payer: "sai", received_by: null, category_id: CATEGORY_ID.samples, customer_name: null, note: "3 boxes of sample sugar products", created_at: at("2026-09-14"), settlement: null });
-  SAMPLE_IDS.forEach((pid, i) => {
-    items.push({ transaction_id: "smp", product_id: pid, qty: 1, unit_price: 0, unit_cost: SAMPLE_COSTS[i] });
-    movements.push({ id: `smp-in-${i}`, product_id: pid, qty: 1, kind: "purchase", unit_cost: SAMPLE_COSTS[i], transaction_id: "smp", date: "2026-09-14", created_at: at("2026-09-14") });
-    movements.push({ id: `smp-out-${i}`, product_id: pid, qty: -1, kind: "sample", unit_cost: null, transaction_id: "smp", date: "2026-09-14", created_at: at("2026-09-14") });
+  // v3.5: one box of each real sugar, 890.00 in total.
+  SAMPLE_LINES.forEach((line, i) => {
+    items.push({ transaction_id: "smp", product_id: line.product_id, qty: line.qty, unit_price: 0, unit_cost: line.unit_cost });
+    movements.push({ id: `smp-in-${i}`, product_id: line.product_id, qty: line.qty, kind: "purchase", unit_cost: line.unit_cost, transaction_id: "smp", date: "2026-09-14", created_at: at("2026-09-14") });
+    movements.push({ id: `smp-out-${i}`, product_id: line.product_id, qty: -line.qty, kind: "sample", unit_cost: null, transaction_id: "smp", date: "2026-09-14", created_at: at("2026-09-14") });
   });
   all.push({ id: "office", type: "expense", date: "2026-09-16", platform: "other", product_line: "sugar", gross_amount: 156, net_amount: 156, quantity: 1, payer: "sai", received_by: null, category_id: CATEGORY_ID.packaging, customer_name: null, note: "For paper and wrapping", created_at: at("2026-09-16"), settlement: null });
 
@@ -148,8 +158,11 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
     const { input } = await build();
     const truth = { ...input, payouts: [], categories: SEED_CATEGORIES } as unknown as TruthInput;
     const pos = (id: string) => stockPositions(truth).find((p) => p.product.id === id)!;
-    expect(pos(BOX_1KG)).toMatchObject({ bought: 38, sold: 38, onHand: 0, backlog: 0 });
+    // 38 bought for sale plus the sample box that was given away again.
+    expect(pos(BOX_1KG)).toMatchObject({ bought: 39, sold: 38, samples: 1, onHand: 0, backlog: 0 });
     expect(pos(BOX_500G)).toMatchObject({ bought: 14, sold: 14, onHand: 0, backlog: 0 });
+    // The Mali sample box was ten bags in and ten given away; one bag was sold and is owed.
+    expect(pos(BAG)).toMatchObject({ bought: 10, sold: 1, samples: 10, backlog: 1 });
     const w = buildWeek(input, WEEK, TODAY);
     const line = (id: string) => w.buy.find((b) => b.product_id === id);
     expect(line(BOX_1KG)).toMatchObject({ backlog: 0, toBuy: 5 });
@@ -176,7 +189,10 @@ describe("This week, 15 to 21 September 2026, from the real files", () => {
   it("samples are in the ledger, and Home = My Balance = This week to the satang, with no page disagreeing", async () => {
     const { input } = await build();
     expect(input.transactions.find((t) => t.id === "smp")).toMatchObject({ net_amount: 890, category_id: CATEGORY_ID.samples });
-    expect(input.items.filter((i) => i.transaction_id === "smp").map((i) => i.unit_cost)).toEqual(SAMPLE_COSTS);
+    const sampleLines = input.items.filter((i) => i.transaction_id === "smp");
+    // One box of each real sugar: the Mali box is ten bags, and the three still total 890.00.
+    expect(sampleLines.map((i) => i.product_id)).toEqual([BOX_1KG, BAG, ROCK]);
+    expect(sampleLines.reduce((a, i) => a + i.qty * (i.unit_cost ?? 0), 0)).toBeCloseTo(890, 2);
     const home = whoOwesWhom(input, TODAY).owes;
     const mine = buildMyBalance({ transactions: input.transactions, transfers: input.transfers, settings: [], exposureLimit: 0, cashAdjustments: input.cashAdjustments }, "mike", TODAY);
     const myBalance = mine.owedToMe > 0 ? { from: "sai", to: "mike", amount: mine.owedToMe } : mine.iOwe > 0 ? { from: "mike", to: "sai", amount: mine.iOwe } : null;

@@ -24,8 +24,8 @@ export const UNIT_GROSS = 399;
 const base: Omit<Product, "id" | "name" | "variant" | "short_name" | "default_cost" | "active" | "default_price"> = { name_th: "", product_line: "sugar", unit_label: "box", list_prices: {}, low_stock_threshold: 3, photo_path: null, notes: "", stock_mode: "buy_to_order", expected_net_per_unit: null };
 
 export const LIVE_PRODUCTS: Product[] = [
-  { ...base, id: BOX_1KG, name: "Coconut sugar Rung Nirand Amphawa", variant: "10 kg box (1 kg x 10 packs)", short_name: "1 kg packs", default_cost: 260, default_price: UNIT_GROSS, active: true, expected_net_per_unit: 311 },
-  { ...base, id: BOX_500G, name: "Coconut sugar Rung Nirand Amphawa", variant: "10 kg box (500 g x 20 packs)", short_name: "500 g packs", default_cost: 260, default_price: UNIT_GROSS, active: true },
+  { ...base, id: BOX_1KG, name: "Coconut sugar Rung Nirand Amphawa", name_en: "Rung Nirand Amphawa · 100% pure coconut sugar · 10 kg box", name_th: "น้ำตาลมะพร้าวแท้ 100% รุ่งนิรันดร์ อัมพวา 10 กก.", variant: "10 kg box (1 kg x 10 packs)", short_name: "1 kg packs", default_cost: 260, default_price: UNIT_GROSS, active: true, expected_net_per_unit: 311 },
+  { ...base, id: BOX_500G, name: "Coconut sugar Rung Nirand Amphawa", name_en: "Rung Nirand Amphawa · 100% pure coconut sugar · 10 kg box", name_th: "น้ำตาลมะพร้าวแท้ 100% รุ่งนิรันดร์ อัมพวา 10 กก.", variant: "10 kg box (500 g x 20 packs)", short_name: "500 g packs", default_cost: 260, default_price: UNIT_GROSS, active: true },
   ...SAMPLE_IDS.map((id, i) => ({ ...base, id, name: `Sample sugar ${"ABC"[i]}`, variant: "10 kg", short_name: "", default_cost: SAMPLE_COSTS[i], default_price: 0, active: true })),
 ];
 
