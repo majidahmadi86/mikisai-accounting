@@ -13,7 +13,7 @@ import { formatDate, thb, todayIso } from "@/lib/money";
 import { addDays } from "@/lib/reports/period";
 import { weekOf } from "@/lib/week";
 import { markWeekSent } from "./actions";
-import { unitsText, weekFromSnapshot } from "@/lib/week-view";
+import { unitsBoth, weekFromSnapshot } from "@/lib/week-view";
 import { cn } from "@/lib/cn";
 
 
@@ -45,7 +45,7 @@ export default async function WeekPage({ searchParams }: PageProps<"/week">) {
   const today = todayIso();
   const period = weekOf(typeof sp.from === "string" ? sp.from : null, today);
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
-  const w = weekFromSnapshot(snapshot, period, today);
+  const w = weekFromSnapshot(snapshot, period, today, locale);
   // Opening the week also brings Insights up to date, after the page is sent.
   after(() => warmInsights(session.profile.business_id, snapshot, today).catch((err) => console.error("[insights] on week open", err)));
   const prev = addDays(period.from, -7);
@@ -95,7 +95,7 @@ export default async function WeekPage({ searchParams }: PageProps<"/week">) {
         <Section title={tr("week.sold")}>
           <Row label={tr("week.orders")} value={w.sold.orders} strong />
           {w.sold.variants.map((v) => (
-            <Row key={v.product_id} label={v.name} value={unitsText(tr, v.qty, "", v.unit).trim()} />
+            <Row key={v.product_id} label={v.name} value={unitsBoth(tr, v)} />
           ))}
           <Row label={tr("week.cancelledBeforeShipping")} value={w.sold.cancelledBeforeShipping} tone="faint" />
         </Section>
@@ -108,7 +108,7 @@ export default async function WeekPage({ searchParams }: PageProps<"/week">) {
         </Section>
 
         <Section title={tr("week.bought")}>
-          {w.bought.variants.length ? w.bought.variants.map((v) => <Row key={v.product_id} label={v.name} value={unitsText(tr, v.qty, "", v.unit).trim()} />) : <Row label={tr("week.nothingBought")} value="0" tone="faint" />}
+          {w.bought.variants.length ? w.bought.variants.map((v) => <Row key={v.product_id} label={v.name} value={unitsBoth(tr, v)} />) : <Row label={tr("week.nothingBought")} value="0" tone="faint" />}
           <Row label={tr("week.boughtAmount")} value={thb(w.bought.amount)} strong />
           {(["sai", "mike"] as const)
             .filter((p) => w.bought.byPerson[p] > 0)
@@ -150,7 +150,7 @@ export default async function WeekPage({ searchParams }: PageProps<"/week">) {
 
         <Section title={tr("week.buy")} tip={tr("week.buyTip")}>
           {w.buy.length ? (
-            w.buy.map((b) => <Row key={b.product_id} label={tr("week.buyLine", { name: b.name, backlog: b.backlog, buffer: b.buffer })} value={unitsText(tr, b.toBuy, "", b.unit).trim()} strong />)
+            w.buy.map((b) => <Row key={b.product_id} label={tr("week.buyLine", { name: b.name, backlog: b.backlog, buffer: b.buffer })} value={unitsBoth(tr, { ...b, qty: b.toBuy }, true)} strong />)
           ) : (
             <Row label={tr("week.nothingToBuy")} value="0" tone="faint" />
           )}

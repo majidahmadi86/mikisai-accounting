@@ -16,7 +16,7 @@ export function ProductForm({ tr, product, photoUrl, error }: { tr: Translator; 
     <form action={action} className="space-y-5" encType="multipart/form-data">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={tr("products.nameEn")} htmlFor="p-name" hint={tr("products.nameHint")}>
-          <Input id="p-name" name="name" required maxLength={120} defaultValue={product?.name ?? ""} />
+          <Input id="p-name" name="name_en" required maxLength={120} defaultValue={product?.name_en || product?.name || ""} />
         </Field>
         <Field label={tr("products.shortName")} htmlFor="p-short" hint={tr("products.shortNameHint")}>
           <Input id="p-short" name="short_name" maxLength={40} defaultValue={product?.short_name ?? ""} placeholder="1 kg packs" />
@@ -35,6 +35,19 @@ export function ProductForm({ tr, product, photoUrl, error }: { tr: Translator; 
         </Field>
         <Field label={tr("products.variant")} htmlFor="p-variant" hint={tr("products.variantHint")}>
           <Input id="p-variant" name="variant" maxLength={120} defaultValue={product?.variant ?? ""} placeholder="1 kg x 10 packs" />
+        </Field>
+        <Field label={tr("products.purchaseUnit")} htmlFor="p-purchase-unit" hint={tr("products.purchaseUnitHint")}>
+          <Select id="p-purchase-unit" name="purchase_unit_label" defaultValue={product?.purchase_unit_label ?? ""}>
+            <option value="">{tr("products.sameAsUnit")}</option>
+            {UNIT_LABELS.map((u) => (
+              <option key={u} value={u}>
+                {tr(`products.unit.${u}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={tr("products.unitsPerPurchase")} htmlFor="p-units-per" hint={tr("products.unitsPerPurchaseHint")}>
+          <Input id="p-units-per" name="units_per_purchase_unit" type="number" inputMode="numeric" min={1} max={10000} step={1} defaultValue={product?.units_per_purchase_unit ?? 1} className="tabular" />
         </Field>
         <Field label={tr("products.unit")} htmlFor="p-unit" hint={tr("products.unitHint")}>
           <Select id="p-unit" name="unit_label" defaultValue={product?.unit_label ?? "box"}>

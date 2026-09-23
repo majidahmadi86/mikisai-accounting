@@ -8,6 +8,7 @@ import type { ExpenseCategory } from "@/lib/categories";
 import { categoryLabel } from "@/lib/categories";
 import { fifoBacklog } from "@/lib/inventory/backlog";
 import { bufferFor, salePriceFor } from "@/lib/inventory/product-stats";
+import { shortProductName, unitsPerPurchase } from "@/lib/inventory/units";
 import { valueStock, type Product, type StockMovement } from "@/lib/inventory/valuation";
 import { round2 } from "@/lib/money";
 import { addDays, thisWeek, type Period } from "@/lib/reports/period";
@@ -43,7 +44,15 @@ export type WeekInput = {
   allocations: { order_ref: string; amount: number }[];
 };
 
-export type VariantLine = { product_id: string; name: string; unit: string; qty: number };
+export type VariantLine = {
+  product_id: string;
+  name: string;
+  unit: string;
+  qty: number;
+  /** Selling units in one buying unit (a Mali box holds 10 bags) and what that buying unit is called. */
+  perPurchaseUnit: number;
+  purchaseUnit: string | null;
+};
 
 export type WeekReport = {
   period: Period;
@@ -61,7 +70,7 @@ export type WeekReport = {
     /** The reason the one transfer is recorded with, never asked. */
     reason: "profit_share" | "my_half_of_costs";
   };
-  buy: { product_id: string; name: string; unit: string; backlog: number; buffer: number; toBuy: number }[];
+  buy: { product_id: string; name: string; unit: string; backlog: number; buffer: number; toBuy: number; perPurchaseUnit: number; purchaseUnit: string | null }[];
 };
 
 /** TikTok's cut on a sale, as the statements show it: transaction fee, commission and the commerce growth fee, as shares of revenue. */
@@ -99,12 +108,12 @@ export function expectedSettlement(order: { product_id: string | null; boxes: nu
   return { amount: round2(order.revenue * (1 - cut) - (1 + 2 * Math.max(1, order.boxes))), estimated: true };
 }
 
-const nameOf = (p: Product | undefined) => (p ? p.short_name || p.variant || p.name : "?");
+const nameOf = (p: Product | undefined, locale: "en" | "th" = "en") => (p ? shortProductName(p, locale) : "?");
 
-function variantLines(entries: { product_id: string; qty: number }[], products: Map<string, Product>): VariantLine[] {
+function variantLines(entries: { product_id: string; qty: number }[], products: Map<string, Product>, locale: "en" | "th"): VariantLine[] {
   const sum = new Map<string, number>();
   for (const e of entries) sum.set(e.product_id, (sum.get(e.product_id) ?? 0) + e.qty);
-  return Array.from(sum, ([product_id, qty]) => ({ product_id, name: nameOf(products.get(product_id)), unit: products.get(product_id)?.unit_label ?? "box", qty })).sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
+  return Array.from(sum, ([product_id, qty]) => ({ product_id, name: nameOf(products.get(product_id), locale), unit: products.get(product_id)?.unit_label ?? "box", qty, perPurchaseUnit: unitsPerPurchase(products.get(product_id) ?? { units_per_purchase_unit: 1 }), purchaseUnit: products.get(product_id)?.purchase_unit_label ?? null })).sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
 }
 
 /**
@@ -120,7 +129,7 @@ export function transferReason(transactions: ReportTx[], owes: WhoOwesWhom["owes
   return bySender + 0.005 < total / 2 ? "my_half_of_costs" : "profit_share";
 }
 
-export function buildWeek(input: WeekInput, period: Period, today: string): WeekReport {
+export function buildWeek(input: WeekInput, period: Period, today: string, locale: "en" | "th" = "en"): WeekReport {
   const products = new Map(input.products.map((p) => [p.id, p]));
   const itemsOf = new Map<string, WeekInput["items"]>();
   for (const i of input.items) itemsOf.set(i.transaction_id, [...(itemsOf.get(i.transaction_id) ?? []), i]);
@@ -198,15 +207,15 @@ export function buildWeek(input: WeekInput, period: Period, today: string): Week
     .map((p) => {
       const owed = backlog.get(p.id)?.backlog ?? 0;
       const buffer = bufferFor(p);
-      return { product_id: p.id, name: nameOf(p), unit: p.unit_label, backlog: owed, buffer, toBuy: owed + buffer };
+      return { product_id: p.id, name: nameOf(p, locale), unit: p.unit_label, backlog: owed, buffer, toBuy: owed + buffer, perPurchaseUnit: unitsPerPurchase(p), purchaseUnit: p.purchase_unit_label ?? null };
     })
     .sort((a, b) => b.toBuy - a.toBuy || a.name.localeCompare(b.name));
 
   return {
     period,
-    sold: { orders: sales.length, variants: variantLines(soldLines, products), cancelledBeforeShipping },
+    sold: { orders: sales.length, variants: variantLines(soldLines, products, locale), cancelledBeforeShipping },
     tiktok: { expected, settled, advanced, stillToCome: stillToCome(sales.filter((t) => t.platform === "tiktok"), today).total, estimatedOrders },
-    bought: { variants: variantLines(boughtLines, products), amount: round2(purchaseRows.reduce((a, t) => a + t.net_amount, 0)), byPerson, other, otherTotal },
+    bought: { variants: variantLines(boughtLines, products, locale), amount: round2(purchaseRows.reduce((a, t) => a + t.net_amount, 0)), byPerson, other, otherTotal },
     profit: { expectedIncome: expected, costOfUnits, otherCosts: otherTotal, expected: round2(expected - costOfUnits - otherTotal) },
     cash: { holdings: balance.holdings, owes: balance.owes, paid: balance.putIn, received: balance.received, advanced: balance.advancedFromPlatforms, reason: transferReason(input.transactions, balance.owes, today) },
     buy,

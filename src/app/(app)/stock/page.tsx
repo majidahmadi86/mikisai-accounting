@@ -13,7 +13,7 @@ import { requireSession } from "@/lib/auth";
 import { getLedgerSnapshot } from "@/lib/data/ledger";
 import { getLocale, t } from "@/lib/i18n/server";
 import { buildStockPage } from "@/lib/inventory/stock-page";
-import { shortProductName } from "@/lib/inventory/units";
+import { productFullName, shortProductName, unitsPerPurchase } from "@/lib/inventory/units";
 import { productLine } from "@/lib/search";
 import { formatDate, thb, todayIso } from "@/lib/money";
 import { cn } from "@/lib/cn";
@@ -102,12 +102,15 @@ export default async function StockPage({ searchParams }: PageProps<"/stock">) {
                     {shortProductName(p, locale)}
                   </Link>
                   <p className="truncate text-xs text-plum-faint">
-                    {p.name}
+                    {productFullName(p, locale)}
                     {p.variant ? ` · ${p.variant}` : ""}
                   </p>
                 </div>
                 <StockPill row={c.stock} tr={tr} />
               </div>
+              {unitsPerPurchase(p) > 1 && p.purchase_unit_label ? (
+                <p className="mt-1 text-xs text-plum-soft">{tr("inventory.boxesToUnits", { packs: Math.round((Math.max(0, c.stock.onHand) / unitsPerPurchase(p)) * 100) / 100, purchaseUnit: tr(`products.unit.${p.purchase_unit_label as "box"}`), units: Math.max(0, c.stock.onHand), unit: tr(`products.unit.${p.unit_label as "bag"}`) })}</p>
+              ) : null}
               <dl className="mt-3 grid grid-cols-2 gap-2 min-[400px]:grid-cols-4">
                 {(
                   [
@@ -270,7 +273,7 @@ export default async function StockPage({ searchParams }: PageProps<"/stock">) {
                       }
                     >
                       <Td kind="date">{formatDate(m.date, locale)}</Td>
-                      <Td kind="long" className="text-plum" title={m.product.name}>
+                      <Td kind="long" className="text-plum" title={productFullName(m.product, locale)}>
                         {productLine(m.product, locale)}
                       </Td>
                       <Td kind="pill">

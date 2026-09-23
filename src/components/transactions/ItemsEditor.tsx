@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/Field";
 import { ProductPicker } from "@/components/products/ProductPicker";
 import { useT } from "@/lib/i18n/client";
 import { unitSanity } from "@/lib/inventory/quantity";
+import { unitsPerPurchase } from "@/lib/inventory/units";
 import type { Product } from "@/lib/inventory/valuation";
 import { round2, thb } from "@/lib/money";
 
@@ -42,6 +43,8 @@ export function ItemsEditor({ products, rows, onChange, mode, avgCost = {} }: { 
       {rows.map((r, i) => {
         const product = products.find((x) => x.id === r.product_id);
         const warn = mode === "sale" && product ? unitSanity((r.unit_price ?? 0) * r.qty, r.qty, product.default_price) : null;
+        // A product bought by the box and sold by the bag: a purchase line counts boxes, the ledger keeps bags.
+        const per = mode === "purchase" && product ? unitsPerPurchase(product) : 1;
         return (
           <div key={i} className="rounded-xl border border-line bg-card p-3">
             <ProductPicker
@@ -55,8 +58,8 @@ export function ItemsEditor({ products, rows, onChange, mode, avgCost = {} }: { 
             />
             <div className="mt-2 grid grid-cols-[5rem_1fr_auto] items-end gap-2">
               <label className="block">
-                <span className="eyebrow mb-1 block">{t("inventory.qty")}</span>
-                <Input type="number" inputMode="numeric" min={1} step={1} value={r.qty} onChange={(e) => patch(i, { qty: intQty(e.target.value, r.qty) }, "qty")} className="tabular" aria-label={t("inventory.qty")} />
+                <span className="eyebrow mb-1 block">{per > 1 ? t(`products.unit.${(product?.purchase_unit_label ?? "box") as "box"}`) : t("inventory.qty")}</span>
+                <Input type="number" inputMode="numeric" min={1} step={1} value={per > 1 ? Math.max(1, Math.round(r.qty / per)) : r.qty} onChange={(e) => patch(i, { qty: per > 1 ? intQty(e.target.value, Math.round(r.qty / per)) * per : intQty(e.target.value, r.qty) }, "qty")} className="tabular" aria-label={t("inventory.qty")} />
               </label>
               <label className="block">
                 <span className="eyebrow mb-1 block">{mode === "purchase" ? t("inventory.unitCost") : t("inventory.salePrice")}</span>
@@ -75,6 +78,9 @@ export function ItemsEditor({ products, rows, onChange, mode, avgCost = {} }: { 
                 <span className="tabular text-sm font-medium text-plum">{thb(lineTotal(r, mode))}</span>
               </div>
             </div>
+            {per > 1 && product ? (
+              <p className="mt-1.5 text-xs text-plum-soft">{t("inventory.boxesToUnits", { packs: Math.max(1, Math.round(r.qty / per)), purchaseUnit: t(`products.unit.${(product.purchase_unit_label ?? "box") as "box"}`), units: r.qty, unit: t(`products.unit.${product.unit_label as "bag"}`) })}</p>
+            ) : null}
             <p className="mt-1.5 text-xs text-plum-soft">{mode === "purchase" ? t("inventory.unitCostHintFactory") : t("inventory.salePriceHint")}</p>
             {mode === "sale" ? <p className="mt-1 text-xs text-plum-faint">{t("inventory.avgCostLine", { amount: thb(avgCost[r.product_id] ?? 0) })}</p> : null}
             {warn ? <p className="mt-1 rounded-lg bg-warning-tint px-2 py-1 text-xs text-warning-ink">{t("quick.qtyWarning", { n: warn.looksLike, m: warn.entered })}</p> : null}

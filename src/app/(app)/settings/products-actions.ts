@@ -14,8 +14,10 @@ const money = z.coerce.number().min(0).max(99_999_999);
 const optionalMoney = z.preprocess((v) => (v === "" || v === null || v === undefined ? undefined : v), money.optional());
 
 const ProductSchema = z.object({
-  name: z.string().trim().min(1).max(120),
+  name_en: z.string().trim().min(1).max(120),
   name_th: z.string().trim().max(120).default(""),
+  purchase_unit_label: z.preprocess((v) => (v === "" || v === null || v === undefined ? null : v), z.enum(UNIT_LABELS).nullable()).default(null),
+  units_per_purchase_unit: z.coerce.number().int().min(1).max(10_000).default(1),
   variant: z.string().trim().max(120).default(""),
   product_line: z.enum(PRODUCT_LINES).default("other"),
   unit_label: z.enum(UNIT_LABELS).default("box"),
@@ -40,7 +42,8 @@ function toRow(input: z.infer<typeof ProductSchema>) {
   if (list_tiktok && list_tiktok > 0) list_prices.tiktok = list_tiktok;
   if (list_shopee && list_shopee > 0) list_prices.shopee = list_shopee;
   if (list_fb && list_fb > 0) list_prices.fb = list_fb;
-  return { ...rest, list_prices };
+  // name stays the key imports match on; name_en is what English readers see.
+  return { ...rest, name: rest.name_en, list_prices };
 }
 
 /** Both roles may add a product (Products page or inline in the quick-entry sheet). */

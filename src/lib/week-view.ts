@@ -26,14 +26,26 @@ export function weekInput(s: LedgerSnapshot): WeekInput {
   };
 }
 
-export function weekFromSnapshot(s: LedgerSnapshot, period: Period, today: string): WeekReport {
-  return buildWeek(weekInput(s), period, today);
+export function weekFromSnapshot(s: LedgerSnapshot, period: Period, today: string, locale: "en" | "th" = "en"): WeekReport {
+  return buildWeek(weekInput(s), period, today, locale);
 }
 
 export type WeekLine = { section: string; label: string; count: number | null; amount: number | null };
 
 /** "38 × 1 kg packs": a quantity and the variant it is of. */
 export const unitsText = (tr: Translator, qty: number, name: string, unit: string) => tr("week.units", { n: qty, name, unit: tr(`products.unit.${unit as "box"}`) });
+
+/**
+ * A quantity in both units when a product is bought by the box and sold by
+ * the bag: "3 boxes = 30 bags". Rounded up for a buy list (you buy whole
+ * boxes), exact elsewhere.
+ */
+export function unitsBoth(tr: Translator, line: { qty: number; unit: string; perPurchaseUnit: number; purchaseUnit: string | null }, roundUp = false): string {
+  const plain = unitsText(tr, line.qty, "", line.unit).trim();
+  if (line.perPurchaseUnit <= 1 || !line.purchaseUnit) return plain;
+  const packs = roundUp ? Math.ceil(line.qty / line.perPurchaseUnit) : Math.round((line.qty / line.perPurchaseUnit) * 100) / 100;
+  return tr("inventory.boxesToUnits", { packs, purchaseUnit: tr(`products.unit.${line.purchaseUnit as "box"}`), units: line.qty, unit: tr(`products.unit.${line.unit as "bag"}`) });
+}
 
 export function weekLines(w: WeekReport, tr: Translator): WeekLine[] {
   const who = (p: Person) => tr(`common.${p}`);

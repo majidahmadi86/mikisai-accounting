@@ -11,6 +11,7 @@ import { useLocale, useT } from "@/lib/i18n/client";
 import { coversBacklog } from "@/lib/inventory/backlog";
 import { shortProductName } from "@/lib/inventory/units";
 import { productName } from "@/lib/labels";
+import { unitsPerPurchase } from "@/lib/inventory/units";
 import type { TransactionInput } from "@/lib/ledger/transaction-input";
 import { round2, todayIso } from "@/lib/money";
 import { PEOPLE, PRODUCT_LINES, type Person, type ProductLine } from "@/lib/types";
@@ -94,10 +95,12 @@ export function ExpenseSheet({ retryInput, stockFirst = false }: { retryInput: T
   }, []);
 
   const selectedProduct = products.find((p) => p.id === productId) ?? null;
+  // A product bought by the box and sold by the bag: the sheet counts boxes and stores bags.
+  const per = selectedProduct ? unitsPerPurchase(selectedProduct) : 1;
   const stockEffect = categories.find((c) => c.id === category)?.stock_effect ?? "none";
   const needsItems = stockEffect !== "none";
   // Standard cost prefills a purchase until the user types one; the amount follows qty x cost until the user types an amount.
-  const shownCost = !costTouched && selectedProduct && selectedProduct.default_cost > 0 && needsItems ? String(selectedProduct.default_cost) : unitCostText;
+  const shownCost = !costTouched && selectedProduct && selectedProduct.default_cost > 0 && needsItems ? String(round2(selectedProduct.default_cost * (stockEffect === "purchase" ? per : 1))) : unitCostText;
   const unitCost = parseAmount(shownCost);
   const shownAmount = needsItems && !amountTouched && unitCost != null ? String(round2(unitCost * quantity)) : amountText;
   const amount = parseAmount(shownAmount);
@@ -118,7 +121,7 @@ export function ExpenseSheet({ retryInput, stockFirst = false }: { retryInput: T
       setError(t("inventory.nameRequired"));
       return null;
     }
-    const result = await createProduct({ name: newName.trim(), variant: newVariant.trim(), product_line: newLine, unit_label: "box", stock_mode: "buy_to_order", default_price: 0, default_cost: unitCost ?? 0 });
+    const result = await createProduct({ name_en: newName.trim(), variant: newVariant.trim(), product_line: newLine, unit_label: "box", stock_mode: "buy_to_order", default_price: 0, default_cost: unitCost ?? 0 });
     if (!result.ok) {
       setError(t("common.error"));
       return null;
@@ -139,11 +142,14 @@ export function ExpenseSheet({ retryInput, stockFirst = false }: { retryInput: T
     setBusy(false);
     if (needsItems && !pid) return;
 
-    const items = needsItems && pid ? [{ product_id: pid, qty: quantity, unit_cost: unitCost ?? undefined }] : undefined;
-    const input: TransactionInput = { type: "expense", date, platform: "other", product_line: productLine, amount, quantity: needsItems ? quantity : 1, payer: person, category_id: category, note: note.trim() || undefined, items };
+    // Boxes in, bags stored: one box of ten costs ten times a bag.
+    const packs = stockEffect === "purchase" ? per : 1;
+    const units = quantity * packs;
+    const items = needsItems && pid ? [{ product_id: pid, qty: units, unit_cost: unitCost == null ? undefined : round2(unitCost / packs) }] : undefined;
+    const input: TransactionInput = { type: "expense", date, platform: "other", product_line: productLine, amount, quantity: needsItems ? units : 1, payer: person, category_id: category, note: note.trim() || undefined, items };
     remember({ category, productId: pid ?? undefined });
     // A stock purchase against a backlog says how much of it this delivery clears.
-    const cover = stockEffect === "purchase" && pid ? coversBacklog(data.backlog[pid] ?? 0, quantity) : null;
+    const cover = stockEffect === "purchase" && pid ? coversBacklog(data.backlog[pid] ?? 0, units) : null;
     submit(input, keepOpen, cover && cover.of > 0 ? t("inventory.coversBacklog", { n: cover.covers, m: cover.of }) : undefined);
     if (keepOpen) {
       setAmountText("");
@@ -216,7 +222,7 @@ export function ExpenseSheet({ retryInput, stockFirst = false }: { retryInput: T
 
         {needsItems ? (
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <Field label={t("quick.quantity")} htmlFor="qe-qty">
+            <Field label={stockEffect === "purchase" && per > 1 ? t(`products.unit.${(selectedProduct?.purchase_unit_label ?? "box") as "box"}`) : t("quick.quantity")} htmlFor="qe-qty" hint={stockEffect === "purchase" && per > 1 && selectedProduct ? t("inventory.boxesToUnits", { packs: quantity, purchaseUnit: t(`products.unit.${(selectedProduct.purchase_unit_label ?? "box") as "box"}`), units: quantity * per, unit: t(`products.unit.${selectedProduct.unit_label as "bag"}`) }) : undefined}>
               <div className="flex min-h-14 items-stretch overflow-hidden rounded-2xl border border-line bg-card">
                 <button type="button" aria-label="-1" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-12 text-2xl text-plum-soft hover:bg-lavender-tint active:bg-lavender-soft">
                   −
@@ -227,7 +233,7 @@ export function ExpenseSheet({ retryInput, stockFirst = false }: { retryInput: T
                 </button>
               </div>
             </Field>
-            <Field label={t("inventory.unitCost")} htmlFor="qe-cost">
+            <Field label={stockEffect === "purchase" && per > 1 ? t("inventory.costPerPurchaseUnit", { purchaseUnit: t(`products.unit.${(selectedProduct?.purchase_unit_label ?? "box") as "box"}`) }) : t("inventory.unitCost")} htmlFor="qe-cost">
               <Input
                 id="qe-cost"
                 inputMode="decimal"
