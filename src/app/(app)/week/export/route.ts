@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const today = todayIso();
   const period = weekOf(from, today);
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
-  const table = weekTable(weekFromSnapshot(snapshot, period, today), tr);
+  const table = weekTable(weekFromSnapshot(snapshot, period, today, locale), tr);
   const label = tr("week.range", { from: formatDate(period.from, locale), to: formatDate(period.to, locale) });
   const generatedAt = formatDateTime(new Date().toISOString(), locale);
   const filename = `mikisai-week-${period.from}.${format}`;
