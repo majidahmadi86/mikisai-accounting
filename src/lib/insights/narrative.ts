@@ -6,6 +6,8 @@ import { geminiModel } from "@/lib/parse/gemini";
 import { cleanNarrative } from "./clean";
 import { buildInsights, type Insights } from "./compute";
 import { valueStock } from "@/lib/inventory/valuation";
+import { buildInventoryReports, productLabel } from "@/lib/inventory/reports";
+import { thisMonth } from "@/lib/reports/period";
 import type { LedgerSnapshot } from "@/lib/data/ledger";
 
 export function insightsTag(businessId: string): string {
@@ -13,9 +15,12 @@ export function insightsTag(businessId: string): string {
 }
 
 /** The numbers the paragraph is written from. The cache key is built from them, so new numbers mean a new paragraph. */
-export function narrativeFacts(insights: Insights) {
+export type NarrativeProduct = { name: string; units: number; margin: number };
+
+export function narrativeFacts(insights: Insights, named: NarrativeProduct[] = []) {
   return {
     as_of: insights.asOf,
+    by_product: named.map((p) => ({ product: p.name, units_this_month: p.units, margin_this_month: p.margin })),
     products: insights.products.map((p) => ({
       product: p.product,
       units_30d: p.units30,
@@ -56,6 +61,7 @@ export function narrativeMatchesFacts(
     [p.profit_30d, p.margin_per_unit].forEach(add);
   for (const c of facts.cash)
     [c.waiting, c.next_7_days, c.overdue].forEach(add);
+  for (const p of facts.by_product) add(p.margin_this_month);
   const quoted = Array.from(text.matchAll(/฿\s?([\d,]+(?:\.\d+)?)/g)).map((m) =>
     Math.round(Number(m[1].replace(/,/g, ""))),
   );
@@ -75,9 +81,10 @@ export async function getWeeklyNarrative(
   businessId: string,
   insights: Insights,
   locale: Locale,
+  named: NarrativeProduct[] = [],
 ): Promise<string | null> {
   if (!process.env.MIKISAI_GEMINI_KEY) return null;
-  const facts = narrativeFacts(insights);
+  const facts = narrativeFacts(insights, named);
   const text = await unstable_cache(
     async () => {
       const ai = new GoogleGenAI({ apiKey: process.env.MIKISAI_GEMINI_KEY! });
@@ -92,7 +99,7 @@ export async function getWeeklyNarrative(
           },
         ],
         config: {
-          systemInstruction: `You write a short weekly summary for two founders of a small online shop. Use only the facts given. Write one paragraph of three to five sentences in ${language}. Mention the best product, any margin drift, how much cash is still to arrive and anything needing attention. Amounts are Thai baht: write them like ฿1,234. Never use an em dash. No headings, no bullet points, no emoji.`,
+          systemInstruction: `You write a short weekly summary for two founders of a small online shop. Use only the facts given. Write one paragraph of three to five sentences in ${language}. Name products exactly as by_product spells them, never translated or invented. Mention the best product, any margin drift, how much cash is still to arrive and anything needing attention. Amounts are Thai baht: write them like ฿1,234. Never use an em dash. No headings, no bullet points, no emoji.`,
           temperature: 0.4,
           // Thinking models spend output tokens on reasoning first; give room and turn thinking off.
           maxOutputTokens: 1500,
@@ -131,7 +138,13 @@ export async function warmInsights(
   if (!insights.products.length) return;
   await Promise.all(
     (["en", "th"] as const).map((l) =>
-      getWeeklyNarrative(businessId, insights, l),
+      getWeeklyNarrative(businessId, insights, l, namedProducts(snapshot, today, l)),
     ),
   );
+}
+
+/** This month's products by their real names, in one language: what the paragraph is allowed to name. */
+export function namedProducts(snapshot: LedgerSnapshot, today: string, locale: Locale): NarrativeProduct[] {
+  const sales = snapshot.transactions.filter((t) => t.type === "income").map((t) => ({ id: t.id, date: t.date, net_amount: t.net_amount }));
+  return buildInventoryReports({ products: snapshot.products, movements: snapshot.movements, items: snapshot.items, sales }, thisMonth(today)).profitability.map((r) => ({ name: productLabel(r.product, locale), units: r.qty, margin: r.grossMargin }));
 }

@@ -7,6 +7,7 @@ import { Pill } from "@/components/ui/Pill";
 import { StockPill } from "@/components/products/StockPill";
 import { BufferInput } from "@/components/products/BufferInput";
 import { bufferFor } from "@/lib/inventory/product-stats";
+import { productFullName } from "@/lib/inventory/units";
 import { StackedItem, StackedList } from "@/components/ui/StackedList";
 import { ExpandableRow } from "@/components/ui/ExpandableRow";
 import { OpenIcon } from "@/components/ui/Icons";
@@ -26,10 +27,10 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   const tr = t(locale);
   const admin = session.profile.role === "admin";
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
-  const stock = valueStock(snapshot.products, snapshot.movements).products.sort((a, b) => Number(b.product.active) - Number(a.product.active) || a.product.name.localeCompare(b.product.name));
+  const stock = valueStock(snapshot.products, snapshot.movements).products.sort((a, b) => Number(b.product.active) - Number(a.product.active) || productFullName(a.product, locale).localeCompare(productFullName(b.product, locale)));
   const total = stock.reduce((a, r) => a + r.value, 0);
   const toBuy = stock.filter((r) => r.backlog > 0);
-  const displayName = (p: { name: string; name_th: string }) => (locale === "th" && p.name_th ? p.name_th : p.name);
+  const displayName = (p: Parameters<typeof productFullName>[0]) => productFullName(p, locale);
 
   return (
     <div>
@@ -61,7 +62,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
             {stock.map((r) => (
               <StackedItem key={r.product.id} className={cn("p-0", !r.product.active && "opacity-60")}>
                 <Link href={`/products/${r.product.id}`} className="flex items-center gap-3 px-4 py-3">
-                  {r.product.photo_path ? <Image src={photoUrl(r.product.photo_path)} alt="" width={48} height={48} unoptimized className="h-12 w-12 shrink-0 rounded-xl object-cover" /> : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-lavender-tint font-display text-lg text-berry">{r.product.name.slice(0, 1)}</span>}
+                  {r.product.photo_path ? <Image src={photoUrl(r.product.photo_path)} alt="" width={48} height={48} unoptimized className="h-12 w-12 shrink-0 rounded-xl object-cover" /> : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-lavender-tint font-display text-lg text-berry">{productFullName(r.product, locale).slice(0, 1)}</span>}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-plum">{productLine(r.product, locale)}</span>
                     <span className="block truncate text-xs text-plum-faint">

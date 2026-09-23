@@ -1,5 +1,6 @@
 "use client";
 
+import { productFullName } from "@/lib/inventory/units";
 import { useState } from "react";
 import { ExpandableRow } from "@/components/ui/ExpandableRow";
 import { Pill } from "@/components/ui/Pill";
@@ -111,7 +112,7 @@ export function UnitsTable({ rows, totals, granularity }: { rows: UnitsRow[]; to
                 detail={<RowDetail items={[{ label: t("table.fullName"), value: locale === "th" && r.product.name_th ? r.product.name_th : r.product.name, wide: true }, ...cols.filter((c) => c.priority).map((c) => ({ label: c.label, value: <span className="tabular">{cell(r, c)}</span>, priority: c.priority }))]} />}
               >
                 {cols.map((c) => (
-                  <Td key={c.key} kind={c.kind} priority={c.priority} title={c.key === "product" ? r.product.name : undefined} className={cn(c.key === "period" && "text-plum-soft")}>
+                  <Td key={c.key} kind={c.kind} priority={c.priority} title={c.key === "product" ? productFullName(r.product, locale) : undefined} className={cn(c.key === "period" && "text-plum-soft")}>
                     {c.key === "backlogEnd" && r.backlogEnd > 0 ? <Pill tone="berry">{r.backlogEnd}</Pill> : cell(r, c)}
                   </Td>
                 ))}

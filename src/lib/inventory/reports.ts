@@ -1,3 +1,4 @@
+import { productFullName } from "@/lib/inventory/units";
 import type { Period } from "@/lib/reports/period";
 import { marginVsPlan, type MarginPlan } from "./product-stats";
 import { productProfitability, valueStock, type Product, type ProductProfit, type ProductStock, type StockMovement, type Valuation } from "./valuation";
@@ -65,8 +66,9 @@ export type InventoryReports = {
   samplesTotal: number;
 };
 
-export function productLabel(p: Pick<Product, "name" | "variant">): string {
-  return p.variant ? `${p.name} · ${p.variant}` : p.name;
+export function productLabel(p: Pick<Product, "name" | "name_en" | "name_th" | "variant">, locale: "en" | "th" = "en"): string {
+  const name = productFullName(p, locale);
+  return p.variant ? `${name} · ${p.variant}` : name;
 }
 
 /** Stock on hand today, low stock, profitability and samples for the period. */

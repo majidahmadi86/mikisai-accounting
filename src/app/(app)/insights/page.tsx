@@ -133,7 +133,7 @@ export default async function InsightsPage() {
                     tone={r.worse ? "warning" : "card"}
                     eyebrow={
                       <>
-                        <span className="eyebrow">{productLabel(r.product)}</span>
+                        <span className="eyebrow">{productLabel(r.product, locale)}</span>
                         {r.worse ? <Pill tone="warning">{tr("reports.worse")}</Pill> : <Pill tone="success">{tr("insights.onPlan")}</Pill>}
                       </>
                     }

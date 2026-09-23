@@ -1,3 +1,4 @@
+import { productFullName } from "@/lib/inventory/units";
 import type { Product } from "@/lib/inventory/valuation";
 
 /**
@@ -13,9 +14,9 @@ export type SearchHit = { group: SearchGroup; id: string; href: string; title: s
 const PER_GROUP = 6;
 
 /** "1 kg packs · 10 kg box": the short name and the variant without its bracketed pack detail. Never the full product name when a short name exists. */
-export function productLine(p: Pick<Product, "name" | "name_th" | "variant" | "short_name">, locale: "en" | "th" = "en"): string {
+export function productLine(p: Pick<Product, "name" | "name_en" | "name_th" | "variant" | "short_name">, locale: "en" | "th" = "en"): string {
   const variant = p.variant.replace(/\s*\(.*\)\s*$/, "").trim();
-  const lead = p.short_name || (locale === "th" && p.name_th ? p.name_th : p.name);
+  const lead = p.short_name || productFullName(p, locale);
   return variant && variant !== lead ? `${lead} · ${variant}` : lead;
 }
 
@@ -51,7 +52,7 @@ export function groupSearch(q: string, rows: SearchRow[], products: Pick<Product
   }
   for (const p of products) {
     if (![p.name, p.name_th, p.variant, p.short_name].some(has)) continue;
-    push({ group: "product", id: p.id, href: `/products/${p.id}`, title: productLine(p, locale), date: null, detail: locale === "th" && p.name_th ? p.name_th : p.name, amount: null });
+    push({ group: "product", id: p.id, href: `/products/${p.id}`, title: productLine(p, locale), date: null, detail: productFullName(p, locale), amount: null });
   }
   return SEARCH_GROUPS.flatMap((g) => hits.filter((h) => h.group === g));
 }

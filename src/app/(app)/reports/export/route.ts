@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const bundle = buildReports(snapshot, period);
-  const all = [...reportTables(bundle, tr, locale), ...inventoryTables(bundle, tr)];
+  const all = [...reportTables(bundle, tr, locale), ...inventoryTables(bundle, tr, locale)];
   let tables: ExportTable[] = report === "all" ? all : all.filter((x) => x.id === report);
   if (report === "movements") {
     const { data: profiles } = await session.supabase.from("profiles").select("id, display_name");

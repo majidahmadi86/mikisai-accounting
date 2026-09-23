@@ -14,8 +14,8 @@ export async function loadAuditForHealth(supabase: SupabaseClient, businessId: s
   return { rows: rows as AuditRowLite[], roles: new Map((profiles ?? []).map((p) => [p.id as string, p.role as Role])) };
 }
 
-export async function runHealth(snapshot: LedgerSnapshot, audit: Awaited<ReturnType<typeof loadAuditForHealth>>, today: string): Promise<HealthResult> {
-  return runHealthChecks({ ...snapshot, audit }, today);
+export async function runHealth(snapshot: LedgerSnapshot, audit: Awaited<ReturnType<typeof loadAuditForHealth>>, today: string, locale: "en" | "th" = "en"): Promise<HealthResult> {
+  return runHealthChecks({ ...snapshot, audit }, today, new Date().toISOString(), locale);
 }
 
 /** Records a run so Home can show when the books were last checked. Never throws: a failed insert must not break the page. */

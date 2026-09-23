@@ -1,3 +1,4 @@
+import { productFullName } from "@/lib/inventory/units";
 import { stockPositions, type StockPosition } from "@/lib/truth";
 import type { TransactionItemRow } from "./reports";
 import type { Product, StockMovement, StockMovementKind } from "./valuation";
@@ -41,7 +42,7 @@ export function buildStockPage(input: StockInput, filter: StockFilter = {}): { c
   const cards = stockPositions(input)
     .filter((r) => r.product.active || r.onHand !== 0 || r.backlog !== 0)
     .map((r): StockCard => ({ stock: r, bought: r.bought, sold: r.sold, samples: r.samples, lastPurchase: r.lastPurchase, toBuy: r.backlog }))
-    .sort((a, b) => Number(b.stock.product.active) - Number(a.stock.product.active) || a.stock.product.name.localeCompare(b.stock.product.name) || a.stock.product.variant.localeCompare(b.stock.product.variant));
+    .sort((a, b) => Number(b.stock.product.active) - Number(a.stock.product.active) || productFullName(a.stock.product).localeCompare(productFullName(b.stock.product)) || a.stock.product.variant.localeCompare(b.stock.product.variant));
 
   const priceOf = new Map<string, number>();
   for (const it of input.items) priceOf.set(`${it.transaction_id}:${it.product_id}`, it.unit_price);

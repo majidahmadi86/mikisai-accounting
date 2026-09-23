@@ -5,11 +5,16 @@ export type StockMovementKind = (typeof STOCK_MOVEMENT_KINDS)[number];
 
 export type Product = {
   id: string;
+  /** The key an import matches on; people read name_en or name_th. */
   name: string;
+  name_en?: string;
   name_th: string;
   product_line: "sugar" | "skincare" | "other";
   variant: string;
   unit_label: string;
+  /** What a purchase is counted in when it differs from the selling unit (a box of 10 bags). */
+  purchase_unit_label?: string | null;
+  units_per_purchase_unit?: number;
   /** Standard (planned) cost per unit. */
   default_cost: number;
   /** Standard sale price per unit. */

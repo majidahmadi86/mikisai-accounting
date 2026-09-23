@@ -136,7 +136,7 @@ export function buildUnitsReport(input: UnitsInput, period: Period, granularity:
     into.priceWeight += a.priceWeight;
     into.priceUnits += a.priceUnits;
   };
-  const productOrder = (a: Product, b: Product) => a.name.localeCompare(b.name) || a.variant.localeCompare(b.variant);
+  const productOrder = (a: Product, b: Product) => productFullName(a).localeCompare(productFullName(b)) || a.variant.localeCompare(b.variant);
 
   const keys = Array.from(cells.keys()).sort();
   const rows: UnitsRow[] = [];
@@ -196,16 +196,28 @@ function touchIn(map: Map<string, Map<string, Acc>>, key: string, productId: str
   return a;
 }
 
+/** The product's full name in the language in use. One place: every list, report, export and chart reads it. */
+export function productFullName(p: Pick<Product, "name" | "name_en" | "name_th">, locale: "en" | "th" = "en"): string {
+  if (locale === "th" && p.name_th) return p.name_th;
+  return p.name_en || p.name;
+}
+
+/** Selling units in a purchase unit: a Mali box holds 10 bags, most products are 1 for 1. */
+export function unitsPerPurchase(p: Pick<Product, "units_per_purchase_unit">): number {
+  const n = p.units_per_purchase_unit ?? 1;
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+}
+
 /** Short product name for ledger rows, chips, Home and Units: the admin-set short name, else the variant, else the name. */
-export function shortProductName(p: Pick<Product, "name" | "variant" | "name_th" | "short_name">, locale: "en" | "th" = "en"): string {
+export function shortProductName(p: Pick<Product, "name" | "name_en" | "variant" | "name_th" | "short_name">, locale: "en" | "th" = "en"): string {
   if (p.short_name) return p.short_name;
   if (p.variant) return p.variant;
-  return locale === "th" && p.name_th ? p.name_th : p.name;
+  return productFullName(p, locale);
 }
 
 /** Picker row: variant first, then the product name. Never truncated. */
-export function pickerParts(p: Pick<Product, "name" | "variant" | "name_th">, locale: "en" | "th" = "en"): { variant: string; name: string } {
-  return { variant: p.variant, name: locale === "th" && p.name_th ? p.name_th : p.name };
+export function pickerParts(p: Pick<Product, "name" | "name_en" | "variant" | "name_th">, locale: "en" | "th" = "en"): { variant: string; name: string } {
+  return { variant: p.variant, name: productFullName(p, locale) };
 }
 
 export type ItemsSummary = { count: number; units: number; lines: string[]; label: string };

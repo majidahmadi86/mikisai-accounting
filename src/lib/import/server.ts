@@ -10,14 +10,14 @@ import type { ParsedOrder, ParsedPayout, PayoutRow, ReviewRow, ReviewTag } from 
 import { proposeForAmount } from "@/lib/payouts/confirm";
 import { num, type Person, type Platform, type PlatformSetting } from "@/lib/types";
 
-export type ImportProduct = { id: string; name: string; variant: string; product_line: "sugar" | "skincare" | "other"; active: boolean; default_price: number; list_prices: Record<string, number>; expected_net_per_unit: number | null };
+export type ImportProduct = { id: string; name: string; name_en?: string | null; name_th?: string; variant: string; product_line: "sugar" | "skincare" | "other"; active: boolean; default_price: number; list_prices: Record<string, number>; expected_net_per_unit: number | null };
 export type FeeSettings = Pick<PlatformSetting, "platform" | "commission_pct" | "fixed_fee">[];
 
 /** Products and platform fees the review needs, read once per import. */
 export async function importContext(supabase: SupabaseClient, businessId: string): Promise<{ products: ImportProduct[]; settings: FeeSettings }> {
   const [{ data: settingsRows }, { data: productRows }] = await Promise.all([
     supabase.from("platform_settings").select("platform, commission_pct, fixed_fee"),
-    supabase.from("products").select("id, name, variant, product_line, active, default_price, list_prices, expected_net_per_unit").eq("business_id", businessId).is("deleted_at", null),
+    supabase.from("products").select("id, name, name_en, name_th, variant, product_line, active, default_price, list_prices, expected_net_per_unit").eq("business_id", businessId).is("deleted_at", null),
   ]);
   return {
     products: (productRows ?? [])

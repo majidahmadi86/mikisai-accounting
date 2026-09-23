@@ -24,7 +24,7 @@ export default async function DataHealthPage() {
   const today = todayIso();
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const audit = admin ? await loadAuditForHealth(session.supabase, session.profile.business_id) : null;
-  const result = await runHealth(snapshot, audit, today);
+  const result = await runHealth(snapshot, audit, today, locale);
   await recordHealthRun(session.supabase, session.profile.business_id, result, "page", session.userId);
 
   return (

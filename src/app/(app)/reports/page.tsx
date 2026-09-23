@@ -1,4 +1,5 @@
 import { BarList } from "@/components/charts/BarList";
+import { shortProductName } from "@/lib/inventory/units";
 import { PeriodPicker } from "@/components/reports/PeriodPicker";
 import { ReportTableView } from "@/components/reports/ReportTableView";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -39,7 +40,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   const qs = periodQuery(period);
   const snapshot = await getLedgerSnapshot(session.profile.business_id);
   const bundle = buildReports({ ...snapshot, items: snapshot.items }, period);
-  const tables = [...reportTables(bundle, tr, locale), ...inventoryTables(bundle, tr)];
+  const tables = [...reportTables(bundle, tr, locale), ...inventoryTables(bundle, tr, locale)];
   const transfers = transferTable(bundle, tr, locale);
   const byId = Object.fromEntries(tables.map((x) => [x.id, x])) as Record<ExportTable["id"], ExportTable>;
   const empty = bundle.pl.orders === 0 && bundle.pl.totalExpenses === 0 && !(bundle.inventory && bundle.inventory.stock.length);
@@ -195,7 +196,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
                     <div className={`rounded-xl px-4 py-3 ${bundle.inventory.valuation.totalBacklogValue > 0 ? "bg-berry-tint" : "bg-success-tint"}`}>
                       <p className="eyebrow">{tr("reports.backlogValue")}</p>
                       <p className={`mt-1 font-medium text-xl tabular ${bundle.inventory.valuation.totalBacklogValue > 0 ? "text-berry" : "text-success"}`}>{thb(bundle.inventory.valuation.totalBacklogValue)}</p>
-                      <p className="text-xs text-plum-faint">{bundle.inventory.valuation.products.filter((r) => r.backlog > 0).map((r) => `${r.product.variant || r.product.name} · ${tr("units.backlogUnits", { n: r.backlog })}`).join(", ") || tr("units.toBuyNone")}</p>
+                      <p className="text-xs text-plum-faint">{bundle.inventory.valuation.products.filter((r) => r.backlog > 0).map((r) => `${shortProductName(r.product, locale)} · ${tr("units.backlogUnits", { n: r.backlog })}`).join(", ") || tr("units.toBuyNone")}</p>
                     </div>
                   </div>
                   <ReportTableView table={byId.stock} />

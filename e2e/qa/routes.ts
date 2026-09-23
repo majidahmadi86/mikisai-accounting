@@ -21,7 +21,7 @@ export const ROUTES: Route[] = [
   { path: "/payouts", title: { en: /^Payouts$/, th: /^ยอดโอนเข้า$/ } },
   { path: "/payouts/[id]/reconcile", title: { en: /Match|Reconcile|payout/i, th: /จับคู่|ยอดโอน/ }, resolve: (page) => firstHref(page, 'a[href^="/payouts/"][href$="/reconcile"]') },
   { path: "/products", title: { en: /^Products$/, th: /^สินค้า$/ } },
-  { path: "/products/[id]", title: { en: /Coconut sugar|Sample/, th: /น้ำตาล|Coconut|Sample/ }, resolve: (page) => firstHref(page, 'a[href^="/products/"]:not([href="/products/new"])') },
+  { path: "/products/[id]", title: { en: /Rung Nirand|Mali|Rock sugar|Coconut sugar/, th: /น้ำตาล|Rung Nirand|Mali|Rock/ }, resolve: (page) => firstHref(page, 'a[href^="/products/"]:not([href="/products/new"])') },
   { path: "/stock", title: { en: /^Stock$/, th: /^สต็อก$/ } },
   { path: "/investment", title: { en: /^Investment$/, th: /^เงินลงทุน$/ } },
   { path: "/balance", title: { en: /^My Balance$/, th: /^ยอดของฉัน$/ } },

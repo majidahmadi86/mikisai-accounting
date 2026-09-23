@@ -232,7 +232,7 @@ export function reportTables(bundle: ReportBundle, tr: Translator, locale: Local
 }
 
 /** Stock on hand, low stock, profitability and samples. Empty when inventory is not part of the bundle. */
-export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTable[] {
+export function inventoryTables(bundle: ReportBundle, tr: Translator, locale: Locale = "en"): ExportTable[] {
   const inv = bundle.inventory;
   if (!inv) return [];
   return [
@@ -249,7 +249,7 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
         { key: "value", label: tr("reports.value"), kind: "money" },
         { key: "threshold", label: tr("reports.threshold"), kind: "int", priority: "tertiary" },
       ],
-      rows: inv.stock.map((r) => [productLabel(r.product), r.product.unit_label, Math.max(0, r.onHand), r.backlog, r.avgCost, r.value, r.product.low_stock_threshold]),
+      rows: inv.stock.map((r) => [productLabel(r.product, locale), r.product.unit_label, Math.max(0, r.onHand), r.backlog, r.avgCost, r.value, r.product.low_stock_threshold]),
       totals: [5],
       totalLabel: tr("common.total"),
     },
@@ -262,7 +262,7 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
         { key: "onHand", label: tr("reports.onHand"), kind: "int" },
         { key: "threshold", label: tr("reports.threshold"), kind: "int" },
       ],
-      rows: inv.lowStock.map((r) => [productLabel(r.product), Math.max(0, r.onHand), r.product.low_stock_threshold]),
+      rows: inv.lowStock.map((r) => [productLabel(r.product, locale), Math.max(0, r.onHand), r.product.low_stock_threshold]),
       totals: [],
       totalLabel: tr("common.total"),
     },
@@ -278,7 +278,7 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
         { key: "margin", label: tr("reports.grossMargin"), kind: "money" },
         { key: "marginPct", label: tr("reports.marginPct"), kind: "pct" },
       ],
-      rows: inv.profitability.map((r) => [productLabel(r.product), r.qty, r.revenue, r.cogs, r.grossMargin, r.marginPct]),
+      rows: inv.profitability.map((r) => [productLabel(r.product, locale), r.qty, r.revenue, r.cogs, r.grossMargin, r.marginPct]),
       totals: [1, 2, 3, 4],
       totalLabel: tr("common.total"),
     },
@@ -297,7 +297,7 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
         { key: "variancePct", label: tr("reports.variancePct"), kind: "pct" },
         { key: "flag", label: tr("reports.flag"), kind: "text" },
       ],
-      rows: inv.marginPlan.map((r) => [productLabel(r.product), r.qty, r.expectedNetPerUnit, r.realizedNetPerUnit, r.expectedMargin, r.actualMargin, r.variance, r.variancePct, r.worse ? tr("reports.worse") : ""]),
+      rows: inv.marginPlan.map((r) => [productLabel(r.product, locale), r.qty, r.expectedNetPerUnit, r.realizedNetPerUnit, r.expectedMargin, r.actualMargin, r.variance, r.variancePct, r.worse ? tr("reports.worse") : ""]),
       totals: [1, 4, 5, 6],
       totalLabel: tr("common.total"),
     },
@@ -310,7 +310,7 @@ export function inventoryTables(bundle: ReportBundle, tr: Translator): ExportTab
         { key: "qty", label: tr("reports.units"), kind: "int" },
         { key: "cost", label: tr("common.amount"), kind: "money" },
       ],
-      rows: inv.samples.map((r) => [productLabel(r.product), r.qty, r.cost]),
+      rows: inv.samples.map((r) => [productLabel(r.product, locale), r.qty, r.cost]),
       totals: [1, 2],
       totalLabel: tr("common.total"),
     },
