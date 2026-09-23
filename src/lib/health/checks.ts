@@ -16,11 +16,12 @@ import { tiktokProblems, type TiktokStatus } from "@/lib/tiktok/status";
 import { NIGHTLY_STALE_HOURS } from "@/lib/import/nightly";
 import { buildBalanceSheet } from "@/lib/accounting/statements";
 import { splitNoOrderRef } from "@/lib/ledger/order-ref";
+import { productLabel } from "@/lib/inventory/reports";
 import { possibleDuplicates } from "@/lib/ledger/cleanup";
 import { buildWeek } from "@/lib/week";
 import { STATEMENT_KEYS, statementHealth, type MoneyInput } from "./tiktok-money";
 
-export const HEALTH_KEYS = ["qty_amount", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "possible_duplicate", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "statement_duplicates", "net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week", "consistency", "report_totals"] as const;
+export const HEALTH_KEYS = ["qty_amount", "product_needs_setup", "cost_from_samples", "negative_stocked", "income_no_product", "stock_purchase_no_items", "expense_no_category", "payout_unmatched", "transfer_no_reason", "duplicate_order_ids", "possible_duplicate", "no_order_ref", "backlog_no_purchase", "late_contributor_edit", "no_expected_net", "orphan_movements", "cancelled_counted", "date_assumed", "tiktok_sync", "tiktok_import_stale", "skus_awaiting", "orders_missing_status", "payout_not_matched", "statement_duplicates", "net_fixed", "no_statement_10d", "statement_cross", "advance_estimated", "statement_gaps", "overweight_week", "returns_week", "consistency", "report_totals"] as const;
 export type HealthKey = (typeof HEALTH_KEYS)[number];
 
 export type HealthIssue = {
@@ -63,7 +64,7 @@ function check(key: HealthKey, issues: HealthIssue[], opts: { adminOnly?: boolea
 }
 
 /** Every automated check, each with the rows behind its count and a link to open each row. */
-export function runHealthChecks(input: HealthInput, today: string, ranAt = new Date().toISOString()): HealthResult {
+export function runHealthChecks(input: HealthInput, today: string, ranAt = new Date().toISOString(), locale: "en" | "th" = "en"): HealthResult {
   const products = new Map(input.products.map((p) => [p.id, p]));
   const itemsByTx = new Map<string, TransactionItemRow[]>();
   for (const it of input.items) itemsByTx.set(it.transaction_id, [...(itemsByTx.get(it.transaction_id) ?? []), it]);
@@ -189,6 +190,8 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
   const money = statementHealth(input.tiktokMoney, [...input.transactions, ...(input.cancelled ?? [])], input.lastTiktokImport?.details, today);
   const checks: HealthCheck[] = [
     check("qty_amount", qtyAmount),
+    check("product_needs_setup", productsNeedingSetup(input, locale)),
+    check("cost_from_samples", costFromSamples(input, locale)),
     check("negative_stocked", negativeStocked),
     check("income_no_product", noProduct),
     check("stock_purchase_no_items", purchaseNoItems),
@@ -236,6 +239,32 @@ function possibleDuplicateRows(income: HealthInput["transactions"], label: (t: H
   const byId = new Map(live.map((t) => [t.id, t]));
   const rows = live.map((t) => ({ id: t.id, date: t.date, order_ref: t.order_ref?.trim() || null, quantity: t.quantity, gross_amount: t.gross_amount, net_amount: t.net_amount, status: "active" as const, tags: t.tags ?? [], note: t.note, items: [], imported: Boolean(t.order_ref?.trim()) }));
   return possibleDuplicates(rows).map((m) => ({ id: m.remove, label: label(byId.get(m.remove)!), href: `/transactions/${m.remove}/edit`, detail: `#${m.order_ref}`, links: [{ href: "/more/cleanup", kind: "cleanup" as const }] }));
+}
+
+/** A product that cannot be sold or counted yet: no price, or a pack size nobody has set. */
+function productsNeedingSetup(input: HealthInput, locale: "en" | "th"): HealthIssue[] {
+  return input.products
+    .filter((p) => p.active && (p.default_price <= 0 || !p.unit_label))
+    .map((p) => ({ id: p.id, label: productLabel(p, locale), href: `/products/${p.id}/edit`, detail: p.default_price <= 0 ? "no price" : "no unit", meta: { price: p.default_price, per: p.units_per_purchase_unit ?? 1 } }));
+}
+
+/**
+ * A product whose cost comes only from the box of samples: it has never been
+ * bought, so its average cost is a sample's cost until a real purchase lands.
+ */
+function costFromSamples(input: HealthInput, locale: "en" | "th"): HealthIssue[] {
+  const sampleTx = new Set(input.transactions.filter((t) => input.categories.find((c) => c.id === t.category_id)?.stock_effect === "sample").map((t) => t.id));
+  const bought = new Map<string, { real: number; sample: number }>();
+  for (const m of input.movements) {
+    if (m.kind !== "purchase" || m.qty <= 0) continue;
+    const seen = bought.get(m.product_id) ?? { real: 0, sample: 0 };
+    if (m.transaction_id && sampleTx.has(m.transaction_id)) seen.sample += m.qty;
+    else seen.real += m.qty;
+    bought.set(m.product_id, seen);
+  }
+  return input.products
+    .filter((p) => p.active && (bought.get(p.id)?.sample ?? 0) > 0 && (bought.get(p.id)?.real ?? 0) === 0)
+    .map((p) => ({ id: p.id, label: productLabel(p, locale), href: `/products/${p.id}`, detail: `฿${p.default_cost.toFixed(2)}`, meta: { cost: p.default_cost } }));
 }
 
 /** Live sales saved with no order ID: an import cannot recognise them, so the same order could be added twice. */
