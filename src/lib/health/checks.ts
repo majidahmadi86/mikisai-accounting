@@ -87,7 +87,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
   const valuation = valueStock(input.products, input.movements);
   const negativeStocked = valuation.products
     .filter((r) => r.product.stock_mode === "stocked" && r.onHand < 0)
-    .map((r): HealthIssue => ({ id: r.product.id, label: `${r.product.name}${r.product.variant ? ` · ${r.product.variant}` : ""}`, href: `/products/${r.product.id}`, detail: `${r.onHand}` }));
+    .map((r): HealthIssue => ({ id: r.product.id, label: productLabel(r.product, locale), href: `/products/${r.product.id}`, detail: `${r.onHand}` }));
 
   // 3. Sales without a product line.
   const noProduct = income.filter((t) => !(itemsByTx.get(t.id) ?? []).length).map((t): HealthIssue => ({ id: t.id, label: txLabel(t), href: txHref(t.id) }));
@@ -142,7 +142,7 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
   for (const it of input.items) if (saleIds.has(it.transaction_id)) salesPerProduct.set(it.product_id, (salesPerProduct.get(it.product_id) ?? 0) + 1);
   const noExpectedNet = input.products
     .filter((p) => !p.deleted_at && (p.expected_net_per_unit == null || p.expected_net_per_unit <= 0) && (salesPerProduct.get(p.id) ?? 0) >= 5)
-    .map((p): HealthIssue => ({ id: p.id, label: `${p.name}${p.variant ? ` · ${p.variant}` : ""}`, href: `/products/${p.id}/edit`, detail: `${salesPerProduct.get(p.id)} sales` }));
+    .map((p): HealthIssue => ({ id: p.id, label: productLabel(p, locale), href: `/products/${p.id}/edit`, detail: `${salesPerProduct.get(p.id)} sales` }));
 
   // 11. Stock moves without a live payment: a movement or line whose transaction is deleted or missing.
   const liveIds = new Set(input.transactions.map((t) => t.id));
@@ -150,10 +150,10 @@ export function runHealthChecks(input: HealthInput, today: string, ranAt = new D
     .filter((m) => m.transaction_id && !liveIds.has(m.transaction_id))
     .map((m): HealthIssue => {
       const p = products.get(m.product_id);
-      return { id: m.id, label: `${m.date} · ${p ? p.name : m.product_id} · ${m.kind} ${m.qty > 0 ? "+" : ""}${m.qty}`, href: "/more/deleted", detail: "no live transaction" };
+      return { id: m.id, label: `${m.date} · ${p ? productLabel(p, locale) : m.product_id} · ${m.kind} ${m.qty > 0 ? "+" : ""}${m.qty}`, href: "/more/deleted", detail: "no live transaction" };
     });
   for (const it of input.items) {
-    if (!liveIds.has(it.transaction_id)) orphanMovements.push({ id: `item-${it.transaction_id}-${it.product_id}`, label: `${products.get(it.product_id)?.name ?? it.product_id} · line x${it.qty}`, href: "/more/deleted", detail: "no live transaction" });
+    if (!liveIds.has(it.transaction_id)) orphanMovements.push({ id: `item-${it.transaction_id}-${it.product_id}`, label: `${(() => { const p = products.get(it.product_id); return p ? productLabel(p, locale) : it.product_id; })()} · line x${it.qty}`, href: "/more/deleted", detail: "no live transaction" });
   }
 
   // 12. Cancelled orders still counted: a cancelled or refunded sale must be out of the ledger, its units back and its cash clawed back.
@@ -354,7 +354,7 @@ export function consistencyMismatches(input: TruthInput, today: string): HealthI
   const page = buildStockPage({ products: input.products, movements: input.movements, items: input.items, names: new Map() });
   for (const card of page.cards) {
     const p = positions.find((x) => x.product.id === card.stock.product.id);
-    if (!p || card.stock.onHand !== p.onHand || card.stock.backlog !== p.backlog || card.stock.value !== p.value) issues.push({ id: `stock:${card.stock.product.id}`, label: `Stock page disagrees for ${card.stock.product.name}`, href: "/stock" });
+    if (!p || card.stock.onHand !== p.onHand || card.stock.backlog !== p.backlog || card.stock.value !== p.value) issues.push({ id: `stock:${card.stock.product.id}`, label: `Stock page disagrees for ${productLabel(card.stock.product)}`, href: "/stock" });
   }
   const sheetInventory = buildBalanceSheet(input, today).inventory;
   const inventory = inventoryValue(input, today);

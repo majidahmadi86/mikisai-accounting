@@ -40,6 +40,14 @@ Profit = Revenue (you received) - Cost of units sold (moving average) - Operatin
 - Quantities: a sale cannot be saved without a product and a whole-unit quantity. Import reads "x2", "จำนวน 2" and kg or box variants deterministically (`src/lib/inventory/quantity.ts`): "20 kg" or "2 กล่อง" is the 10 kg box times two. A missing quantity is red in review and blocks confirm. When you receive per unit is outside 0.6x to 1.6x the standard price the app warns "Amount looks like N units, not M" without blocking.
 - Data health (More → Data health): automated checks with counts, rows and one-tap open; runs on page load and daily via the Vercel cron in `vercel.json` hitting `/api/health/daily` with `CRON_SECRET`. Home shows the last run.
 
+## Real product names, both languages, buying units (v3.5)
+
+- **Three real sugars.** Rung Nirand Amphawa (sold as 1 kg packs and 500 g packs of a 10 kg box), Mali brand (sold by the 1 kg bag, bought by the box of ten) and Red Rose rock sugar (new: no listing, no price yet).
+- **Names in both languages.** `products.name_en` beside `name_th`; `name` stays as the key an import matches on. One helper (`productFullName`) gives the name in the language in use, and every list, chip, ledger row, report, export, search hit, insight card, health row and the weekly paragraph reads it. The paragraph may name only the products it is handed.
+- **A buying unit can differ from the selling unit** (`purchase_unit_label`, `units_per_purchase_unit`): a Mali purchase asks for boxes and the ledger keeps bags, and Stock, Buy this week and This week say both ("3 box = 30 bag").
+- **The ฿890 of samples** is one box of each real sugar (1 kg packs 296.67, ten Mali bags at 29.67, rock sugar 296.63: 890.00 exactly). The three placeholder "Sample sugar" products are retired. A product with no purchase of its own takes its first cost from that box.
+- **Data health** gains "Product needs pack size and price" (nothing is guessed for the new product) and "Cost taken from the samples" (confirm it with the factory; the first real purchase replaces it).
+
 ## Clean ledger, real variants, one weekly page (v3.2)
 
 - **This week** (`/week`, the first tab): sold per variant (cancellations before shipping kept out), what TikTok will pay (expected by per-order rules: what it paid, else what it paid for the same product and price, else the fee shares), bought and who paid, expected profit, the one cash figure with Mark as sent, and the buy list per variant (backlog plus the buffer set in Settings, default 5). Weeks run Monday to Sunday; picking a day starts the week there, so 15 to 21 September lines up with TikTok's statement. XLSX and PDF export. On Mondays the Home card opens last week.
