@@ -43,7 +43,7 @@ test("This week, 15 to 21 September: 44 orders, 38 + 14 boxes, 1 bag, 6 cancelle
   await expect(row("Orders")).toContainText("44");
   await expect(row("1 kg packs")).toContainText("38");
   await expect(row("500 g packs")).toContainText("14");
-  await expect(row("1 kg bag")).toContainText("1");
+  await expect(row("Mali 1 kg bag")).toContainText("1");
   await expect(row("Cancelled before shipping (not counted)")).toContainText("6");
   await page.screenshot({ path: `${OUT}/week-2026-09-15-375.png`, fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
